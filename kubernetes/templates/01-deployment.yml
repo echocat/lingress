@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{.ArtifactId}}
+  namespace: {{.GroupId}}
+spec:
+  replicas: {{.Values.replicas}}
+  selector:
+    matchLabels:
+      name: {{.ArtifactId}}
+  template:
+    metadata:
+      labels:
+        name: {{.ArtifactId}}
+    spec:
+      imagePullSecrets:
+        - name: {{.Values.pullScret}}
+      containers:
+        - name: service
+          image:  {{.GroupId}}/{{.ArtifactId}}/{{.Release}}
+          imagePullPolicy: Always
+          args:
+            - '--listen=:8080'
+            - '--kubeconfig=incluster'
+            - '--cors.enabled={{.Values.corsEnabled}}'
+            - '--forceSecure.enabled={{.Values.forceSecureEnabled}}'
+            {{if eq .Values.behindOtherReverseProxy "true"}}
+            - '--behindOtherReverseProxy'
+            {{end}}
+            - '--logLevel={{.Env | optional "TARGET_LOG_LEVEL" | default .Values.logLevel}}'
+            - '--ingressClass=lingress'
+            - '--ingressClass='
+            - '--header.response=Strict-Transport-Security: max-age=31536000; includeSubDomains'
+            - '--header.response=X-Content-Type-Options: nosniff'
+            - '--header.response=X-Frame-Options: SAMEORIGIN'
+            - '--header.response=X-XSS-Protection: 1; mode=block'
+          ports:
+            - containerPort: 8080
+            - containerPort: 8090
+          resources:
+            limits:
+              cpu: {{.Values.podMaxCpu}}
+              memory: {{.Values.podMaxMemory}}
+            requests:
+              cpu: {{.Values.podMinCpu}}
+              memory: {{.Values.podMinMemory}}
+          readinessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /health
+              port: 8090
+              scheme: HTTP
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 15
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /health
+              port: 8090
+              scheme: HTTP
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 15

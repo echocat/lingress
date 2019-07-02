@@ -1,0 +1,79 @@
+title: lingress
+imprint: Imprint
+privacyPolicy: Privacy Policy
+allRightReserved: All rights reserved.
+
+content-moved.message: This content has moved
+content-moved.link: please click here to follow
+
+explaination.clientSideIssue: Sorry, but this does not work. Please verify your request and try again.
+explaination.serverSideIssue: Sorry, that's probably our mistake. We're trying to fix this issue as soon as possible.
+explaination.temporaryIssue: This page will reload automatically when the service is available again. Please stand by...
+
+status-message.default: Error
+
+status-message.100: Continue
+status-message.101: Switching protocols
+status-message.102: Processing
+
+status-message.200: OK
+status-message.201: Created
+status-message.202: Accepted
+status-message.203: Non-Authoritative information
+status-message.204: No content
+status-message.205: Reset content
+status-message.206: Partial content
+status-message.207: Multi-Status
+status-message.208: Already reported
+status-message.226: IM used
+
+status-message.300: Multiple choices
+status-message.301: Moved permanently
+status-message.302: Found
+status-message.303: See other
+status-message.304: Not modified
+status-message.305: Use proxy
+status-message.307: Temporary redirect
+status-message.308: Permanent redirect
+
+status-message.400: Invalid request
+status-message.401: Unauthorized
+status-message.402: Payment required
+status-message.403: Forbidden
+status-message.404: Document not found
+status-message.405: Method not allowed
+status-message.406: Not acceptable
+status-message.407: Proxy authentication required
+status-message.408: Request timeout
+status-message.409: Conflict
+status-message.410: Gone
+status-message.411: Length required
+status-message.412: Precondition failed
+status-message.413: Request entity too large
+status-message.414: Request URI too long
+status-message.415: Unsupported media type
+status-message.416: Requested range not satisfiable
+status-message.417: Expectation railed
+status-message.418: I'm a teapot
+status-message.421: Misdirected request
+status-message.422: Unprocessable entity
+status-message.423: Locked
+status-message.424: Failed dependency
+status-message.425: Too early
+status-message.426: Upgrade required
+status-message.428: Precondition required
+status-message.429: Too many requests
+status-message.431: Request header fields too large
+status-message.451: Unavailable for legal reasons
+
+status-message.500: Internal server error
+status-message.501: Not implemented
+status-message.502: Bad gateway
+status-message.503: Service temporarily unavailable
+status-message.504: Gateway timeout
+status-message.505: HTTP version not supported
+status-message.506: Variant also negotiates
+status-message.507: Insufficient storage
+status-message.508: Loop detected
+status-message.510: Not extended
+status-message.511: Network authentication required
