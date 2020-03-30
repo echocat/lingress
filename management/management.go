@@ -41,19 +41,19 @@ func (instance *Management) RegisterFlag(fe support.FlagEnabled, appPrefix strin
 		PlaceHolder(instance.server.Addr).
 		Envar(support.FlagEnvName(appPrefix, "MANAGEMENT_LISTEN")).
 		StringVar(&instance.server.Addr)
-	fe.Flag("Management.maxHeaderBytes", "Maximum number of bytes the server will read parsing the request header's keys and values, including the request line. It does not limit the size of the request body.").
+	fe.Flag("management.maxHeaderBytes", "Maximum number of bytes the server will read parsing the request header's keys and values, including the request line. It does not limit the size of the request body.").
 		PlaceHolder(fmt.Sprint(instance.server.MaxHeaderBytes)).
 		Envar(support.FlagEnvName(appPrefix, "MANAGEMENT_MAX_HEADER_BYTES")).
 		IntVar(&instance.server.MaxHeaderBytes)
-	fe.Flag("Management.readHeaderTimeout", "Amount of time allowed to read request headers. The connection's read deadline is reset after reading the headers and the Handler can decide what is considered too slow for the body.").
+	fe.Flag("management.readHeaderTimeout", "Amount of time allowed to read request headers. The connection's read deadline is reset after reading the headers and the Handler can decide what is considered too slow for the body.").
 		PlaceHolder(fmt.Sprint(instance.server.ReadHeaderTimeout)).
 		Envar(support.FlagEnvName(appPrefix, "MANAGEMENT_READ_HEADER_TIMEOUT")).
 		DurationVar(&instance.server.ReadHeaderTimeout)
-	fe.Flag("Management.writeTimeout", "Maximum duration before timing out writes of the response. It is reset whenever a new request's header is read.").
+	fe.Flag("management.writeTimeout", "Maximum duration before timing out writes of the response. It is reset whenever a new request's header is read.").
 		PlaceHolder(fmt.Sprint(instance.server.WriteTimeout)).
 		Envar(support.FlagEnvName(appPrefix, "MANAGEMENT_WRITE_TIMEOUT")).
 		DurationVar(&instance.server.WriteTimeout)
-	fe.Flag("Management.idleTimeout", "Maximum amount of time to wait for the next request when keep-alives are enabled.").
+	fe.Flag("management.idleTimeout", "Maximum amount of time to wait for the next request when keep-alives are enabled.").
 		PlaceHolder(fmt.Sprint(instance.server.IdleTimeout)).
 		Envar(support.FlagEnvName(appPrefix, "MANAGEMENT_IDLE_TIMEOUT")).
 		DurationVar(&instance.server.IdleTimeout)
