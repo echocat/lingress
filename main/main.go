@@ -30,7 +30,8 @@ var (
 func main() {
 	intSig := make(chan os.Signal, 1)
 
-	app := kingpin.New(support.Runtime().Name(), "Edge ingress implementation for Kubernetes")
+	rt := support.Runtime()
+	app := kingpin.New(rt.Name(), "Edge ingress implementation for Kubernetes")
 
 	l, err := lingress.New(fps)
 	support.Must(err)
@@ -44,6 +45,10 @@ func main() {
 		support.ChannelDoOnEvent(stop, func() {
 			close(intSig)
 		})
+		log.WithField("revision", rt.Revision).
+			WithField("branch", rt.Branch).
+			WithField("build", rt.Build).
+			Infof("starting %s...", rt.Name())
 		if err := l.Init(stop); err != nil {
 			return err
 		}
