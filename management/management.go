@@ -37,9 +37,9 @@ func New(rulesRepository rules.Repository) (*Management, error) {
 }
 
 func (instance *Management) RegisterFlag(fe support.FlagEnabled, appPrefix string) error {
-	fe.Flag("management.listen", "Listen address where the management interface is listening to serve").
+	fe.Flag("management.listen.http", "Listen address where the management interface is listening to serve").
 		PlaceHolder(instance.server.Addr).
-		Envar(support.FlagEnvName(appPrefix, "MANAGEMENT_LISTEN")).
+		Envar(support.FlagEnvName(appPrefix, "MANAGEMENT_LISTEN_HTTP")).
 		StringVar(&instance.server.Addr)
 	fe.Flag("management.maxHeaderBytes", "Maximum number of bytes the server will read parsing the request header's keys and values, including the request line. It does not limit the size of the request body.").
 		PlaceHolder(fmt.Sprint(instance.server.MaxHeaderBytes)).

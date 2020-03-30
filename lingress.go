@@ -122,6 +122,9 @@ func (instance *Lingress) RegisterFlag(fe support.FlagEnabled, appPrefix string)
 	if err := instance.Fallback.RegisterFlag(fe, appPrefix); err != nil {
 		return err
 	}
+	if err := instance.Management.RegisterFlag(fe, appPrefix); err != nil {
+		return err
+	}
 	return nil
 }
 
