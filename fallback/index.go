@@ -2,6 +2,7 @@ package fallback
 
 import (
 	"github.com/echocat/lingress/context"
+	"io"
 	"mime"
 	"net/http"
 	"path"
@@ -36,9 +37,15 @@ func (instance *Fallback) Unknown(ctx *context.Context) {
 func (instance *Fallback) fallback(ctx *context.Context) {
 	if p := ctx.Client.Request.RequestURI; !path.IsAbs(p) || path.Clean(p) != p {
 		instance.Status(ctx, http.StatusNotFound, p, false)
-	} else if b, err := instance.FileProviders.GetStatic().Find(p); err != nil {
+	} else if fp, err := instance.FileProviders.GetStatic().Open(p); err != nil {
 		instance.Status(ctx, http.StatusNotFound, p, false)
 	} else {
+		//noinspection GoUnhandledErrorResult
+		defer fp.Close()
+		if fi, err := fp.Stat(); err != nil || fi.IsDir() {
+			instance.Status(ctx, http.StatusNotFound, p, false)
+			return
+		}
 		ext := path.Ext(p)
 		contentType := mime.TypeByExtension(ext)
 		if contentType == "" {
@@ -48,6 +55,6 @@ func (instance *Fallback) fallback(ctx *context.Context) {
 		ctx.Client.Status = http.StatusOK
 		ctx.Result = context.ResultFallback
 		ctx.Client.Response.WriteHeader(ctx.Client.Status)
-		_, _ = ctx.Client.Response.Write(b)
+		_, _ = io.Copy(ctx.Client.Response, fp)
 	}
 }

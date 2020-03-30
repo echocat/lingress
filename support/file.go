@@ -1,7 +1,10 @@
 package support
 
+import "net/http"
+
 type FileProvider interface {
 	List() []string
+	Open(name string) (http.File, error)
 	Find(filename string) ([]byte, error)
 }
 
