@@ -13,11 +13,6 @@ var (
 	EmptyBundle = errors.New("empty bundle")
 )
 
-type FileProvider interface {
-	List() []string
-	Find(filename string) ([]byte, error)
-}
-
 func LoadBundle(provider FileProvider) (bundle *i18n.Bundle, err error) {
 	bundle = &i18n.Bundle{DefaultLanguage: language.English}
 	bundle.RegisterUnmarshalFunc("yaml", yaml.Unmarshal)

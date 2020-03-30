@@ -1,38 +1,28 @@
 package fallback
 
 import (
-	"fmt"
-	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/echocat/lingress/support"
+	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"html/template"
-	"regexp"
 	"time"
 )
 
 type Fallback struct {
-	redirectTemplate *template.Template
-	statusTemplate   *template.Template
-	bundle           *i18n.Bundle
+	FileProviders    support.FileProviders
+	RedirectTemplate *template.Template
+	StatusTemplate   *template.Template
+	Bundle           *i18n.Bundle
 
-	fixTarget                string
-	fixTargetForHostsPattern *regexp.Regexp
-	fixTargetToHttps         bool
-
-	pathPrefix                     string
-	reloadTimeoutOnTemporaryIssues time.Duration
+	ReloadTimeoutOnTemporaryIssues time.Duration
 }
 
-func New() (*Fallback, error) {
+func New(fps support.FileProviders) (*Fallback, error) {
 	result := Fallback{
-		fixTarget:                "/view/",
-		fixTargetForHostsPattern: nil,
-		fixTargetToHttps:         false,
-
-		pathPrefix:                     "",
-		reloadTimeoutOnTemporaryIssues: time.Second * 15,
+		FileProviders:                  fps,
+		ReloadTimeoutOnTemporaryIssues: time.Second * 15,
 	}
 
-	sTmpl, err := newTemplate("status.html", template.FuncMap{
+	sTmpl, err := newTemplate(fps.GetTemplates(), "status.html", template.FuncMap{
 		"isStatusTemporaryIssue":  isStatusTemporaryIssue,
 		"isStatusCodeAnIssue":     isStatusCodeAnIssue,
 		"isStatusClientSideIssue": isStatusClientSideIssue,
@@ -41,45 +31,28 @@ func New() (*Fallback, error) {
 	if err != nil {
 		return nil, err
 	}
-	result.statusTemplate = sTmpl
+	result.StatusTemplate = sTmpl
 
-	rTmpl, err := newTemplate("redirect.html")
+	rTmpl, err := newTemplate(fps.GetTemplates(), "redirect.html")
 	if err != nil {
 		return nil, err
 	}
-	result.redirectTemplate = rTmpl
+	result.RedirectTemplate = rTmpl
 
-	bundle, err := newBundle()
+	bundle, err := newBundle(fps.GetLocalization())
 	if err != nil {
 		return nil, err
 	}
-	result.bundle = bundle
+	result.Bundle = bundle
 
 	return &result, nil
 }
 
 func (instance *Fallback) RegisterFlag(fe support.FlagEnabled, appPrefix string) error {
-	fe.Flag("fixTarget", "Target where to redirect to if someone accesses / or other stuff.").
-		PlaceHolder(instance.fixTarget).
-		Envar(support.FlagEnvName(appPrefix, "FIX_TARGET")).
-		StringVar(&instance.fixTarget)
-	fe.Flag("fixTargetForHostPattern", "Only do this target fixing for hosts that matches this pattern.").
-		PlaceHolder("<regexp>").
-		Envar(support.FlagEnvName(appPrefix, "FIX_TARGET_FOR_HOST_PATTERN")).
-		RegexpVar(&instance.fixTargetForHostsPattern)
-	fe.Flag("fixTargetToHttps", "If enabled and a target will be fixed it will be enforced to be HTTPS.").
-		PlaceHolder(fmt.Sprint(instance.fixTargetToHttps)).
-		Envar(support.FlagEnvName(appPrefix, "FIX_TARGET_TO_HTTPS")).
-		BoolVar(&instance.fixTargetToHttps)
-
-	fe.Flag("pathPrefix", "Appends the rendered paths with this prefix.").
-		Default(instance.pathPrefix).
-		Envar(support.FlagEnvName(appPrefix, "PATH_PREFIX")).
-		StringVar(&instance.pathPrefix)
 	fe.Flag("reloadTimeoutOnTemporaryIssues", "Timeout after which we try the reload the page on temporary issues.").
-		Default(instance.reloadTimeoutOnTemporaryIssues.String()).
+		Default(instance.ReloadTimeoutOnTemporaryIssues.String()).
 		Envar(support.FlagEnvName(appPrefix, "RELOAD_TIMEOUT_ON_TEMPORARY_ISSUES")).
-		DurationVar(&instance.reloadTimeoutOnTemporaryIssues)
+		DurationVar(&instance.ReloadTimeoutOnTemporaryIssues)
 
 	return nil
 }

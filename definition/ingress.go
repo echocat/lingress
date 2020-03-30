@@ -3,7 +3,6 @@ package definition
 import (
 	"fmt"
 	"k8s.io/api/extensions/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"time"
@@ -33,28 +32,4 @@ func (instance *Ingress) Get(key string) (*v1beta1.Ingress, error) {
 	} else {
 		return item.(*v1beta1.Ingress), nil
 	}
-}
-
-func (instance *Ingress) onElementAdded(key string, new metav1.Object) error {
-	instance.logKey("elementAdded", key).
-		WithField("new", new).
-		Info("updated")
-
-	return nil
-}
-
-func (instance *Ingress) onElementUpdated(key string, old, new metav1.Object) error {
-	instance.logKey("elementUpdated", key).
-		WithField("old", old).
-		WithField("new", new).
-		Info("updated")
-
-	return nil
-}
-
-func (instance *Ingress) onElementRemoved(key string) error {
-	instance.logKey("elementRemoved", key).
-		Info("removed")
-
-	return nil
 }

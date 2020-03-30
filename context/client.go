@@ -3,8 +3,8 @@ package context
 import (
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"github.com/echocat/lingress/support"
+	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
 	"net/url"

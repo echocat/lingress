@@ -5,27 +5,25 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	lctx "github.com/echocat/lingress/context"
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/support"
+	log "github.com/sirupsen/logrus"
 	"io"
 	"net"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"strings"
 	"time"
 )
 
 type Proxy struct {
-	dialer    *net.Dialer
-	transport *http.Transport
-	rp        *httputil.ReverseProxy
-	rules     rules.Repository
+	Dialer          *net.Dialer
+	Transport       *http.Transport
+	RulesRepository rules.Repository
 
-	overrideHost   string
-	overrideScheme string
+	OverrideHost   string
+	OverrideScheme string
 
 	BehindOtherReverseProxy bool
 	ResultHandler           lctx.ResultHandler
@@ -51,10 +49,10 @@ func New(rules rules.Repository) (*Proxy, error) {
 		},
 	}
 	return &Proxy{
-		dialer:       dialer,
-		transport:    transport,
-		rules:        rules,
-		Interceptors: DefaultInterceptors.Clone(),
+		Dialer:          dialer,
+		Transport:       transport,
+		RulesRepository: rules,
+		Interceptors:    DefaultInterceptors.Clone(),
 	}, nil
 }
 
@@ -64,37 +62,37 @@ func (instance *Proxy) RegisterFlag(fe support.FlagEnabled, appPrefix string) er
 		Envar(support.FlagEnvName(appPrefix, "BEHIND_OTHER_REVERSE_PROXY")).
 		BoolVar(&instance.BehindOtherReverseProxy)
 	fe.Flag("upstream.maxIdleConnectionsPerHost", "Controls the maximum idle (keep-alive) connections to keep per-host.").
-		PlaceHolder(fmt.Sprint(instance.transport.MaxIdleConnsPerHost)).
+		PlaceHolder(fmt.Sprint(instance.Transport.MaxIdleConnsPerHost)).
 		Envar(support.FlagEnvName(appPrefix, "UPSTREAM_MAX_IDLE_CONNECTIONS_PER_HOST")).
-		IntVar(&instance.transport.MaxIdleConnsPerHost)
+		IntVar(&instance.Transport.MaxIdleConnsPerHost)
 	fe.Flag("upstream.maxConnectionsPerHost", "Limits the total number of connections per host, including connections in the dialing, active, and idle states. On limit violation, dials will block.").
-		PlaceHolder(fmt.Sprint(instance.transport.MaxConnsPerHost)).
+		PlaceHolder(fmt.Sprint(instance.Transport.MaxConnsPerHost)).
 		Envar(support.FlagEnvName(appPrefix, "UPSTREAM_MAX_CONNECTIONS_PER_HOST")).
-		IntVar(&instance.transport.MaxConnsPerHost)
+		IntVar(&instance.Transport.MaxConnsPerHost)
 	fe.Flag("upstream.idleConnectionTimeout", "Maximum amount of time an idle (keep-alive) connection will remain idle before closing itself. Zero means no limit.").
-		PlaceHolder(fmt.Sprint(instance.transport.IdleConnTimeout)).
+		PlaceHolder(fmt.Sprint(instance.Transport.IdleConnTimeout)).
 		Envar(support.FlagEnvName(appPrefix, "UPSTREAM_IDLE_CONNECTION_TIMEOUT")).
-		DurationVar(&instance.transport.IdleConnTimeout)
+		DurationVar(&instance.Transport.IdleConnTimeout)
 	fe.Flag("upstream.maxResponseHeaderSize", "Limit on how many response bytes are allowed in the server's response header.").
-		PlaceHolder(fmt.Sprint(instance.transport.MaxResponseHeaderBytes)).
+		PlaceHolder(fmt.Sprint(instance.Transport.MaxResponseHeaderBytes)).
 		Envar(support.FlagEnvName(appPrefix, "UPSTREAM_MAX_RESPONSE_HEADER_SIZE")).
-		Int64Var(&instance.transport.MaxResponseHeaderBytes)
+		Int64Var(&instance.Transport.MaxResponseHeaderBytes)
 	fe.Flag("upstream.dialTimeout", "Maximum amount of time a dial will wait for a connect to complete. If Deadline is also set, it may fail earlier.").
-		PlaceHolder(fmt.Sprint(instance.dialer.Timeout)).
+		PlaceHolder(fmt.Sprint(instance.Dialer.Timeout)).
 		Envar(support.FlagEnvName(appPrefix, "UPSTREAM_DIAL_TIMEOUT")).
-		DurationVar(&instance.dialer.Timeout)
+		DurationVar(&instance.Dialer.Timeout)
 	fe.Flag("upstream.keepAlive", "Keep-alive period for an active network connection. If zero, keep-alives are enabled if supported by the protocol and operating system. Network protocols or operating systems that do not support keep-alives ignore this field. If negative, keep-alives are disabled.").
-		PlaceHolder(fmt.Sprint(instance.dialer.KeepAlive)).
+		PlaceHolder(fmt.Sprint(instance.Dialer.KeepAlive)).
 		Envar(support.FlagEnvName(appPrefix, "UPSTREAM_KEEP_ALIVE")).
-		DurationVar(&instance.dialer.KeepAlive)
+		DurationVar(&instance.Dialer.KeepAlive)
 	fe.Flag("upstream.override.host", "Overrides the target host always with this value.").
-		PlaceHolder(instance.overrideHost).
+		PlaceHolder(instance.OverrideHost).
 		Envar(support.FlagEnvName(appPrefix, "UPSTREAM_OVERRIDE_HOST")).
-		StringVar(&instance.overrideHost)
+		StringVar(&instance.OverrideHost)
 	fe.Flag("upstream.override.scheme", "Overrides the target scheme always with this value.").
-		PlaceHolder(instance.overrideScheme).
+		PlaceHolder(instance.OverrideScheme).
 		Envar(support.FlagEnvName(appPrefix, "UPSTREAM_OVERRIDE_SCHEME")).
-		StringVar(&instance.overrideScheme)
+		StringVar(&instance.OverrideScheme)
 
 	if i := instance.Interceptors; i != nil {
 		if err := i.RegisterFlag(fe, appPrefix); err != nil {
@@ -129,7 +127,7 @@ func (instance *Proxy) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	}
 
 	ctx.Stage = lctx.StageEvaluateClientRequest
-	rs, err := instance.rules.FindBy(query)
+	rs, err := instance.RulesRepository.FindBy(query)
 	if err != nil {
 		instance.markDone(lctx.ResultFailedWithUnexpectedError, ctx, err)
 		return
@@ -211,13 +209,13 @@ func (instance *Proxy) createBackendRequestFor(ctx *lctx.Context, r rules.Rule) 
 		return false, err
 	}
 
-	if instance.overrideHost != "" {
-		u.Host = instance.overrideHost
+	if instance.OverrideHost != "" {
+		u.Host = instance.OverrideHost
 	} else {
 		u.Host = r.Backend().String()
 	}
-	if instance.overrideScheme != "" {
-		u.Scheme = instance.overrideScheme
+	if instance.OverrideScheme != "" {
+		u.Scheme = instance.OverrideScheme
 	} else {
 		u.Scheme = "http"
 	}
@@ -273,7 +271,7 @@ func (instance *Proxy) execute(ctx *lctx.Context) error {
 	} else if !proceed {
 		return nil
 	}
-	bResp, err := instance.transport.RoundTrip(ctx.Upstream.Request)
+	bResp, err := instance.Transport.RoundTrip(ctx.Upstream.Request)
 	ctx.Upstream.Duration = time.Now().Sub(ctx.Upstream.Started)
 	if err != nil {
 		return err

@@ -2,10 +2,10 @@ package rules
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"github.com/echocat/lingress/definition"
 	"github.com/echocat/lingress/kubernetes"
 	"github.com/echocat/lingress/support"
+	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,60 +22,79 @@ type Query struct {
 	Path string
 }
 
+type CertificateQuery struct {
+	Host string
+}
+
 type Repository interface {
 	support.FlagRegistrar
-	Init(stopCh chan struct{}) error
+	Init(stop support.Channel) error
 	All(consumer func(Rule) error) error
 	FindBy(Query) (Rules, error)
 }
 
-type repositoryImpl struct {
-	environment  *kubernetes.Environment
-	byHostRules  *ByHost
-	resyncAfter  time.Duration
-	ingressClass []string
+type CombinedRepository interface {
+	Repository
+	CertificateRepository
 }
 
-func NewRepository() (Repository, error) {
+type repositoryImpl struct {
+	Environment  *kubernetes.Environment
+	ByHostRules  *ByHost
+	ResyncAfter  time.Duration
+	IngressClass []string
+
+	CertificatesSecret string
+	CertificatesByHost CertificatesByHost
+}
+
+func NewRepository() (CombinedRepository, error) {
 	if environment, err := kubernetes.NewEnvironment(); err != nil {
 		return nil, err
 	} else {
 		result := &repositoryImpl{
-			environment:  environment,
-			ingressClass: []string{},
+			Environment:  environment,
+			IngressClass: []string{},
+
+			CertificatesSecret: "certificates",
 		}
-		result.byHostRules = NewByHost(result.onRuleAdded, result.onRuleRemoved)
+		result.ByHostRules = NewByHost(result.onRuleAdded, result.onRuleRemoved)
 		return result, nil
 	}
 }
 
 func (instance *repositoryImpl) RegisterFlag(fe support.FlagEnabled, appPrefix string) error {
 	fe.Flag("resyncAfter", "Time after which the configuration should be resynced to be ensure to be not out of date.").
-		PlaceHolder(instance.resyncAfter.String()).
+		PlaceHolder(instance.ResyncAfter.String()).
 		Envar(support.FlagEnvName(appPrefix, "RESYNC_AFTER")).
-		DurationVar(&instance.resyncAfter)
+		DurationVar(&instance.ResyncAfter)
 	fe.Flag("ingressClass", "Ingress classes which this application should respect.").
 		PlaceHolder(ingressClass).
 		Envar(support.FlagEnvName(appPrefix, "INGRESS_CLASS")).
-		StringsVar(&instance.ingressClass)
+		StringsVar(&instance.IngressClass)
+	fe.Flag("secret.certificates", "Name of the secret that contains the certificates.").
+		PlaceHolder(instance.CertificatesSecret).
+		Envar(support.FlagEnvName(appPrefix, "SECRET_CERTIFICATES")).
+		StringVar(&instance.CertificatesSecret)
 
-	return instance.environment.RegisterFlag(fe, appPrefix)
+	return instance.Environment.RegisterFlag(fe, appPrefix)
 }
 
-func (instance *repositoryImpl) Init(stopCh chan struct{}) error {
-	if len(instance.ingressClass) == 0 {
-		instance.ingressClass = []string{ingressClass, ""}
+func (instance *repositoryImpl) Init(stop support.Channel) error {
+	if len(instance.IngressClass) == 0 {
+		instance.IngressClass = []string{ingressClass, ""}
 	}
 	log.Info("initial sync of definitions...")
 
-	client, err := instance.environment.NewClient()
+	client, err := instance.Environment.NewClient()
 	if err != nil {
 		return err
 	}
-	definitions, err := definition.New(client, instance.resyncAfter)
+	definitions, err := definition.New(client, instance.ResyncAfter)
 	if err != nil {
 		return err
 	}
+	definitions.SetNamespace(instance.Environment.Namespace)
 
 	state := &repositoryImplState{
 		repositoryImpl: instance,
@@ -84,11 +103,15 @@ func (instance *repositoryImpl) Init(stopCh chan struct{}) error {
 
 	state.initiated.Store(false)
 
-	definitions.Ingress.OnElementAdded = state.onElementAdded
-	definitions.Ingress.OnElementUpdated = state.onElementUpdated
-	definitions.Ingress.OnElementRemoved = state.onElementRemoved
+	definitions.Ingress.OnElementAdded = state.onIngressElementAdded
+	definitions.Ingress.OnElementUpdated = state.onIngressElementUpdated
+	definitions.Ingress.OnElementRemoved = state.onIngressElementRemoved
 
-	if err := definitions.Init(stopCh); err != nil {
+	definitions.ServiceSecrets.OnElementAdded = state.onServiceSecretsElementAdded
+	definitions.ServiceSecrets.OnElementUpdated = state.onServiceSecretsElementUpdated
+	definitions.ServiceSecrets.OnElementRemoved = state.onServiceSecretsElementRemoved
+
+	if err := definitions.Init(stop); err != nil {
 		return err
 	}
 
@@ -98,11 +121,11 @@ func (instance *repositoryImpl) Init(stopCh chan struct{}) error {
 	return nil
 }
 
-func (instance *repositoryImpl) onRuleAdded(path []string, r Rule) {
+func (instance *repositoryImpl) onRuleAdded(_ []string, r Rule) {
 	log.WithField("rule", r).Info("rule added")
 }
 
-func (instance *repositoryImpl) onRuleRemoved(path []string, r Rule) {
+func (instance *repositoryImpl) onRuleRemoved(_ []string, r Rule) {
 	log.WithField("rule", r).Info("rule removed")
 }
 
@@ -113,8 +136,67 @@ type repositoryImplState struct {
 	initiated   atomic.Value
 }
 
-func (instance *repositoryImplState) onElementAdded(key string, new metav1.Object) error {
-	target := instance.byHostRules
+func (instance *repositoryImplState) onSecretCertificatesChanged(key string, new metav1.Object) error {
+	if new == nil {
+		instance.CertificatesByHost = CertificatesByHost{}
+		return nil
+	}
+
+	s := new.(*v1.Secret)
+
+	cbh := CertificatesByHost{}
+
+	for file, candidate := range s.Data {
+		base, ext := support.SplitExt(file)
+		if ext == ".crt" || ext == ".cer" {
+			privateKeyFile := base + ".key"
+			if pk, ok := s.Data[privateKeyFile]; !ok {
+				log.WithField("secret", key).
+					WithField("certificate", file).
+					WithField("privateKey", privateKeyFile).
+					Warn("cannot find expected privateKey in secret for provided certificate; ignoring...")
+			} else if err := cbh.AddBytes(candidate, pk); err != nil {
+				log.WithError(err).
+					WithField("secret", key).
+					WithField("certificate", file).
+					WithField("privateKey", privateKeyFile).
+					Warn("cannot parse certificate and privateKey pair from secret; ignoring...")
+			}
+		}
+	}
+
+	instance.CertificatesByHost = cbh
+
+	return nil
+}
+
+func (instance *repositoryImplState) expectedCertificatesKey() string {
+	return instance.Environment.Namespace + "/" + instance.CertificatesSecret
+}
+
+func (instance *repositoryImplState) onServiceSecretsElementAdded(key string, new metav1.Object) error {
+	if key == instance.expectedCertificatesKey() {
+		return instance.onSecretCertificatesChanged(key, new)
+	}
+	return nil
+}
+
+func (instance *repositoryImplState) onServiceSecretsElementUpdated(key string, _, new metav1.Object) error {
+	if key == instance.expectedCertificatesKey() {
+		return instance.onSecretCertificatesChanged(key, new)
+	}
+	return nil
+}
+
+func (instance *repositoryImplState) onServiceSecretsElementRemoved(key string) error {
+	if key == instance.expectedCertificatesKey() {
+		return instance.onSecretCertificatesChanged(key, nil)
+	}
+	return nil
+}
+
+func (instance *repositoryImplState) onIngressElementAdded(_ string, new metav1.Object) error {
+	target := instance.ByHostRules
 	clonedUpdate := instance.initiated.Load() == true
 	if clonedUpdate {
 		target = target.Clone()
@@ -125,7 +207,7 @@ func (instance *repositoryImplState) onElementAdded(key string, new metav1.Objec
 	annotations := candidate.GetAnnotations()
 	ic := annotations[annotationIngressClass]
 	ingressClassMatches := false
-	for _, candidate := range instance.ingressClass {
+	for _, candidate := range instance.IngressClass {
 		if ic == candidate {
 			ingressClassMatches = true
 			break
@@ -141,26 +223,26 @@ func (instance *repositoryImplState) onElementAdded(key string, new metav1.Objec
 	}
 
 	if clonedUpdate {
-		instance.byHostRules = target
+		instance.ByHostRules = target
 	}
 	return nil
 }
 
-func (instance *repositoryImplState) onElementUpdated(key string, old, new metav1.Object) error {
+func (instance *repositoryImplState) onIngressElementUpdated(key string, _, new metav1.Object) error {
 	candidate := new.(*v1beta1.Ingress)
 
 	annotations := candidate.GetAnnotations()
 	ic := annotations[annotationIngressClass]
-	for _, candidate := range instance.ingressClass {
+	for _, candidate := range instance.IngressClass {
 		if ic == candidate {
-			return instance.onElementAdded(key, new)
+			return instance.onIngressElementAdded(key, new)
 		}
 	}
-	return instance.onElementRemoved(key)
+	return instance.onIngressElementRemoved(key)
 }
 
-func (instance *repositoryImplState) onElementRemoved(key string) error {
-	target := instance.byHostRules
+func (instance *repositoryImplState) onIngressElementRemoved(key string) error {
+	target := instance.ByHostRules
 	clonedUpdate := instance.initiated.Load() != true
 	if clonedUpdate {
 		target = target.Clone()
@@ -181,7 +263,7 @@ func (instance *repositoryImplState) onElementRemoved(key string) error {
 	}
 
 	if clonedUpdate {
-		instance.byHostRules = target
+		instance.ByHostRules = target
 	}
 	return nil
 }
@@ -268,7 +350,7 @@ func (instance *repositoryImplState) ingressToService(source *sourceReference, i
 }
 
 func (instance *repositoryImpl) All(consumer func(Rule) error) error {
-	return instance.byHostRules.All(consumer)
+	return instance.ByHostRules.All(consumer)
 }
 
 func (instance *repositoryImpl) FindBy(q Query) (Rules, error) {
@@ -277,5 +359,9 @@ func (instance *repositoryImpl) FindBy(q Query) (Rules, error) {
 	if err != nil {
 		return nil, err
 	}
-	return instance.byHostRules.Find(host, path)
+	return instance.ByHostRules.Find(host, path)
+}
+
+func (instance *repositoryImpl) FindCertificatesBy(q CertificateQuery) (Certificates, error) {
+	return instance.CertificatesByHost.Find(q.Host), nil
 }

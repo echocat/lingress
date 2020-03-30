@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/alecthomas/kingpin"
-	log "github.com/sirupsen/logrus"
 	"github.com/echocat/lingress"
 	"github.com/echocat/lingress/support"
 	_ "github.com/echocat/lingress/support"
+	"github.com/gobuffalo/packr"
+	log "github.com/sirupsen/logrus"
+	"gopkg.in/alecthomas/kingpin.v2"
 	"os"
 	"os/signal"
 )
@@ -14,27 +15,41 @@ const (
 	appPrefix = "LINGRESS_"
 )
 
+var (
+	localizations = packr.NewBox("../resources/localization")
+	static        = packr.NewBox("../resources/static")
+	templates     = packr.NewBox("../resources/templates")
+
+	fps = support.DefaultFileProviders{
+		Localization: localizations,
+		Static:       static,
+		Templates:    templates,
+	}
+)
+
 func main() {
 	intSig := make(chan os.Signal, 1)
 
 	app := kingpin.New(support.Runtime().Name(), "Edge ingress implementation for Kubernetes")
 
-	l, err := lingress.New()
+	l, err := lingress.New(fps)
 	support.Must(err)
 
 	support.Must(l.RegisterFlag(app, appPrefix))
 	support.MustRegisterGlobalFalgs(app, appPrefix)
 
-	stopCh := make(chan struct{})
+	stop := support.NewChannel()
 
 	app.Action(func(_ *kingpin.ParseContext) error {
-		defer close(stopCh)
-		if err := l.Init(stopCh); err != nil {
+		support.ChannelDoOnEvent(stop, func() {
+			close(intSig)
+		})
+		if err := l.Init(stop); err != nil {
 			return err
 		}
 		<-intSig
 		log.Info("shutting down...")
-		stopCh <- struct{}{}
+		stop.Broadcast()
 		log.Info("bye!")
 		return nil
 	})

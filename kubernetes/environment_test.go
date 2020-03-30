@@ -1,8 +1,8 @@
 package kubernetes
 
 import (
-	. "github.com/onsi/gomega"
 	"github.com/echocat/lingress/support"
+	. "github.com/onsi/gomega"
 	"io/ioutil"
 	"k8s.io/client-go/tools/clientcmd"
 	"os"

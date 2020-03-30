@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/alecthomas/kingpin"
-	log "github.com/sirupsen/logrus"
 	"github.com/echocat/lingress/support"
+	log "github.com/sirupsen/logrus"
+	"gopkg.in/alecthomas/kingpin.v2"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,29 +24,29 @@ var (
 		Default("").
 		String()
 	artifactId = kingpin.Flag("artifactId", "").
-		Envar("ARTIFACT_ID").
-		Short('a').
-		Default("").
-		String()
+			Envar("ARTIFACT_ID").
+			Short('a').
+			Default("").
+			String()
 	branch = kingpin.Flag("branch", "").
 		Envar("BRANCH").
 		Short('b').
 		Required().
 		String()
 	revision = kingpin.Flag("revision", "").
-		Envar("REVISION").
-		Short('r').
-		Required().
-		String()
+			Envar("REVISION").
+			Short('r').
+			Required().
+			String()
 	output = kingpin.Flag("output", "").
 		Envar("OUTPUT").
 		Short('o').
 		Required().
 		String()
 	targetPackage = kingpin.Arg("package", "").
-		Envar("PACKAGE").
-		Default("./").
-		String()
+			Envar("PACKAGE").
+			Default("./").
+			String()
 )
 
 func main() {

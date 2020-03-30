@@ -2,9 +2,9 @@ package context
 
 import (
 	"encoding/json"
-	log "github.com/sirupsen/logrus"
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/support"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"strings"
 	"sync"

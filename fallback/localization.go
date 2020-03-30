@@ -1,24 +1,19 @@
 package fallback
 
 import (
-	"github.com/gobuffalo/packr"
-	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/echocat/lingress/context"
 	"github.com/echocat/lingress/support"
+	"github.com/nicksnyder/go-i18n/v2/i18n"
 )
 
-var (
-	localizations = packr.NewBox("../resources/localization")
-)
-
-func newBundle() (bundle *i18n.Bundle, err error) {
-	return support.LoadBundle(localizations)
+func newBundle(fp support.FileProvider) (bundle *i18n.Bundle, err error) {
+	return support.LoadBundle(fp)
 }
 
 func newLocationContextForCtx(ctx *context.Context, bundle *i18n.Bundle) *support.LocalizationContext {
 	return &support.LocalizationContext{
 		Bundle:         bundle,
-		AcceptLanguage: string(ctx.Client.Request.Header.Get("Accept-Language")),
+		AcceptLanguage: ctx.Client.Request.Header.Get("Accept-Language"),
 	}
 }
 

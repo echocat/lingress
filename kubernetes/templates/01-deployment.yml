@@ -28,7 +28,7 @@ spec:
             - '--behindOtherReverseProxy'
             {{end}}
             - '--logLevel={{.Env | optional "TARGET_LOG_LEVEL" | default .Values.logLevel}}'
-            - '--ingressClass=lingress'
+            - '--ingressClass=main'
             - '--ingressClass='
             - '--header.response=Strict-Transport-Security: max-age=31536000; includeSubDomains'
             - '--header.response=X-Content-Type-Options: nosniff'

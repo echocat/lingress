@@ -1,7 +1,7 @@
 package support
 
 import (
-	"github.com/alecthomas/kingpin"
+	"gopkg.in/alecthomas/kingpin.v2"
 	"strings"
 	"unicode"
 )

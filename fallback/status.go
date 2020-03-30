@@ -14,7 +14,7 @@ func (instance *Fallback) Status(ctx *context.Context, statusCode int, path stri
 		ctx.Client.Response.WriteHeader(statusCode)
 		return
 	}
-	lc := newLocationContextForCtx(ctx, instance.bundle)
+	lc := newLocationContextForCtx(ctx, instance.Bundle)
 	switch support.NegotiateContentTypeOf(ctx.Client.Request, "application/x-yaml", "application/xml", "application/json", "text/html", "text/plain") {
 	case "application/json":
 		instance.StatusAsJson(ctx, statusCode, path, canHandleTemporary, lc)
@@ -29,40 +29,39 @@ func (instance *Fallback) Status(ctx *context.Context, statusCode int, path stri
 	}
 }
 
-func (instance *Fallback) StatusAsJson(ctx *context.Context, statusCode int, path string, canHandleTemporary bool, lc *support.LocalizationContext) {
+func (instance *Fallback) StatusAsJson(ctx *context.Context, statusCode int, path string, _ bool, lc *support.LocalizationContext) {
 	newLocalizedGenericResponse(ctx, statusCode, lc).
 		WithPath(path).
 		StreamJsonTo(ctx.Client.Response, ctx.Client.Request)
 }
 
-func (instance *Fallback) StatusAsYaml(ctx *context.Context, statusCode int, path string, canHandleTemporary bool, lc *support.LocalizationContext) {
+func (instance *Fallback) StatusAsYaml(ctx *context.Context, statusCode int, path string, _ bool, lc *support.LocalizationContext) {
 	newLocalizedGenericResponse(ctx, statusCode, lc).
 		WithPath(path).
 		StreamYamlTo(ctx.Client.Response, ctx.Client.Request)
 }
 
-func (instance *Fallback) StatusAsXml(ctx *context.Context, statusCode int, path string, canHandleTemporary bool, lc *support.LocalizationContext) {
+func (instance *Fallback) StatusAsXml(ctx *context.Context, statusCode int, path string, _ bool, lc *support.LocalizationContext) {
 	newLocalizedGenericResponse(ctx, statusCode, lc).
 		WithPath(path).
 		StreamXmlTo(ctx.Client.Response, ctx.Client.Request)
 }
 
-func (instance *Fallback) StatusAsText(ctx *context.Context, statusCode int, path string, canHandleTemporary bool, lc *support.LocalizationContext) {
+func (instance *Fallback) StatusAsText(ctx *context.Context, statusCode int, _ string, _ bool, lc *support.LocalizationContext) {
 	ctx.Client.Response.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	ctx.Client.Response.WriteHeader(statusCode)
 	_, _ = ctx.Client.Response.Write([]byte(fmt.Sprintf("%d. %s\n", statusCode, localizeStatus(statusCode, lc))))
 }
 
 func (instance *Fallback) StatusAsHtml(ctx *context.Context, statusCode int, path string, canHandleTemporary bool, lc *support.LocalizationContext) {
-	if tmpl, err := cloneAndLocalizeTemplate(instance.statusTemplate, lc); err != nil {
+	if tmpl, err := cloneAndLocalizeTemplate(instance.StatusTemplate, lc); err != nil {
 		ctx.Client.Response.WriteHeader(statusCode)
 		return
 	} else {
 		object := map[string]interface{}{
-			"pathPrefix":         instance.pathPrefix,
 			"statusCode":         statusCode,
 			"path":               path,
-			"autoReloadSeconds":  int(math.Round(instance.reloadTimeoutOnTemporaryIssues.Seconds())),
+			"autoReloadSeconds":  int(math.Round(instance.ReloadTimeoutOnTemporaryIssues.Seconds())),
 			"canHandleTemporary": canHandleTemporary,
 			"year":               time.Now().Year(),
 			"requestId":          ctx.Id.String(),

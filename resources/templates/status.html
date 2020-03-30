@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="{{ "title" | langBy }}">
 <head>
     {{ $statusMessage := join "." "status-message" .statusCode | i18nOrDefault "status-message.default" -}}
     <meta charset="UTF-8">
@@ -55,15 +55,6 @@
             font-size: 1.5em;
         }
 
-        #background-bottom {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            width: 100%;
-            z-index: -100;
-        }
-
         .requestId {
             opacity: 0.5;
             font-size: 0.7em;
@@ -91,7 +82,7 @@
 </main>
 <section></section>
 <footer>
-    © {{.year}} <a href="https://echo.cat">echocat</a>
+    © 2015-{{.year}} <a href="https://echo.cat">echocat</a>
 </footer>
 </body>
 </html>

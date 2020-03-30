@@ -3,12 +3,14 @@ package kubernetes
 import (
 	"fmt"
 	"github.com/echocat/lingress/support"
+	"io/ioutil"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	dynamicFake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/transport"
 	certutil "k8s.io/client-go/util/cert"
 	"net"
 	"os"
@@ -19,13 +21,15 @@ import (
 const (
 	ServiceTokenFile  = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 	ServiceRootCAFile = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+	ServiceNamespace  = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 )
 
 func NewEnvironment() (env *Environment, err error) {
 	return &Environment{
-		lock:       new(sync.Mutex),
-		tokenFile:  ServiceTokenFile,
-		rootCAFile: ServiceRootCAFile,
+		lock:          new(sync.Mutex),
+		tokenFile:     ServiceTokenFile,
+		rootCAFile:    ServiceRootCAFile,
+		namespaceFile: ServiceNamespace,
 	}, nil
 }
 
@@ -38,12 +42,14 @@ func MustNewEnvironment() *Environment {
 type Environment struct {
 	Kubeconfig KubeconfigPath
 	Context    string
+	Namespace  string
 
 	lock    *sync.Mutex
 	payload *environmentPayload
 
-	tokenFile  string
-	rootCAFile string
+	tokenFile     string
+	rootCAFile    string
+	namespaceFile string
 }
 
 type environmentPayload struct {
@@ -64,6 +70,12 @@ func (instance *Environment) RegisterFlag(fe support.FlagEnabled, appPrefix stri
 		Short('c').
 		Envar(support.FlagEnvName(appPrefix, "CONTEXT")).
 		StringVar(&instance.Context)
+	fe.Flag("namespace", "Defines namespace where it service is bound to/running in."+
+		" This value is ignored if kbueconfig 'incluster' is used.").
+		PlaceHolder("<namespace>").
+		Short('n').
+		Envar(support.FlagEnvName(appPrefix, "NAMESPACE")).
+		StringVar(&instance.Namespace)
 	return nil
 }
 
@@ -128,7 +140,7 @@ func (instance *Environment) loadForInCluster() (*environmentPayload, error) {
 		return nil, rest.ErrNotInCluster
 	}
 
-	ts := rest.NewCachedFileTokenSource(instance.tokenFile)
+	ts := transport.NewCachedFileTokenSource(instance.tokenFile)
 
 	if _, err := ts.Token(); err != nil {
 		return nil, err
@@ -142,11 +154,17 @@ func (instance *Environment) loadForInCluster() (*environmentPayload, error) {
 		tlsClientConfig.CAFile = instance.rootCAFile
 	}
 
+	if nsb, err := ioutil.ReadFile(instance.namespaceFile); err != nil {
+		return nil, fmt.Errorf("expected to load namespace from %s, but got err: %v", instance.rootCAFile, err)
+	} else {
+		instance.Namespace = string(nsb)
+	}
+
 	return &environmentPayload{
 		restConfig: &rest.Config{
 			Host:            "https://" + net.JoinHostPort(host, port),
 			TLSClientConfig: tlsClientConfig,
-			WrapTransport:   rest.TokenSourceWrapTransport(ts),
+			WrapTransport:   transport.TokenSourceWrapTransport(ts),
 		},
 		contextName: KubeconfigInCluster,
 	}, nil

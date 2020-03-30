@@ -3,9 +3,9 @@ package management
 import (
 	"context"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/support"
+	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
 	"strings"
@@ -26,6 +26,9 @@ func New(rulesRepository rules.Repository) (*Management, error) {
 			ReadHeaderTimeout: 30 * time.Second,
 			WriteTimeout:      30 * time.Second,
 			IdleTimeout:       5 * time.Minute,
+			ErrorLog: support.StdLog(log.Fields{
+				"context": "server.management",
+			}, log.DebugLevel),
 		},
 	}
 	result.server.Handler = result
@@ -170,8 +173,8 @@ func (instance *Management) handleRules(resp http.ResponseWriter, req *http.Requ
 		StreamJsonTo(resp, req)
 }
 
-func (instance *Management) Init(stopCh chan struct{}) error {
-	go instance.shutdownListener(stopCh)
+func (instance *Management) Init(stop support.Channel) error {
+	go instance.shutdownListener(stop)
 
 	ln, err := net.Listen("tcp", instance.server.Addr)
 	if err != nil {
@@ -179,20 +182,25 @@ func (instance *Management) Init(stopCh chan struct{}) error {
 	}
 
 	go func() {
-		if err := instance.server.Serve(ln); err != nil {
+		if err := instance.server.Serve(ln); err != nil && err != http.ErrServerClosed {
 			log.WithError(err).
-				Fatal("server is unable to serve management interface")
+				WithField("addr", instance.server.Addr).
+				Error("server is unable to serve management interface")
+			stop.Broadcast()
 		}
 	}()
+	log.WithField("addr", instance.server.Addr).
+		Info("serve management interface")
 
 	return nil
 }
 
-func (instance *Management) shutdownListener(stopCh chan struct{}) {
-	<-stopCh
+func (instance *Management) shutdownListener(stop support.Channel) {
+	stop.Wait()
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
 	if err := instance.server.Shutdown(ctx); err != nil {
 		log.WithError(err).
+			WithField("addr", instance.server.Addr).
 			Warn("cannot graceful shutdown management interface")
 	}
 }
