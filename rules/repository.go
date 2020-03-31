@@ -273,6 +273,9 @@ func (instance *repositoryImplState) visitIngress(ingress *v1beta1.Ingress, targ
 		namespace: ingress.Namespace,
 		name:      ingress.Name,
 	}
+	if err := target.Remove(PredicateBySource(source)); err != nil {
+		return err
+	}
 
 	for _, forHost := range ingress.Spec.Rules {
 		host := normalizeHostname(forHost.Host)
