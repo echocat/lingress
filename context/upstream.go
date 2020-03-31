@@ -2,8 +2,10 @@ package context
 
 import (
 	"context"
+	"github.com/echocat/lingress/rules"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -38,7 +40,7 @@ func (instance *Upstream) clean() {
 	instance.Duration = 0
 }
 
-func (instance Upstream) AsMap() map[string]interface{} {
+func (instance Upstream) AsMap(r rules.Rule) map[string]interface{} {
 	buf := map[string]interface{}{}
 	if addr := instance.Address; addr != nil {
 		buf["address"] = addr.String()
@@ -51,6 +53,17 @@ func (instance Upstream) AsMap() map[string]interface{} {
 	}
 	if d := instance.Duration; d > 0 {
 		buf["duration"] = d / time.Microsecond
+	}
+	if req := instance.Request; req != nil {
+		if u := req.URL; u != nil {
+			buf["url"] = u
+		}
+		buf["method"] = req.Method
+		buf["proto"] = req.Proto
+	}
+	if r != nil {
+		buf["source"] = r.Source().String()
+		buf["matches"] = r.Host() + "/" + strings.Join(r.Path(), "/")
 	}
 	return buf
 }

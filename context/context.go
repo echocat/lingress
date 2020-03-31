@@ -6,7 +6,6 @@ import (
 	"github.com/echocat/lingress/support"
 	log "github.com/sirupsen/logrus"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 )
@@ -108,11 +107,7 @@ func (instance *Context) AsMap() map[string]interface{} {
 	if err := instance.Error; err != nil {
 		buf["error"] = err
 	}
-	if r := instance.Rule; r != nil {
-		buf["source"] = r.Source().String()
-		buf["matches"] = r.Host() + "/" + strings.Join(r.Path(), "/")
-	}
-	if b := instance.Upstream.AsMap(); len(b) > 0 {
+	if b := instance.Upstream.AsMap(instance.Rule); len(b) > 0 {
 		buf["upstream"] = b
 	}
 	return buf

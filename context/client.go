@@ -64,6 +64,7 @@ func (instance Client) AsMap() map[string]interface{} {
 
 	buf := map[string]interface{}{
 		"method":    req.Method,
+		"proto":     req.Proto,
 		"userAgent": support.UserAgentOfRequest(req),
 	}
 
