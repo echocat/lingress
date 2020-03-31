@@ -56,7 +56,7 @@ func (instance Upstream) AsMap(r rules.Rule) map[string]interface{} {
 	}
 	if req := instance.Request; req != nil {
 		if u := req.URL; u != nil {
-			buf["url"] = u
+			buf["url"] = u.String()
 		}
 		buf["method"] = req.Method
 		buf["proto"] = req.Proto
