@@ -42,7 +42,8 @@ func (instance *ForceSecureInterceptor) RegisterFlag(fe support.FlagEnabled, app
 }
 
 func (instance *ForceSecureInterceptor) Handle(ctx *context.Context) (proceed bool, err error) {
-	if !ctx.Rule.Options().ForceSecure.IsEnabledOrForced(instance.Enabled) {
+	opts := rules.OptionsSecureOf(ctx.Rule.Options())
+	if !opts.ForceSecure.IsEnabledOrForced(instance.Enabled) {
 		return true, nil
 	}
 
@@ -84,10 +85,11 @@ func (instance *ForceSecureInterceptor) Handle(ctx *context.Context) (proceed bo
 
 func WhitelistedRemotesInterceptor(ctx *context.Context) (proceed bool, err error) {
 	r := ctx.Rule
+	opts := rules.OptionsSecureOf(r.Options())
 	if r == nil {
 		return true, nil
 	}
-	wr := ctx.Rule.Options().WhitelistedRemotes
+	wr := opts.WhitelistedRemotes
 	if wr == nil || len(wr) <= 0 {
 		return true, nil
 	}

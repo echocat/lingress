@@ -92,7 +92,8 @@ func (instance *CorsInterceptor) RegisterFlag(fe support.FlagEnabled, appPrefix 
 }
 
 func (instance *CorsInterceptor) enableCors(ctx *context.Context) (proceed bool, err error) {
-	if !ctx.Rule.Options().Cors.IsEnabledOrForced(instance.Enabled) {
+	optionsCors := rules.OptionsCorsOf(ctx.Rule.Options())
+	if !optionsCors.Cors.IsEnabledOrForced(instance.Enabled) {
 		return true, nil
 	}
 	origin, err := ctx.Client.Origin()

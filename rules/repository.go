@@ -38,7 +38,7 @@ type CombinedRepository interface {
 	CertificateRepository
 }
 
-type repositoryImpl struct {
+type KubernetesBasedRepository struct {
 	Environment  *kubernetes.Environment
 	ByHostRules  *ByHost
 	ResyncAfter  time.Duration
@@ -46,24 +46,26 @@ type repositoryImpl struct {
 
 	CertificatesSecret string
 	CertificatesByHost CertificatesByHost
+	OptionsFactory     OptionsFactory
 }
 
 func NewRepository() (CombinedRepository, error) {
 	if environment, err := kubernetes.NewEnvironment(); err != nil {
 		return nil, err
 	} else {
-		result := &repositoryImpl{
+		result := &KubernetesBasedRepository{
 			Environment:  environment,
 			IngressClass: []string{},
 
 			CertificatesSecret: "certificates",
+			OptionsFactory:     DefaultOptionsFactory,
 		}
 		result.ByHostRules = NewByHost(result.onRuleAdded, result.onRuleRemoved)
 		return result, nil
 	}
 }
 
-func (instance *repositoryImpl) RegisterFlag(fe support.FlagEnabled, appPrefix string) error {
+func (instance *KubernetesBasedRepository) RegisterFlag(fe support.FlagEnabled, appPrefix string) error {
 	fe.Flag("resyncAfter", "Time after which the configuration should be resynced to be ensure to be not out of date.").
 		PlaceHolder(instance.ResyncAfter.String()).
 		Envar(support.FlagEnvName(appPrefix, "RESYNC_AFTER")).
@@ -80,7 +82,7 @@ func (instance *repositoryImpl) RegisterFlag(fe support.FlagEnabled, appPrefix s
 	return instance.Environment.RegisterFlag(fe, appPrefix)
 }
 
-func (instance *repositoryImpl) Init(stop support.Channel) error {
+func (instance *KubernetesBasedRepository) Init(stop support.Channel) error {
 	if len(instance.IngressClass) == 0 {
 		instance.IngressClass = []string{ingressClass, ""}
 	}
@@ -97,8 +99,8 @@ func (instance *repositoryImpl) Init(stop support.Channel) error {
 	definitions.SetNamespace(instance.Environment.Namespace)
 
 	state := &repositoryImplState{
-		repositoryImpl: instance,
-		definitions:    definitions,
+		KubernetesBasedRepository: instance,
+		definitions:               definitions,
 	}
 
 	state.initiated.Store(false)
@@ -121,16 +123,16 @@ func (instance *repositoryImpl) Init(stop support.Channel) error {
 	return nil
 }
 
-func (instance *repositoryImpl) onRuleAdded(_ []string, r Rule) {
+func (instance *KubernetesBasedRepository) onRuleAdded(_ []string, r Rule) {
 	log.WithField("rule", r).Info("rule added")
 }
 
-func (instance *repositoryImpl) onRuleRemoved(_ []string, r Rule) {
+func (instance *KubernetesBasedRepository) onRuleRemoved(_ []string, r Rule) {
 	log.WithField("rule", r).Info("rule removed")
 }
 
 type repositoryImplState struct {
-	*repositoryImpl
+	*KubernetesBasedRepository
 
 	definitions *definition.Definitions
 	initiated   atomic.Value
@@ -290,7 +292,7 @@ func (instance *repositoryImplState) visitIngress(ingress *v1beta1.Ingress, targ
 						Warn("illegal path in ingress; ingress will not functioning")
 				} else if backend, err := instance.ingressToBackend(source, forPath.Backend); err != nil {
 					return err
-				} else if options, err := optionsForIngress(ingress); err != nil {
+				} else if options, err := instance.mewOptionsBy(ingress); err != nil {
 					return err
 				} else if backend != nil {
 					r := NewRule(host, path, source, backend, options)
@@ -303,6 +305,15 @@ func (instance *repositoryImplState) visitIngress(ingress *v1beta1.Ingress, targ
 	}
 
 	return nil
+}
+
+func (instance *repositoryImplState) mewOptionsBy(ingress *v1beta1.Ingress) (Options, error) {
+	result := instance.OptionsFactory()
+	if err := result.Set(ingress.GetAnnotations()); err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 func (instance *repositoryImplState) ingressToBackend(source *sourceReference, ib v1beta1.IngressBackend) (net.Addr, error) {
@@ -352,11 +363,11 @@ func (instance *repositoryImplState) ingressToService(source *sourceReference, i
 	return instance.definitions.Service.Get(serviceKey)
 }
 
-func (instance *repositoryImpl) All(consumer func(Rule) error) error {
+func (instance *KubernetesBasedRepository) All(consumer func(Rule) error) error {
 	return instance.ByHostRules.All(consumer)
 }
 
-func (instance *repositoryImpl) FindBy(q Query) (Rules, error) {
+func (instance *KubernetesBasedRepository) FindBy(q Query) (Rules, error) {
 	host := normalizeHostname(q.Host)
 	path, err := ParsePath(q.Path, true)
 	if err != nil {
@@ -365,6 +376,6 @@ func (instance *repositoryImpl) FindBy(q Query) (Rules, error) {
 	return instance.ByHostRules.Find(host, path)
 }
 
-func (instance *repositoryImpl) FindCertificatesBy(q CertificateQuery) (Certificates, error) {
+func (instance *KubernetesBasedRepository) FindCertificatesBy(q CertificateQuery) (Certificates, error) {
 	return instance.CertificatesByHost.Find(q.Host), nil
 }
