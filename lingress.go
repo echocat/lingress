@@ -132,6 +132,9 @@ func (instance *Lingress) Init(stop support.Channel) error {
 	if err := instance.RulesRepository.Init(stop); err != nil {
 		return err
 	}
+	if err := instance.Proxy.Init(stop); err != nil {
+		return err
+	}
 
 	if s := instance.AccessLogQueueSize; s > 0 {
 		queue := make(chan accessLogEntry, instance.AccessLogQueueSize)

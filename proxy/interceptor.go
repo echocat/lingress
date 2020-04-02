@@ -92,6 +92,23 @@ func (instance Interceptors) RegisterFlag(fe support.FlagEnabled, appPrefix stri
 	return nil
 }
 
+func (instance Interceptors) Init(stop support.Channel) error {
+	alreadyHandled := make(map[support.Initializable]bool)
+	for _, interceptors := range instance {
+		for _, interceptor := range interceptors {
+			if fr, ok := interceptor.(support.Initializable); ok {
+				if _, already := alreadyHandled[fr]; !already {
+					if err := fr.Init(stop); err != nil {
+						return err
+					}
+					alreadyHandled[fr] = true
+				}
+			}
+		}
+	}
+	return nil
+}
+
 type InterceptorFunc func(ctx *context.Context) (proceed bool, err error)
 
 type interceptorFunc struct {

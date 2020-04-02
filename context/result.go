@@ -25,6 +25,7 @@ var (
 	ResultFailedWithUpstreamUnavailable SimpleResult = 5
 	ResultFailedWithAccessDenied        SimpleResult = 6
 	ResultFallback                      SimpleResult = 7
+	ResultFailedWithUnauthorized        SimpleResult = 8
 )
 
 var (
@@ -36,6 +37,7 @@ var (
 		ResultFailedWithRuleNotFound:        "ruleNotFound",
 		ResultFailedWithUpstreamUnavailable: "upstreamUnavailable",
 		ResultFailedWithAccessDenied:        "accessDenied",
+		ResultFailedWithUnauthorized:        "unauthorized",
 		ResultFallback:                      "fallback",
 	}
 
@@ -47,6 +49,7 @@ var (
 		ResultFailedWithRuleNotFound:        http.StatusNotFound,
 		ResultFailedWithUpstreamUnavailable: http.StatusServiceUnavailable,
 		ResultFailedWithAccessDenied:        http.StatusForbidden,
+		ResultFailedWithUnauthorized:        http.StatusUnauthorized,
 		ResultFallback:                      http.StatusOK,
 	}
 )

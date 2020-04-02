@@ -103,6 +103,19 @@ func (instance *Proxy) RegisterFlag(fe support.FlagEnabled, appPrefix string) er
 	return nil
 }
 
+func (instance *Proxy) Init(stop support.Channel) error {
+	if init, ok := instance.RulesRepository.(support.Initializable); ok {
+		if err := init.Init(stop); err != nil {
+			return err
+		}
+	}
+	if i := instance.Interceptors; i != nil {
+		if err := i.Init(stop); err != nil {
+			return err
+		}
+	}
+}
+
 func (instance *Proxy) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	ctx := lctx.AcquireContext(instance.BehindOtherReverseProxy, resp, req)
 	defer ctx.Release()
