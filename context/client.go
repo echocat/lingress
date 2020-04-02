@@ -91,13 +91,19 @@ type lazyUrlString struct {
 }
 
 func (instance lazyUrlString) String() string {
-	if u, err := instance.v.RequestedUrl(); err == nil && u != nil {
-		return u.String()
+	if v := instance.v; v != nil {
+		if u, err := instance.v.RequestedUrl(); err == nil && u != nil {
+			return u.String()
+		}
 	}
 	if u := instance.u; u != nil {
 		return u.String()
 	}
 	return ""
+}
+
+func (instance lazyUrlString) MarshalText() (text []byte, err error) {
+	return []byte(instance.String()), nil
 }
 
 func (instance Client) schemeOf(req *http.Request) string {
