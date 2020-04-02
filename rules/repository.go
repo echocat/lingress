@@ -124,11 +124,11 @@ func (instance *KubernetesBasedRepository) Init(stop support.Channel) error {
 }
 
 func (instance *KubernetesBasedRepository) onRuleAdded(_ []string, r Rule) {
-	log.WithField("rule", r).Info("rule added")
+	log.WithField("rule", r).Debug("rule added")
 }
 
 func (instance *KubernetesBasedRepository) onRuleRemoved(_ []string, r Rule) {
-	log.WithField("rule", r).Info("rule removed")
+	log.WithField("rule", r).Debug("rule removed")
 }
 
 type repositoryImplState struct {
