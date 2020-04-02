@@ -114,6 +114,7 @@ func (instance *Proxy) Init(stop support.Channel) error {
 			return err
 		}
 	}
+	return nil
 }
 
 func (instance *Proxy) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
