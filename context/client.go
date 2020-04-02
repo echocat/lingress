@@ -66,11 +66,9 @@ func (instance Client) AsMap() map[string]interface{} {
 		"method":    req.Method,
 		"proto":     req.Proto,
 		"userAgent": support.UserAgentOfRequest(req),
+		"url":       lazyUrlString{v: &instance},
 	}
 
-	if u, err := instance.RequestedUrl(); err == nil && u != nil {
-		buf["url"] = u.String()
-	}
 	if r, err := instance.Address(); err == nil {
 		buf["address"] = r
 	}
@@ -85,6 +83,21 @@ func (instance Client) AsMap() map[string]interface{} {
 	}
 
 	return buf
+}
+
+type lazyUrlString struct {
+	v *Client
+	u *url.URL
+}
+
+func (instance lazyUrlString) String() string {
+	if u, err := instance.v.RequestedUrl(); err == nil && u != nil {
+		return u.String()
+	}
+	if u := instance.u; u != nil {
+		return u.String()
+	}
+	return ""
 }
 
 func (instance Client) schemeOf(req *http.Request) string {

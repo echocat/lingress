@@ -55,9 +55,7 @@ func (instance Upstream) AsMap(r rules.Rule) map[string]interface{} {
 		buf["duration"] = d / time.Microsecond
 	}
 	if req := instance.Request; req != nil {
-		if u := req.URL; u != nil {
-			buf["url"] = u.String()
-		}
+		buf["url"] = lazyUrlString{u: req.URL}
 		buf["method"] = req.Method
 		buf["proto"] = req.Proto
 	}

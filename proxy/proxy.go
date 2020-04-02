@@ -104,11 +104,6 @@ func (instance *Proxy) RegisterFlag(fe support.FlagEnabled, appPrefix string) er
 }
 
 func (instance *Proxy) Init(stop support.Channel) error {
-	if init, ok := instance.RulesRepository.(support.Initializable); ok {
-		if err := init.Init(stop); err != nil {
-			return err
-		}
-	}
 	if i := instance.Interceptors; i != nil {
 		if err := i.Init(stop); err != nil {
 			return err
