@@ -28,6 +28,8 @@ type Context struct {
 	Rule   rules.Rule
 	Result Result
 	Error  error
+
+	Properties map[string]interface{}
 }
 
 func AcquireContext(fromOtherReverseProxy bool, resp http.ResponseWriter, req *http.Request) *Context {
@@ -47,6 +49,8 @@ func AcquireContext(fromOtherReverseProxy bool, resp http.ResponseWriter, req *h
 	result.Rule = nil
 	result.Result = ResultUnknown
 	result.Error = nil
+
+	result.Properties = make(map[string]interface{})
 
 	success = true
 	return result
@@ -89,6 +93,8 @@ func (instance *Context) Release() {
 	instance.Rule = nil
 	instance.Result = ResultUnknown
 	instance.Error = nil
+
+	instance.Properties = nil
 
 	contextPool.Put(instance)
 }
