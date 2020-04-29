@@ -64,6 +64,18 @@
         .requestId, .correlationId {
             opacity: 0.5;
             font-size: 0.7em;
+            cursor: pointer;
+            transition: all 0.8s;
+        }
+
+        .requestId::before, .correlationId::before {
+            content: '#';
+        }
+
+        .requestId:active, .correlationId:active {
+            opacity: 1;
+            transition: 0s;
+            background: rgba(255, 255, 0, 0.23);
         }
 
     </style>
@@ -97,5 +109,15 @@
 <footer>
     © 2015-{{.year}} <a href="https://echo.cat">echocat</a>
 </footer>
+<script>
+    function copyToClipboard(content) {
+        var el = document.createElement('textarea');
+        el.value = content;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+    }
+</script>
 </body>
 </html>
