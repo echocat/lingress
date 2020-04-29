@@ -82,7 +82,7 @@
     {{- else if .statusCode | isStatusServerSideIssue -}}
         <p>{{ "explaination.serverSideIssue" | i18n }}</p>
     {{- end -}}
-    {{if .requestId or .correlationId }}
+    {{if or .requestId .correlationId }}
         <p class="ids">
             {{if .requestId }}
                 <span title="Request ID" class="requestId">#{{.requestId}}</span>
