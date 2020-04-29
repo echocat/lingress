@@ -7,6 +7,12 @@
     <meta name="robots" content="noindex,nofollow"/>
     <meta name="x-path" content="{{.path}}"/>
     <meta name="x-status-code" content="{{.statusCode}}"/>
+    {{if .requestId }}
+        <meta name="x-request-id" content="{{.requestId}}"/>
+    {{end}}
+    {{if .correlationId }}
+        <meta name="x-correlation-id" content="{{.correlationId}}"/>
+    {{end}}
     {{if and (.statusCode | isStatusTemporaryIssue) .canHandleTemporary -}}
         <meta http-equiv="refresh" content="{{ .autoReloadSeconds }}">
     {{- end }}
@@ -55,7 +61,7 @@
             font-size: 1.5em;
         }
 
-        .requestId {
+        .requestId, .correlationId {
             opacity: 0.5;
             font-size: 0.7em;
         }
@@ -76,8 +82,15 @@
     {{- else if .statusCode | isStatusServerSideIssue -}}
         <p>{{ "explaination.serverSideIssue" | i18n }}</p>
     {{- end -}}
-    {{if .requestId }}
-    <p class="requestId">#{{.requestId}}</p>
+    {{if .requestId or .correlationId }}
+        <p class="ids">
+            {{if .requestId }}
+                <span title="Request ID" class="requestId">#{{.requestId}}</span>
+            {{end}}
+            {{if .correlationId }}
+                <span title="Correlation ID" class="correlationId">#{{.correlationId}}</span>
+            {{end}}
+        </p>
     {{end}}
 </main>
 <section></section>

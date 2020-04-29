@@ -43,21 +43,21 @@ func (instance *Fallback) RedirectJson(ctx *context.Context, statusCode int, tar
 	genericResponseWithTarget(
 		newLocalizedGenericResponse(ctx, statusCode, lc),
 		target,
-	).StreamJsonTo(ctx.Client.Response, ctx.Client.Request)
+	).StreamAsJson()
 }
 
 func (instance *Fallback) RedirectYaml(ctx *context.Context, statusCode int, target string, lc *support.LocalizationContext) {
 	genericResponseWithTarget(
 		newLocalizedGenericResponse(ctx, statusCode, lc),
 		target,
-	).StreamYamlTo(ctx.Client.Response, ctx.Client.Request)
+	).StreamAsYaml()
 }
 
 func (instance *Fallback) RedirectXml(ctx *context.Context, statusCode int, target string, lc *support.LocalizationContext) {
 	genericResponseWithTarget(
 		newLocalizedGenericResponse(ctx, statusCode, lc),
 		target,
-	).StreamXmlTo(ctx.Client.Response, ctx.Client.Request)
+	).StreamAsXml()
 }
 
 func (instance *Fallback) RedirectText(ctx *context.Context, statusCode int, _ string, lc *support.LocalizationContext) {
@@ -75,15 +75,16 @@ func (instance *Fallback) RedirectHtml(ctx *context.Context, statusCode int, tar
 		return
 	} else {
 		object := map[string]interface{}{
-			"path":       p,
-			"statusCode": statusCode,
-			"target":     target,
-			"requestId":  ctx.Id.String(),
+			"path":          p,
+			"statusCode":    statusCode,
+			"target":        target,
+			"requestId":     ctx.Id.String(),
+			"correlationId": ctx.CorrelationId.String(),
 		}
 		ctx.Client.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
 		ctx.Client.Response.WriteHeader(statusCode)
 		if err := tmpl.Execute(ctx.Client.Response, object); err != nil {
-			support.LogForRequest(ctx.Client.Request).
+			ctx.Log().
 				WithError(err).
 				WithField("statusCode", statusCode).
 				Error("could not render status page.")

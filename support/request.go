@@ -3,7 +3,6 @@ package support
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 )
 
@@ -15,6 +14,16 @@ func NormalizeHeaderContent(val string) string {
 
 func RequestIdOfRequest(req *http.Request) string {
 	if x := req.Header.Get("X-Request-ID"); len(x) > 0 && len(x) <= 256 {
+		if len(x) > 256 {
+			return x[:255]
+		}
+		return x
+	}
+	return ""
+}
+
+func CorrelationIdOfRequest(req *http.Request) string {
+	if x := req.Header.Get("X-Correlation-ID"); len(x) > 0 && len(x) <= 256 {
 		if len(x) > 256 {
 			return x[:255]
 		}
@@ -66,32 +75,8 @@ func UserAgentOfRequest(req *http.Request) string {
 	return ""
 }
 
-func AcceptLanguageOfRequest(req *http.Request) string {
-	if x := req.Header.Get("Accept-Language"); len(x) > 0 {
-		return x
-	}
-	return ""
-}
-
 func PathOfRequest(req *http.Request) string {
 	return req.URL.Path
-}
-
-func PathOfUri(uri string) (string, error) {
-	path, _, err := PathAndQueryOfUri(uri)
-	return path, err
-}
-
-func PathAndQueryOfUri(uri string) (path, query string, err error) {
-	if uri != "" {
-		if parsedUri, pErr := url.ParseRequestURI(uri); pErr != nil {
-			return "", "", pErr
-		} else {
-			path = parsedUri.Path
-			query = parsedUri.RawQuery
-		}
-	}
-	return
 }
 
 func RequestBasedLazyStringerFor(req *http.Request, delegate func(*http.Request) string) fmt.Stringer {

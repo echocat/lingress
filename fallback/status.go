@@ -31,20 +31,20 @@ func (instance *Fallback) Status(ctx *context.Context, statusCode int, path stri
 
 func (instance *Fallback) StatusAsJson(ctx *context.Context, statusCode int, path string, _ bool, lc *support.LocalizationContext) {
 	newLocalizedGenericResponse(ctx, statusCode, lc).
-		WithPath(path).
-		StreamJsonTo(ctx.Client.Response, ctx.Client.Request)
+		SetPath(path).
+		StreamAsJson()
 }
 
 func (instance *Fallback) StatusAsYaml(ctx *context.Context, statusCode int, path string, _ bool, lc *support.LocalizationContext) {
 	newLocalizedGenericResponse(ctx, statusCode, lc).
-		WithPath(path).
-		StreamYamlTo(ctx.Client.Response, ctx.Client.Request)
+		SetPath(path).
+		StreamAsYaml()
 }
 
 func (instance *Fallback) StatusAsXml(ctx *context.Context, statusCode int, path string, _ bool, lc *support.LocalizationContext) {
 	newLocalizedGenericResponse(ctx, statusCode, lc).
-		WithPath(path).
-		StreamXmlTo(ctx.Client.Response, ctx.Client.Request)
+		SetPath(path).
+		StreamAsXml()
 }
 
 func (instance *Fallback) StatusAsText(ctx *context.Context, statusCode int, _ string, _ bool, lc *support.LocalizationContext) {
@@ -65,11 +65,12 @@ func (instance *Fallback) StatusAsHtml(ctx *context.Context, statusCode int, pat
 			"canHandleTemporary": canHandleTemporary,
 			"year":               time.Now().Year(),
 			"requestId":          ctx.Id.String(),
+			"correlationId":      ctx.CorrelationId.String(),
 		}
 		ctx.Client.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
 		ctx.Client.Response.WriteHeader(statusCode)
 		if err := tmpl.Execute(ctx.Client.Response, object); err != nil {
-			support.LogForRequest(ctx.Client.Request).
+			ctx.Log().
 				WithError(err).
 				WithField("statusCode", statusCode).
 				Error("could not render status page.")

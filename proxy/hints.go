@@ -14,6 +14,7 @@ func UpstreamHintsInterceptor(ctx *context.Context) (proceed bool, err error) {
 	h := ctx.Upstream.Request.Header
 	h.Set("X-Source", ctx.Rule.Source().String())
 	h.Set("X-Request-Id", ctx.Id.String())
+	h.Set("X-Correlation-Id", ctx.CorrelationId.String())
 
 	if u, err := ctx.Client.RequestedUrl(); err != nil {
 		return false, err
@@ -39,5 +40,6 @@ func ClientHintsInterceptor(ctx *context.Context) (proceed bool, err error) {
 		h.Set("X-Source", r.Source().String())
 	}
 	h.Set("X-Request-Id", ctx.Id.String())
+	h.Set("X-Correlation-Id", ctx.CorrelationId.String())
 	return true, nil
 }

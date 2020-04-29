@@ -3,7 +3,6 @@ package support
 import (
 	log "github.com/sirupsen/logrus"
 	stdlog "log"
-	"net/http"
 	"os"
 	"time"
 )
@@ -49,18 +48,6 @@ func init() {
 	})
 	log.SetLevel(log.InfoLevel)
 	log.SetOutput(os.Stderr)
-}
-
-func LogForRequest(req *http.Request) log.FieldLogger {
-	return log.WithFields(log.Fields{
-		"runtime":    Runtime(),
-		"requestId":  RequestBasedLazyStringerFor(req, RequestIdOfRequest),
-		"remoteIp":   RequestBasedLazyStringerFor(req, RemoteIpOfRequest),
-		"host":       RequestBasedLazyStringerFor(req, HostOfRequest),
-		"method":     req.Method,
-		"requestUri": RequestBasedLazyStringerFor(req, UriOfRequest),
-		"userAgent":  RequestBasedLazyStringerFor(req, UserAgentOfRequest),
-	})
 }
 
 func StdLog(fields log.Fields, lvl log.Level) *stdlog.Logger {

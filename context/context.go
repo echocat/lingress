@@ -20,10 +20,11 @@ var (
 )
 
 type Context struct {
-	Client   Client
-	Upstream Upstream
-	Id       Id
-	Stage    Stage
+	Client        Client
+	Upstream      Upstream
+	Id            Id
+	CorrelationId Id
+	Stage         Stage
 
 	Rule   rules.Rule
 	Result Result
@@ -41,7 +42,8 @@ func AcquireContext(fromOtherReverseProxy bool, resp http.ResponseWriter, req *h
 		}
 	}(result)
 
-	result.Id = NewId(req)
+	result.Id = NewId(fromOtherReverseProxy, req)
+	result.CorrelationId = NewCorrelationId(fromOtherReverseProxy, req)
 	result.Stage = StageCreated
 	result.Client.configure(fromOtherReverseProxy, resp, req)
 	result.Upstream.configure()
@@ -89,6 +91,7 @@ func (instance *Context) Release() {
 	instance.Upstream.clean()
 	instance.Stage = StageUnknown
 	instance.Id = NilRequestId
+	instance.CorrelationId = NilRequestId
 
 	instance.Rule = nil
 	instance.Result = ResultUnknown
@@ -105,10 +108,11 @@ func (instance *Context) MarshalJSON() ([]byte, error) {
 
 func (instance *Context) AsMap() map[string]interface{} {
 	buf := map[string]interface{}{
-		"id":      instance.Id,
-		"client":  instance.Client.AsMap(),
-		"runtime": support.Runtime(),
-		"result":  instance.Result.Name(),
+		"id":            instance.Id,
+		"correlationId": instance.CorrelationId,
+		"client":        instance.Client.AsMap(),
+		"runtime":       support.Runtime(),
+		"result":        instance.Result.Name(),
 	}
 	if err := instance.Error; err != nil {
 		buf["error"] = err

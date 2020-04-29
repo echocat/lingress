@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/echocat/lingress/support"
-	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
 	"net/url"
@@ -27,10 +26,6 @@ type Client struct {
 	requestedUrl *url.URL
 	origin       *url.URL
 	address      *string
-}
-
-func (instance *Client) log() log.FieldLogger {
-	return support.LogForRequest(instance.Request)
 }
 
 func (instance *Client) configure(fromOtherReverseProxy bool, resp http.ResponseWriter, req *http.Request) {

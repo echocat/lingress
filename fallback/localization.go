@@ -17,13 +17,13 @@ func newLocationContextForCtx(ctx *context.Context, bundle *i18n.Bundle) *suppor
 	}
 }
 
-func newLocalizedGenericResponse(ctx *context.Context, statusCode int, lc *support.LocalizationContext) support.GenericResponse {
+func newLocalizedGenericResponse(ctx *context.Context, statusCode int, lc *support.LocalizationContext) *context.GenericResponse {
 	message := localizeStatus(statusCode, lc)
-	return support.NewGenericResponse(statusCode, message, ctx.Client.Request)
+	return ctx.NewGenericResponse(statusCode, message)
 }
 
-func genericResponseWithTarget(in support.GenericResponse, target string) support.GenericResponse {
-	return in.WithData(struct {
+func genericResponseWithTarget(in *context.GenericResponse, target string) *context.GenericResponse {
+	return in.SetData(struct {
 		Target string `json:"target" yaml:"target" xml:"target"`
 	}{
 		Target: target,
