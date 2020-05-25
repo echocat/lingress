@@ -256,6 +256,7 @@ func (instance *Proxy) createBackendRequestFor(ctx *lctx.Context, r rules.Rule) 
 		ProtoMinor: 1,
 		Header:     cloneHeader(fReq.Header),
 		Close:      false,
+		Body:       fReq.Body,
 	}).WithContext(bCtx)
 
 	if fReq.ContentLength == 0 {
