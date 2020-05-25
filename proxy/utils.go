@@ -106,18 +106,7 @@ var hopHeaders = []string{
 	"Upgrade",
 }
 
-var inOurTests bool // whether we're in our own tests
-
-// shouldPanicOnCopyError reports whether the reverse proxy should
-// panic with http.ErrAbortHandler. This is the right thing to do by
-// default, but Go 1.10 and earlier did not, so existing unit tests
-// weren't expecting panics. Only panic in our own tests, or when
-// running under the HTTP server.
 func shouldPanicOnCopyError(req *http.Request) bool {
-	if inOurTests {
-		// Our tests know to handle this panic.
-		return true
-	}
 	if req.Context().Value(http.ServerContextKey) != nil {
 		// We seem to be running under an HTTP server, so
 		// it'll recover the panic.
