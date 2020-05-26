@@ -248,15 +248,16 @@ func (instance *Proxy) createBackendRequestFor(ctx *lctx.Context, r rules.Rule) 
 	}
 
 	bReq := (&http.Request{
-		Host:       u.Host,
-		Method:     fReq.Method,
-		URL:        u,
-		Proto:      "HTTP/1.1",
-		ProtoMajor: 1,
-		ProtoMinor: 1,
-		Header:     cloneHeader(fReq.Header),
-		Close:      false,
-		Body:       fReq.Body,
+		Host:          u.Host,
+		Method:        fReq.Method,
+		URL:           u,
+		Proto:         "HTTP/1.1",
+		ProtoMajor:    1,
+		ProtoMinor:    1,
+		Header:        cloneHeader(fReq.Header),
+		Close:         false,
+		Body:          fReq.Body,
+		ContentLength: fReq.ContentLength,
 	}).WithContext(bCtx)
 
 	if fReq.ContentLength == 0 {

@@ -42,6 +42,16 @@ func (instance *Client) configure(fromOtherReverseProxy bool, resp http.Response
 }
 
 func (instance *Client) clean() {
+	if req := instance.Request; req != nil {
+		if b := req.Body; b != nil {
+			_ = b.Close()
+		}
+	}
+	if resp := instance.Request; resp != nil {
+		if b := resp.Body; b != nil {
+			_ = b.Close()
+		}
+	}
 	instance.FromOtherReverseProxy = false
 	instance.Response = nil
 	instance.Request = nil

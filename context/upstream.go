@@ -31,6 +31,16 @@ func (instance *Upstream) configure() {
 }
 
 func (instance *Upstream) clean() {
+	if req := instance.Request; req != nil {
+		if b := req.Body; b != nil {
+			_ = b.Close()
+		}
+	}
+	if resp := instance.Request; resp != nil {
+		if b := resp.Body; b != nil {
+			_ = b.Close()
+		}
+	}
 	instance.Response = nil
 	instance.Request = nil
 	instance.Address = nil
