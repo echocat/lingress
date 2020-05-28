@@ -1,5 +1,7 @@
 package rules
 
+import "strings"
+
 var _ = RegisterDefaultOptionsPart(&OptionsEncoding{})
 
 const (
@@ -16,7 +18,7 @@ func OptionsEncodingOf(options Options) *OptionsEncoding {
 }
 
 type OptionsEncoding struct {
-	TransportEncoding string `json:"transportEncoding,omitempty"`
+	TransportEncoding []string `json:"transportEncoding,omitempty"`
 }
 
 func (instance OptionsEncoding) Name() string {
@@ -34,9 +36,9 @@ func (instance *OptionsEncoding) Set(annotations Annotations) (err error) {
 	return
 }
 
-func evaluateOptionTransportEncoding(annotations map[string]string) (result string, err error) {
+func evaluateOptionTransportEncoding(annotations map[string]string) (result []string, err error) {
 	if v, ok := annotations[annotationTransportEncoding]; ok {
-		return v, nil
+		return strings.Split(v, ","), nil
 	}
 	return
 }

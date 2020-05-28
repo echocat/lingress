@@ -248,20 +248,25 @@ func (instance *Proxy) createBackendRequestFor(ctx *lctx.Context, r rules.Rule) 
 	}
 
 	bReq := (&http.Request{
-		Host:          u.Host,
-		Method:        fReq.Method,
-		URL:           u,
-		Proto:         "HTTP/1.1",
-		ProtoMajor:    1,
-		ProtoMinor:    1,
-		Header:        cloneHeader(fReq.Header),
-		Close:         false,
-		Body:          fReq.Body,
-		ContentLength: fReq.ContentLength,
+		Host:             u.Host,
+		Method:           fReq.Method,
+		URL:              u,
+		Proto:            "HTTP/1.1",
+		ProtoMajor:       1,
+		ProtoMinor:       1,
+		Header:           cloneHeader(fReq.Header),
+		Trailer:          cloneHeader(fReq.Trailer),
+		Close:            false,
+		Body:             fReq.Body,
+		ContentLength:    fReq.ContentLength,
+		TransferEncoding: fReq.TransferEncoding,
 	}).WithContext(bCtx)
 
 	if fReq.ContentLength == 0 {
 		bReq.Body = nil // Issue 16036: nil Body for http.Transport retries
+	}
+	if fReq.ContentLength < 0 && len(bReq.TransferEncoding) <= 0 {
+		bReq.TransferEncoding = []string{"chunked"}
 	}
 	reqUpType := retrieveUpgradeType(bReq.Header)
 	removeConnectionHeaders(bReq.Header)
