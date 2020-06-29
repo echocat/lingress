@@ -81,8 +81,8 @@ type ConnectionStates struct {
 
 func NewMetrics(rulesRepository rules.Repository) *Metrics {
 	registry := prometheus.NewRegistry()
-	//registry.MustRegister(prometheus.NewGoCollector())
-	//registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
+	registry.MustRegister(prometheus.NewGoCollector())
+	registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 
 	return &Metrics{
 		Client:   NewClientMetrics(registry),
