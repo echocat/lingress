@@ -20,13 +20,14 @@ import (
 )
 
 type Lingress struct {
-	RulesRepository rules.CombinedRepository
-	Proxy           *proxy.Proxy
-	Fallback        *fallback.Fallback
-	Management      *management.Management
-	http            http.Server
-	https           http.Server
-	accessLogQueue  chan accessLogEntry
+	RulesRepository       rules.CombinedRepository
+	Proxy                 *proxy.Proxy
+	Fallback              *fallback.Fallback
+	Management            *management.Management
+	http                  http.Server
+	https                 http.Server
+	accessLogQueue        chan accessLogEntry
+	connectionInformation *ConnectionInformation
 
 	HttpListenAddr    string
 	HttpsListenAddr   string
@@ -71,13 +72,14 @@ func New(fps support.FileProviders) (*Lingress, error) {
 					"context": "server.https",
 				}, log.DebugLevel),
 			},
-			HttpListenAddr:     ":8080",
-			HttpsListenAddr:    ":8443",
-			MaxHeaderBytes:     2 << 20, // 2MB,
-			ReadHeaderTimeout:  30 * time.Second,
-			WriteTimeout:       30 * time.Second,
-			IdleTimeout:        5 * time.Minute,
-			AccessLogQueueSize: 5000,
+			connectionInformation: NewConnectionInformation(),
+			HttpListenAddr:        ":8080",
+			HttpsListenAddr:       ":8443",
+			MaxHeaderBytes:        2 << 20, // 2MB,
+			ReadHeaderTimeout:     30 * time.Second,
+			WriteTimeout:          30 * time.Second,
+			IdleTimeout:           5 * time.Minute,
+			AccessLogQueueSize:    5000,
 		}
 
 		result.http.Handler = result
@@ -146,13 +148,17 @@ func (instance *Lingress) ServeHTTP(resp http.ResponseWriter, req *http.Request)
 }
 
 func (instance *Lingress) onConnState(conn net.Conn, state http.ConnState) {
-	previous := SetConnState(conn, state)
+	previous := instance.connectionInformation.SetState(conn, state, func(target http.ConnState) bool {
+		return target != http.StateNew &&
+			target != http.StateActive &&
+			target != http.StateIdle
+	})
+
 	if previous == state {
 		return
 	}
 
 	source := instance.Management.Metrics.Client.Connections.Source
-
 	switch previous {
 	case http.StateNew:
 		atomic.AddUint64(&source.New, ^uint64(0))
@@ -161,7 +167,7 @@ func (instance *Lingress) onConnState(conn net.Conn, state http.ConnState) {
 	case http.StateIdle:
 		atomic.AddUint64(&source.Idle, ^uint64(0))
 	case -1:
-		// Ignore
+		// ignore
 	default:
 		return
 	}
@@ -178,6 +184,8 @@ func (instance *Lingress) onConnState(conn net.Conn, state http.ConnState) {
 	default:
 		atomic.AddUint64(&source.Current, ^uint64(0))
 	}
+
+	return
 }
 
 func (instance *Lingress) Init(stop support.Channel) error {
@@ -229,7 +237,6 @@ func (instance *Lingress) serve(target *http.Server, addr string, tlsConfig *tls
 		return err
 	}
 	ln = tcpKeepAliveListener{ln.(*net.TCPListener)}
-	ln = stateTrackingListener{ln}
 
 	serve := func() error {
 		return target.Serve(ln)

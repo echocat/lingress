@@ -1,12 +1,10 @@
 package lingress
 
 import (
-	"fmt"
 	"github.com/echocat/lingress/support"
 	"net"
 	"net/http"
-	"reflect"
-	"sync/atomic"
+	"sync"
 	"time"
 )
 
@@ -39,47 +37,42 @@ func (ln tcpKeepAliveListener) Accept() (net.Conn, error) {
 	return tc, nil
 }
 
-type stateTrackingListener struct {
-	net.Listener
+type ConnectionInformation struct {
+	all map[net.Conn]http.ConnState
+
+	mutex *sync.Mutex
 }
 
-func (ln stateTrackingListener) Accept() (net.Conn, error) {
-	conn, err := ln.Listener.Accept()
-	if err != nil {
-		return nil, err
+func NewConnectionInformation() *ConnectionInformation {
+	return &ConnectionInformation{
+		all:   make(map[net.Conn]http.ConnState),
+		mutex: new(sync.Mutex),
 	}
-	return ConnectionWithConnStateTracking(conn), nil
 }
 
-type stateTrackingConnection struct {
-	net.Conn
-	current int64
-}
+func (instance *ConnectionInformation) SetState(
+	conn net.Conn,
+	newState http.ConnState,
+	keepFunc func(http.ConnState) bool,
+) (previousState http.ConnState) {
+	instance.mutex.Lock()
+	defer instance.mutex.Unlock()
 
-func (instance *stateTrackingConnection) SetConnState(newState http.ConnState) (previousState http.ConnState) {
-	for {
-		current := atomic.LoadInt64(&instance.current)
-		if atomic.CompareAndSwapInt64(&instance.current, current, int64(newState)) {
-			return http.ConnState(current)
+	keep := newState >= 0 || keepFunc(newState)
+
+	result, exists := instance.all[conn]
+	if exists {
+		if !keep {
+			delete(instance.all, conn)
+			return result
 		}
+		previousState = result
+		instance.all[conn] = newState
+		return previousState
 	}
-}
 
-func SetConnState(conn net.Conn, newState http.ConnState) (previousState http.ConnState) {
-	stc, ok := conn.(*stateTrackingConnection)
-	if !ok {
-		panic(fmt.Sprintf("%v is not of type %v", conn, reflect.TypeOf(&stateTrackingConnection{})))
+	if keep {
+		instance.all[conn] = newState
 	}
-	return stc.SetConnState(newState)
-}
-
-func ConnectionWithConnStateTracking(in net.Conn) net.Conn {
-	stc, ok := in.(*stateTrackingConnection)
-	if ok {
-		return stc
-	}
-	return &stateTrackingConnection{
-		Conn:    in,
-		current: -1,
-	}
+	return -1
 }
