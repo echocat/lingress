@@ -8,6 +8,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 	"strconv"
+	"sync/atomic"
 )
 
 var (
@@ -30,7 +31,8 @@ type Metrics struct {
 }
 
 type ClientMetrics struct {
-	Request *RequestMetrics
+	Request     *RequestMetrics
+	Connections *ConnectionMetrics
 }
 
 type UpstreamMetrics struct {
@@ -47,10 +49,40 @@ type RulesMetrics struct {
 type RequestMetrics struct {
 	DurationSeconds *prometheus.HistogramVec
 	Total           *prometheus.CounterVec
+
+	Current prometheus.GaugeFunc
+
+	Source *RequestStates
+}
+
+type RequestStates struct {
+	Current uint64
+}
+
+type ConnectionMetrics struct {
+	New    prometheus.GaugeFunc
+	Active prometheus.GaugeFunc
+	Idle   prometheus.GaugeFunc
+
+	Current prometheus.GaugeFunc
+	Total   prometheus.GaugeFunc
+
+	Source *ConnectionStates
+}
+
+type ConnectionStates struct {
+	New    uint64
+	Active uint64
+	Idle   uint64
+
+	Current uint64
+	Total   uint64
 }
 
 func NewMetrics(rulesRepository rules.Repository) *Metrics {
 	registry := prometheus.NewRegistry()
+	//registry.MustRegister(prometheus.NewGoCollector())
+	//registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 
 	return &Metrics{
 		Client:   NewClientMetrics(registry),
@@ -63,7 +95,17 @@ func NewMetrics(rulesRepository rules.Repository) *Metrics {
 }
 
 func NewRequestMetrics(registerer prometheus.Registerer, variant string, buckets []float64) *RequestMetrics {
+	source := &RequestStates{}
+
+	loadValue := func(of *uint64) func() float64 {
+		return func() float64 {
+			return float64(atomic.LoadUint64(of))
+		}
+	}
+
 	return &RequestMetrics{
+		Source: source,
+
 		DurationSeconds: promauto.With(registerer).NewHistogramVec(prometheus.HistogramOpts{
 			Namespace: "lingress",
 			Subsystem: variant + "_requests",
@@ -71,13 +113,67 @@ func NewRequestMetrics(registerer prometheus.Registerer, variant string, buckets
 			Help:      "Duration in seconds per request of " + variant + "s.",
 			Buckets:   buckets,
 		}, MetricsLabelNames),
+
 		Total: promauto.With(registerer).NewCounterVec(prometheus.CounterOpts{
 			Namespace: "lingress",
 			Subsystem: variant + "_requests",
 			Name:      "total",
 			Help:      "Amount of requests of " + variant + "s.",
 		}, MetricsLabelNames),
+
+		Current: promauto.With(registerer).NewGaugeFunc(prometheus.GaugeOpts{
+			Namespace: "lingress",
+			Subsystem: variant + "_requests",
+			Name:      "current",
+			Help:      "Amount of current connected requests of " + variant + "s.",
+		}, loadValue(&source.Current)),
 	}
+}
+
+func NewConnectionMetrics(registerer prometheus.Registerer, variant string) *ConnectionMetrics {
+	result := &ConnectionMetrics{
+		Source: &ConnectionStates{},
+	}
+
+	loadValue := func(of *uint64) func() float64 {
+		return func() float64 {
+			return float64(atomic.LoadUint64(of))
+		}
+	}
+
+	result.New = promauto.With(registerer).NewGaugeFunc(prometheus.GaugeOpts{
+		Namespace: "lingress",
+		Subsystem: variant + "_connections",
+		Name:      "new",
+		Help:      "Amount of new connections of " + variant + "s.",
+	}, loadValue(&result.Source.New))
+	result.Active = promauto.With(registerer).NewGaugeFunc(prometheus.GaugeOpts{
+		Namespace: "lingress",
+		Subsystem: variant + "_connections",
+		Name:      "active",
+		Help:      "Amount of active connections of " + variant + "s.",
+	}, loadValue(&result.Source.Active))
+	result.Idle = promauto.With(registerer).NewGaugeFunc(prometheus.GaugeOpts{
+		Namespace: "lingress",
+		Subsystem: variant + "_connections",
+		Name:      "idle",
+		Help:      "Amount of idle connections of " + variant + "s.",
+	}, loadValue(&result.Source.Idle))
+
+	result.Current = promauto.With(registerer).NewGaugeFunc(prometheus.GaugeOpts{
+		Namespace: "lingress",
+		Subsystem: variant + "_connections",
+		Name:      "current",
+		Help:      "Amount of current connected connections of " + variant + "s.",
+	}, loadValue(&result.Source.Current))
+	result.Total = promauto.With(registerer).NewGaugeFunc(prometheus.GaugeOpts{
+		Namespace: "lingress",
+		Subsystem: variant + "_connections",
+		Name:      "total",
+		Help:      "Amount of total ever connections of " + variant + "s.",
+	}, loadValue(&result.Source.Total))
+
+	return result
 }
 
 func NewClientMetrics(registerer prometheus.Registerer) *ClientMetrics {
@@ -89,6 +185,7 @@ func NewClientMetrics(registerer prometheus.Registerer) *ClientMetrics {
 			1,
 			10,
 		}),
+		Connections: NewConnectionMetrics(registerer, "client"),
 	}
 }
 
@@ -130,7 +227,7 @@ func (instance *Metrics) ServeHTTP(resp http.ResponseWriter, req *http.Request) 
 	instance.Handler.ServeHTTP(resp, req)
 }
 
-func (instance *Metrics) Collect(ctx *context.Context) {
+func (instance *Metrics) CollectContext(ctx *context.Context) {
 	labels := instance.labelsFor(ctx)
 	if v := ctx.Client.Duration; v > -1 {
 		instance.Client.Request.DurationSeconds.With(labels).Observe(v.Seconds())
@@ -140,6 +237,22 @@ func (instance *Metrics) Collect(ctx *context.Context) {
 	if v := ctx.Upstream.Duration; v > -1 {
 		instance.Upstream.Request.DurationSeconds.With(labels).Observe(v.Seconds())
 		instance.Upstream.Request.Total.With(labels).Inc()
+	}
+}
+
+func (instance *Metrics) CollectClientStarted() func() {
+	source := instance.Client.Request.Source
+	atomic.AddUint64(&source.Current, 1)
+	return func() {
+		atomic.AddUint64(&source.Current, ^uint64(0))
+	}
+}
+
+func (instance *Metrics) CollectUpstreamStarted() func() {
+	source := instance.Upstream.Request.Source
+	atomic.AddUint64(&source.Current, 1)
+	return func() {
+		atomic.AddUint64(&source.Current, ^uint64(0))
 	}
 }
 

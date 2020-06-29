@@ -15,6 +15,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -39,6 +40,12 @@ type Lingress struct {
 
 type accessLogEntry map[string]interface{}
 
+type ConnectionStates struct {
+	New    uint64
+	Active uint64
+	Idle   uint64
+}
+
 func New(fps support.FileProviders) (*Lingress, error) {
 	if r, err := rules.NewRepository(); err != nil {
 		return nil, err
@@ -49,38 +56,40 @@ func New(fps support.FileProviders) (*Lingress, error) {
 	} else if m, err := management.New(r); err != nil {
 		return nil, err
 	} else {
-		result := Lingress{
+		result := &Lingress{
 			RulesRepository: r,
 			Proxy:           p,
 			Fallback:        f,
 			Management:      m,
 			http: http.Server{
-				Handler: p,
 				ErrorLog: support.StdLog(log.Fields{
 					"context": "server.http",
 				}, log.DebugLevel),
 			},
 			https: http.Server{
-				Handler: p,
 				ErrorLog: support.StdLog(log.Fields{
 					"context": "server.https",
 				}, log.DebugLevel),
 			},
-			HttpListenAddr:    ":8080",
-			HttpsListenAddr:   ":8443",
-			MaxHeaderBytes:    2 << 20, // 2MB,
-			ReadHeaderTimeout: 30 * time.Second,
-			WriteTimeout:      30 * time.Second,
-			IdleTimeout:       5 * time.Minute,
-
+			HttpListenAddr:     ":8080",
+			HttpsListenAddr:    ":8443",
+			MaxHeaderBytes:     2 << 20, // 2MB,
+			ReadHeaderTimeout:  30 * time.Second,
+			WriteTimeout:       30 * time.Second,
+			IdleTimeout:        5 * time.Minute,
 			AccessLogQueueSize: 5000,
 		}
+
+		result.http.Handler = result
+		result.https.Handler = result
+		result.http.ConnState = result.onConnState
+		result.https.ConnState = result.onConnState
 
 		p.ResultHandler = result.onResult
 		p.AccessLogger = result.onAccessLog
 		p.MetricsCollector = result.Management
 
-		return &result, nil
+		return result, nil
 	}
 }
 
@@ -127,6 +136,48 @@ func (instance *Lingress) RegisterFlag(fe support.FlagEnabled, appPrefix string)
 		return err
 	}
 	return nil
+}
+
+func (instance *Lingress) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
+	finalize := instance.Management.CollectClientStarted()
+	defer finalize()
+
+	instance.Proxy.ServeHTTP(resp, req)
+}
+
+func (instance *Lingress) onConnState(conn net.Conn, state http.ConnState) {
+	previous := SetConnState(conn, state)
+	if previous == state {
+		return
+	}
+
+	source := instance.Management.Metrics.Client.Connections.Source
+
+	switch previous {
+	case http.StateNew:
+		atomic.AddUint64(&source.New, ^uint64(0))
+	case http.StateActive:
+		atomic.AddUint64(&source.Active, ^uint64(0))
+	case http.StateIdle:
+		atomic.AddUint64(&source.Idle, ^uint64(0))
+	case -1:
+		// Ignore
+	default:
+		return
+	}
+
+	switch state {
+	case http.StateNew:
+		atomic.AddUint64(&source.New, 1)
+		atomic.AddUint64(&source.Current, 1)
+		atomic.AddUint64(&source.Total, 1)
+	case http.StateActive:
+		atomic.AddUint64(&source.Active, 1)
+	case http.StateIdle:
+		atomic.AddUint64(&source.Idle, 1)
+	default:
+		atomic.AddUint64(&source.Current, ^uint64(0))
+	}
 }
 
 func (instance *Lingress) Init(stop support.Channel) error {
@@ -178,6 +229,7 @@ func (instance *Lingress) serve(target *http.Server, addr string, tlsConfig *tls
 		return err
 	}
 	ln = tcpKeepAliveListener{ln.(*net.TCPListener)}
+	ln = stateTrackingListener{ln}
 
 	serve := func() error {
 		return target.Serve(ln)

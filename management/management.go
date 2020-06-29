@@ -65,8 +65,16 @@ func (instance *Management) RegisterFlag(fe support.FlagEnabled, appPrefix strin
 	return nil
 }
 
-func (instance *Management) Collect(ctx *lctx.Context) {
-	instance.Metrics.Collect(ctx)
+func (instance *Management) CollectContext(ctx *lctx.Context) {
+	instance.Metrics.CollectContext(ctx)
+}
+
+func (instance *Management) CollectClientStarted() func() {
+	return instance.Metrics.CollectClientStarted()
+}
+
+func (instance *Management) CollectUpstreamStarted() func() {
+	return instance.Metrics.CollectUpstreamStarted()
 }
 
 func (instance *Management) ServeHTTP(resp http.ResponseWriter, req *http.Request) {

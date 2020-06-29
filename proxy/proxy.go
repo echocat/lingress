@@ -139,7 +139,7 @@ func (instance *Proxy) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 			r.Statistics().MarkUsed(ctx.Client.Duration)
 		}
 		if mc := instance.MetricsCollector; mc != nil {
-			mc.Collect(ctx)
+			mc.CollectContext(ctx)
 		}
 		_, _ = instance.switchStageAndCallInterceptors(lctx.StageDone, ctx)
 		if al := instance.AccessLogger; al != nil {
@@ -296,6 +296,11 @@ func (instance *Proxy) createBackendRequestFor(ctx *lctx.Context, r rules.Rule) 
 }
 
 func (instance *Proxy) execute(ctx *lctx.Context) error {
+	if mc := instance.MetricsCollector; mc != nil {
+		finalize := mc.CollectUpstreamStarted()
+		defer finalize()
+	}
+
 	ctx.Client.Status = 0
 	ctx.Upstream.Status = 0
 	ctx.Upstream.Started = time.Now()

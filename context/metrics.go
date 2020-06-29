@@ -1,5 +1,8 @@
 package context
 
 type MetricsCollector interface {
-	Collect(*Context)
+	CollectContext(*Context)
+
+	CollectClientStarted() func()
+	CollectUpstreamStarted() func()
 }
