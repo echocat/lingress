@@ -12,6 +12,10 @@ import (
 )
 
 func CreateDummyCertificate() (tls.Certificate, error) {
+	return CreateDummyCertificateFor(uuid.New().String())
+}
+
+func CreateDummyCertificateFor(name string) (tls.Certificate, error) {
 	fail := func(err error) (tls.Certificate, error) {
 		return tls.Certificate{}, errors.Wrap(err, "cannot create dummy certificate")
 	}
@@ -27,12 +31,11 @@ func CreateDummyCertificate() (tls.Certificate, error) {
 	}
 
 	now := time.Now()
-	u := uuid.New()
 
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
-			CommonName: u.String(),
+			CommonName: name,
 		},
 		NotBefore: now,
 		NotAfter:  now.Add(time.Hour * 24 * 365),

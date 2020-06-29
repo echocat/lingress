@@ -43,7 +43,7 @@ func (instance GenericResponse) StreamJsonTo(resp http.ResponseWriter, req *http
 	resp.WriteHeader(instance.Status)
 	j := json.NewEncoder(resp)
 	j.SetIndent("", "  ")
-	if err := j.Encode(instance); err != nil {
+	if err := j.Encode(instance.Data); err != nil {
 		instance.logError(resp, req, "Could not render json response.", err)
 	}
 }
@@ -52,7 +52,7 @@ func (instance GenericResponse) StreamYamlTo(resp http.ResponseWriter, req *http
 	resp.Header().Set("Content-Type", "application/x-yaml")
 	resp.WriteHeader(instance.Status)
 	y := yaml.NewEncoder(resp)
-	if err := y.Encode(instance); err != nil {
+	if err := y.Encode(instance.Data); err != nil {
 		instance.logError(resp, req, "Could not render yml response.", err)
 	}
 }
@@ -62,7 +62,7 @@ func (instance GenericResponse) StreamXmlTo(resp http.ResponseWriter, req *http.
 	resp.WriteHeader(instance.Status)
 	x := xml.NewEncoder(resp)
 	x.Indent("", "  ")
-	if err := x.Encode(instance); err != nil {
+	if err := x.Encode(instance.Data); err != nil {
 		instance.logError(resp, req, "Could not render xml response.", err)
 	}
 }
@@ -81,5 +81,5 @@ func (instance GenericResponse) logError(resp http.ResponseWriter, req *http.Req
 		"method":        req.Method,
 		"requestUri":    RequestBasedLazyStringerFor(req, UriOfRequest),
 		"userAgent":     RequestBasedLazyStringerFor(req, UserAgentOfRequest),
-	})
+	}).WithError(err).Error(message)
 }

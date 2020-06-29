@@ -1,6 +1,7 @@
 package rules
 
 type SourceReference interface {
+	Namespace() string
 	Name() string
 	Type() string
 	String() string
@@ -12,8 +13,12 @@ type sourceReference struct {
 	name      string
 }
 
+func (instance sourceReference) Namespace() string {
+	return instance.namespace
+}
+
 func (instance sourceReference) Name() string {
-	return instance.namespace + "/" + instance.name
+	return instance.name
 }
 
 func (instance sourceReference) Type() string {
@@ -21,19 +26,15 @@ func (instance sourceReference) Type() string {
 }
 
 func (instance sourceReference) String() string {
-	return instance.Type() + ":" + instance.Name()
+	return instance.Type() + ":" + instance.Namespace() + "/" + instance.Name()
 }
 
 func (instance sourceReference) Equals(o SourceReference) bool {
 	if o == nil {
 		return false
-	} else if sr, ok := o.(sourceReference); ok {
-		return sr.namespace == instance.namespace &&
-			sr.name == instance.name
-	} else if sr, ok := o.(*sourceReference); ok {
-		return sr.namespace == instance.namespace &&
-			sr.name == instance.name
 	} else {
-		return o.Name() == instance.Name()
+		return o.Type() == instance.Type() &&
+			o.Namespace() == instance.Namespace() &&
+			o.Name() == instance.Name()
 	}
 }

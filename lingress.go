@@ -78,6 +78,7 @@ func New(fps support.FileProviders) (*Lingress, error) {
 
 		p.ResultHandler = result.onResult
 		p.AccessLogger = result.onAccessLog
+		p.MetricsCollector = result.Management
 
 		return &result, nil
 	}

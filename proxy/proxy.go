@@ -29,6 +29,7 @@ type Proxy struct {
 	ResultHandler           lctx.ResultHandler
 	AccessLogger            AccessLogger
 	Interceptors            Interceptors
+	MetricsCollector        lctx.MetricsCollector
 }
 
 type AccessLogger func(*lctx.Context)
@@ -117,12 +118,28 @@ func (instance *Proxy) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	defer ctx.Release()
 	ctx.Client.Started = time.Now()
 	defer func(ctx *lctx.Context) {
+		if r := recover(); r != nil {
+			var err error
+			if v, ok := r.(error); ok {
+				err = v
+			} else {
+				err = fmt.Errorf("panic: %v", r)
+			}
+
+			log.WithError(err).
+				Error("unhandled error inside of the finalization stack")
+		}
+	}(ctx)
+	defer func(ctx *lctx.Context) {
 		if rh := instance.ResultHandler; rh != nil {
 			rh(ctx)
 		}
 		ctx.Client.Duration = time.Now().Sub(ctx.Client.Started)
 		if r := ctx.Rule; r != nil {
 			r.Statistics().MarkUsed(ctx.Client.Duration)
+		}
+		if mc := instance.MetricsCollector; mc != nil {
+			mc.Collect(ctx)
 		}
 		_, _ = instance.switchStageAndCallInterceptors(lctx.StageDone, ctx)
 		if al := instance.AccessLogger; al != nil {

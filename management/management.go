@@ -3,6 +3,7 @@ package management
 import (
 	"context"
 	"fmt"
+	lctx "github.com/echocat/lingress/context"
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/support"
 	log "github.com/sirupsen/logrus"
@@ -13,13 +14,16 @@ import (
 )
 
 type Management struct {
+	Metrics *Metrics
+
 	server http.Server
 	rules  rules.Repository
 }
 
 func New(rulesRepository rules.Repository) (*Management, error) {
 	result := &Management{
-		rules: rulesRepository,
+		Metrics: NewMetrics(rulesRepository),
+		rules:   rulesRepository,
 		server: http.Server{
 			Addr:              ":8090",
 			MaxHeaderBytes:    2 << 20, // 2MB
@@ -61,6 +65,10 @@ func (instance *Management) RegisterFlag(fe support.FlagEnabled, appPrefix strin
 	return nil
 }
 
+func (instance *Management) Collect(ctx *lctx.Context) {
+	instance.Metrics.Collect(ctx)
+}
+
 func (instance *Management) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	if req.Method != "GET" {
 		support.NewGenericResponse(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed), req).
@@ -71,6 +79,8 @@ func (instance *Management) ServeHTTP(resp http.ResponseWriter, req *http.Reques
 		instance.handleHealth(resp, req)
 	} else if req.RequestURI == "/status" {
 		instance.handleStatus(resp, req)
+	} else if req.RequestURI == "/metrics" {
+		instance.handleMetrics(resp, req)
 	} else if req.RequestURI == "/rules" {
 		instance.handleRules(resp, req, "")
 	} else if strings.HasPrefix(req.RequestURI, "/rules/") {
@@ -118,6 +128,10 @@ func (instance *Management) handleStatus(resp http.ResponseWriter, req *http.Req
 	support.NewGenericResponse(http.StatusOK, http.StatusText(http.StatusOK), req).
 		WithData(data).
 		StreamJsonTo(resp, req)
+}
+
+func (instance *Management) handleMetrics(resp http.ResponseWriter, req *http.Request) {
+	instance.Metrics.Handler.ServeHTTP(resp, req)
 }
 
 func (instance *Management) handleRules(resp http.ResponseWriter, req *http.Request, requestedSource string) {
