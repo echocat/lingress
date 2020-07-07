@@ -7,7 +7,6 @@ import (
 	"github.com/echocat/lingress/support"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -15,33 +14,27 @@ func init() {
 	DefaultInterceptors.Add(NewCorsInterceptor())
 }
 
+var (
+	defaultMaxAge = rules.Duration(24 * time.Hour)
+)
+
 type CorsInterceptor struct {
-	AllowedOriginsHost HostPatterns
-	AllowedMethods     string
-	AllowedHeaders     string
-	AllowedCredentials bool
-	MaxAge             time.Duration
+	AllowedOriginsHost rules.ForceableHostPatterns
+	AllowedMethods     rules.ForceableMethods
+	AllowedHeaders     rules.ForceableHeaderNames
+	AllowedCredentials rules.ForceableBool
+	MaxAge             rules.ForceableDuration
 	Enabled            rules.ForceableBool
 }
 
 func NewCorsInterceptor() *CorsInterceptor {
 	return &CorsInterceptor{
-		AllowedOriginsHost: HostPatterns{},
-		AllowedMethods: strings.Join([]string{
-			http.MethodGet,
-			http.MethodHead,
-			http.MethodPost,
-			http.MethodPut,
-			http.MethodDelete,
-			http.MethodConnect,
-			http.MethodOptions,
-			http.MethodTrace,
-			http.MethodPatch,
-		}, ","),
-		AllowedHeaders:     "*",
-		AllowedCredentials: true,
-		MaxAge:             24 * time.Hour,
-		Enabled:            rules.ForceableBool{Value: false, Forced: false},
+		AllowedOriginsHost: rules.NewForceableHostPatterns(rules.HostPatterns{}, false),
+		AllowedMethods:     rules.NewForceableMethods(rules.Methods{}, false),
+		AllowedHeaders:     rules.NewForceableHeaders(rules.HeaderNames{}, false),
+		AllowedCredentials: rules.NewForceableBool(rules.True, false),
+		MaxAge:             rules.NewForceableDuration(defaultMaxAge, false),
+		Enabled:            rules.NewForceableBool(rules.False, false),
 	}
 }
 
@@ -58,7 +51,7 @@ func (instance *CorsInterceptor) Handle(ctx *context.Context) (proceed bool, err
 	case context.StageEvaluateClientRequest:
 		return instance.enableCors(ctx)
 	case context.StagePrepareClientResponse:
-		return instance.forceCorsHost(ctx)
+		return instance.forceCorsHeaders(ctx)
 	}
 	return true, nil
 }
@@ -75,25 +68,25 @@ func (instance *CorsInterceptor) RegisterFlag(fe support.FlagEnabled, appPrefix 
 	fe.Flag("cors.allowedMethods", "Methods which are allowed to be referenced.").
 		PlaceHolder(fmt.Sprint(instance.AllowedMethods)).
 		Envar(support.FlagEnvName(appPrefix, "CORS_ALLOWED_METHODS")).
-		StringVar(&instance.AllowedMethods)
+		SetValue(&instance.AllowedMethods)
 	fe.Flag("cors.allowedHeaders", "Headers which are allowed to be referenced. '*' means all.").
 		PlaceHolder(fmt.Sprint(instance.AllowedHeaders)).
 		Envar(support.FlagEnvName(appPrefix, "CORS_ALLOWED_HEADERS")).
-		StringVar(&instance.AllowedHeaders)
+		SetValue(&instance.AllowedHeaders)
 	fe.Flag("cors.allowedCredentials", "Credentials are allowed.").
 		PlaceHolder(fmt.Sprint(instance.AllowedCredentials)).
 		Envar(support.FlagEnvName(appPrefix, "CORS_ALLOWED_CREDENTIALS")).
-		BoolVar(&instance.AllowedCredentials)
+		SetValue(&instance.AllowedCredentials)
 	fe.Flag("cors.maxAge", "How long the response to the preflight request can be cached for without sending another preflight request").
 		PlaceHolder(fmt.Sprint(instance.MaxAge)).
 		Envar(support.FlagEnvName(appPrefix, "CORS_MAX_AGE")).
-		DurationVar(&instance.MaxAge)
+		SetValue(&instance.MaxAge)
 	return nil
 }
 
 func (instance *CorsInterceptor) enableCors(ctx *context.Context) (proceed bool, err error) {
 	optionsCors := rules.OptionsCorsOf(ctx.Rule.Options())
-	if !optionsCors.Cors.IsEnabledOrForced(instance.Enabled) {
+	if !instance.Enabled.Select(optionsCors.Enabled).GetOr(false) {
 		return true, nil
 	}
 	origin, err := ctx.Client.Origin()
@@ -103,17 +96,11 @@ func (instance *CorsInterceptor) enableCors(ctx *context.Context) (proceed bool,
 	if origin == nil {
 		return true, nil
 	}
-	if !instance.AllowedOriginsHost.Matches(origin.Host) {
+	if !instance.AllowedOriginsHost.Evaluate(optionsCors.AllowedOriginsHost, nil).Matches(origin.Host) {
 		ctx.Client.Response.Header().Set("X-Reason", "cors-origin-forbidden")
 		ctx.Result = context.ResultFailedWithAccessDenied
 		return false, nil
 	}
-	h := ctx.Client.Response.Header()
-	h.Set("Access-Control-Allow-Origin", origin.String())
-	h.Set("Access-Control-Allow-Credentials", fmt.Sprint(instance.AllowedCredentials))
-	h.Set("Access-Control-Allow-Methods", instance.AllowedMethods)
-	h.Set("Access-Control-Allow-Headers", instance.AllowedHeaders)
-	h.Set("Access-Control-Max-Age", strconv.Itoa(int(instance.MaxAge/time.Second)))
 
 	if ctx.Client.Request.Method == "OPTIONS" {
 		ctx.Client.Response.Header().Set("X-Reason", "cors-options")
@@ -124,79 +111,36 @@ func (instance *CorsInterceptor) enableCors(ctx *context.Context) (proceed bool,
 	return true, nil
 }
 
-func (instance *CorsInterceptor) forceCorsHost(ctx *context.Context) (proceed bool, err error) {
+func (instance *CorsInterceptor) deleteHeaders(h http.Header) {
+	h.Del("Access-Control-Allow-Origin")
+	h.Del("Access-Control-Allow-Credentials")
+	h.Del("Access-Control-Allow-Methods")
+	h.Del("Access-Control-Allow-Headers")
+	h.Del("Access-Control-Max-Age")
+}
+
+func (instance *CorsInterceptor) forceCorsHeaders(ctx *context.Context) (proceed bool, err error) {
+	cors := rules.OptionsCorsOf(ctx.Rule.Options())
+	enabled := instance.Enabled.Select(cors.Enabled)
 	h := ctx.Client.Response.Header()
-	if acao := h.Get("Access-Control-Allow-Origin"); acao != "" {
+
+	if enabled.GetOr(false) {
 		origin, err := ctx.Client.Origin()
 		if err != nil {
-			return false, fmt.Errorf("cannot enable cors: %v", err)
+			return false, fmt.Errorf("cannot enable cors: %w", err)
 		}
-		if origin == nil || !instance.AllowedOriginsHost.Matches(origin.Host) {
-			h.Del("Access-Control-Allow-Origin")
+		if origin == nil || !instance.AllowedOriginsHost.Evaluate(cors.AllowedOriginsHost, nil).Matches(origin.Host) {
+			instance.deleteHeaders(h)
 			return true, nil
 		}
 		h.Set("Access-Control-Allow-Origin", origin.String())
-	}
-	return true, nil
-}
-
-type HostPatterns struct {
-	Values [][]string
-}
-
-func (instance HostPatterns) Matches(test string) bool {
-	if instance.Values == nil || len(instance.Values) == 0 {
-		return true
+		h.Set("Access-Control-Allow-Credentials", fmt.Sprint(instance.AllowedCredentials.Evaluate(cors.AllowedCredentials, true)))
+		h.Set("Access-Control-Allow-Methods", instance.AllowedMethods.Evaluate(cors.AllowedMethods, nil).String())
+		h.Set("Access-Control-Allow-Headers", instance.AllowedHeaders.Evaluate(cors.AllowedHeaders, nil).String())
+		h.Set("Access-Control-Max-Age", strconv.Itoa(instance.MaxAge.Evaluate(cors.MaxAge, defaultMaxAge).AsSeconds()))
+	} else if enabled.IsForced() {
+		instance.deleteHeaders(h)
 	}
 
-	testParts := strings.Split(test, ".")
-
-	for _, candidateParts := range instance.Values {
-		if len(testParts) == len(candidateParts) {
-			allMatches := true
-			for i, cp := range candidateParts {
-				if cp != "*" && cp != testParts[i] {
-					allMatches = false
-					break
-				}
-			}
-			if allMatches {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-func (instance *HostPatterns) String() string {
-	if instance.Values == nil || len(instance.Values) == 0 {
-		return "*"
-	}
-
-	parts := make([]string, len(instance.Values))
-	for i, part := range instance.Values {
-		parts[i] = strings.Join(part, ".")
-	}
-	return strings.Join(parts, ",")
-}
-
-func (instance *HostPatterns) Set(in string) error {
-	if in == "*" || in == "" {
-		instance.Values = nil
-		return nil
-	}
-
-	var nv [][]string
-
-	for _, host := range strings.Split(in, ",") {
-		host = strings.TrimSpace(host)
-		if host != "" {
-			hostParts := strings.Split(host, ".")
-			nv = append(nv, hostParts)
-		}
-	}
-
-	instance.Values = nv
-	return nil
+	return
 }

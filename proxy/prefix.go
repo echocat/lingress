@@ -15,12 +15,12 @@ func PrefixInterceptor(ctx *context.Context) (proceed bool, err error) {
 	u := ctx.Upstream.Request.URL
 	opts := rules.OptionsPrefixOf(r.Options())
 
-	if len(opts.PathPrefix) > 0 || opts.StripRulePathPrefix.IsEnabled(false) {
+	if len(opts.PathPrefix) > 0 || opts.StripRulePathPrefix.GetOr(false) {
 		path, err := rules.ParsePath(u.Path, true)
 		if err != nil {
 			return false, err
 		}
-		if opts.StripRulePathPrefix.IsEnabled(false) {
+		if opts.StripRulePathPrefix.GetOr(false) {
 			path = stripPrefix(path, r.Path())
 		}
 		if len(opts.PathPrefix) > 0 {
@@ -29,7 +29,7 @@ func PrefixInterceptor(ctx *context.Context) (proceed bool, err error) {
 		u.Path = "/" + strings.Join(path, "/")
 	}
 
-	if opts.XForwardedPrefix.IsEnabled(false) {
+	if opts.XForwardedPrefix.GetOr(false) {
 		prefix := ""
 		if ctx.Client.FromOtherReverseProxy {
 			prefix = ctx.Client.Request.Header.Get("X-Forwarded-Prefix")

@@ -20,8 +20,8 @@ func OptionsSecureOf(options Options) *OptionsSecure {
 }
 
 type OptionsSecure struct {
-	ForceSecure        OptionalBool `json:"forceSecure,omitempty"`
-	WhitelistedRemotes []Address    `json:"whitelistedRemotes,omitempty"`
+	ForceSecure        Bool      `json:"forceSecure,omitempty"`
+	WhitelistedRemotes []Address `json:"whitelistedRemotes,omitempty"`
 }
 
 func (instance OptionsSecure) Name() string {
@@ -43,7 +43,7 @@ func (instance *OptionsSecure) Set(annotations Annotations) (err error) {
 	return
 }
 
-func evaluateOptionForceSecure(annotations map[string]string) (OptionalBool, error) {
+func evaluateOptionForceSecure(annotations map[string]string) (Bool, error) {
 	if v, ok := annotations[annotationForceSecure]; ok {
 		return AnnotationIsTrue(annotationForceSecure, v)
 	}

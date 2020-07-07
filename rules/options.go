@@ -67,7 +67,7 @@ func (instance *Options) Set(annotations Annotations) error {
 	return nil
 }
 
-func AnnotationIsTrue(name, value string) (OptionalBool, error) {
+func AnnotationIsTrue(name, value string) (Bool, error) {
 	if value == "true" {
 		return True, nil
 	}
@@ -75,6 +75,14 @@ func AnnotationIsTrue(name, value string) (OptionalBool, error) {
 		return False, nil
 	}
 	return 0, fmt.Errorf("illegal boolean value for annotation %s: %s", name, value)
+}
+
+func AnnotationIsForceableBool(name, value string) (result ForceableBool, err error) {
+	result = NewForceableBool(False, false)
+	if err := result.Set(value); err != nil {
+		return ForceableBool{}, fmt.Errorf("illegal boolean value for annotation %s: %s", name, value)
+	}
+	return
 }
 
 func AnnotationAddresses(name, value string) (result []Address, err error) {
@@ -96,114 +104,6 @@ func AnnotationAddresses(name, value string) (result []Address, err error) {
 		}
 	}
 	return
-}
-
-type OptionalBool uint8
-
-const (
-	NotDefined = OptionalBool(0)
-	False      = OptionalBool(1)
-	True       = OptionalBool(2)
-)
-
-func (instance OptionalBool) IsEnabled(def bool) bool {
-	switch instance {
-	case True:
-		return true
-	case False:
-		return false
-	}
-	return def
-}
-
-func (instance OptionalBool) IsEnabledOrForced(def ForceableBool) bool {
-	if def.Forced {
-		return def.Value
-	}
-	switch instance {
-	case True:
-		return true
-	case False:
-		return false
-	}
-	return def.Value
-}
-
-func (instance OptionalBool) String() string {
-	switch instance {
-	case True:
-		return "true"
-	case False:
-		return "false"
-	}
-	return ""
-}
-
-func (instance *OptionalBool) Set(plain string) error {
-	switch plain {
-	case "true":
-		*instance = True
-		return nil
-	case "false":
-		*instance = False
-		return nil
-	case "":
-		*instance = NotDefined
-		return nil
-	}
-	return fmt.Errorf("illegal value: %s", plain)
-}
-
-type ForceableBool struct {
-	Value  bool
-	Forced bool
-}
-
-func (instance ForceableBool) String() string {
-	if instance.Forced {
-		if instance.Value {
-			return "!true"
-		} else {
-			return "!false"
-		}
-	} else {
-		if instance.Value {
-			return "true"
-		} else {
-			return "false"
-		}
-	}
-}
-
-func (instance *ForceableBool) Set(plain string) error {
-	switch plain {
-	case "true":
-		*instance = ForceableBool{
-			Value:  true,
-			Forced: false,
-		}
-		return nil
-	case "false":
-		*instance = ForceableBool{
-			Value:  true,
-			Forced: false,
-		}
-		return nil
-	case "!true":
-		*instance = ForceableBool{
-			Value:  true,
-			Forced: true,
-		}
-		return nil
-	case "!false":
-		*instance = ForceableBool{
-			Value:  true,
-			Forced: true,
-		}
-		return nil
-	default:
-		return fmt.Errorf("illegal value: %s", plain)
-	}
 }
 
 func newOptionsPartBy(prototype OptionsPart) (out OptionsPart) {

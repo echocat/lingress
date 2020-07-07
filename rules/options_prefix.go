@@ -21,9 +21,9 @@ func OptionsPrefixOf(options Options) *OptionsPrefix {
 }
 
 type OptionsPrefix struct {
-	StripRulePathPrefix OptionalBool `json:"stripRulePathPrefix,omitempty"`
-	PathPrefix          []string     `json:"pathPrefix,omitempty"`
-	XForwardedPrefix    OptionalBool `json:"xForwardedPrefix,omitempty"`
+	StripRulePathPrefix Bool     `json:"stripRulePathPrefix,omitempty"`
+	PathPrefix          []string `json:"pathPrefix,omitempty"`
+	XForwardedPrefix    Bool     `json:"xForwardedPrefix,omitempty"`
 }
 
 func (instance OptionsPrefix) Name() string {
@@ -49,7 +49,7 @@ func (instance *OptionsPrefix) Set(annotations Annotations) (err error) {
 	return
 }
 
-func evaluateOptionStripRulePathPrefix(annotations map[string]string) (OptionalBool, error) {
+func evaluateOptionStripRulePathPrefix(annotations map[string]string) (Bool, error) {
 	if v, ok := annotations[annotationStripRulePathPrefix]; ok {
 		return AnnotationIsTrue(annotationStripRulePathPrefix, v)
 	}
@@ -69,7 +69,7 @@ func evaluateOptionPathPrefix(annotations map[string]string) ([]string, error) {
 	return []string{}, nil
 }
 
-func evaluateOptionXForwardedPrefix(annotations map[string]string) (OptionalBool, error) {
+func evaluateOptionXForwardedPrefix(annotations map[string]string) (Bool, error) {
 	if v, ok := annotations[annotationXForwardedPrefix]; ok {
 		return AnnotationIsTrue(annotationXForwardedPrefix, v)
 	}

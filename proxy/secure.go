@@ -21,7 +21,7 @@ type ForceSecureInterceptor struct {
 
 func NewForceSecureInterceptor() *ForceSecureInterceptor {
 	return &ForceSecureInterceptor{
-		Enabled: rules.ForceableBool{Value: false, Forced: false},
+		Enabled: rules.NewForceableBool(rules.False, false),
 	}
 }
 
@@ -43,7 +43,7 @@ func (instance *ForceSecureInterceptor) RegisterFlag(fe support.FlagEnabled, app
 
 func (instance *ForceSecureInterceptor) Handle(ctx *context.Context) (proceed bool, err error) {
 	opts := rules.OptionsSecureOf(ctx.Rule.Options())
-	if !opts.ForceSecure.IsEnabledOrForced(instance.Enabled) {
+	if !instance.Enabled.Evaluate(opts.ForceSecure, true) {
 		return true, nil
 	}
 
