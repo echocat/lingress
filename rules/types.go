@@ -175,7 +175,7 @@ func (instance Forceable) String() string {
 }
 
 func (instance Forceable) IsPresent() bool {
-	return instance.value.IsPresent()
+	return instance.value != nil && instance.value.IsPresent()
 }
 
 func (instance Forceable) IsForced() bool {
