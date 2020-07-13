@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"strings"
 	"time"
 )
@@ -126,7 +127,9 @@ func (instance *Proxy) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 				err = fmt.Errorf("panic: %v", r)
 			}
 
-			log.WithError(err).
+			stack := string(debug.Stack())
+			log.WithField("stack", stack).
+				WithError(err).
 				Error("unhandled error inside of the finalization stack")
 		}
 	}(ctx)
@@ -152,6 +155,7 @@ func (instance *Proxy) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 		Path: ctx.Client.Request.RequestURI,
 	}
 
+	panic("bla")
 	ctx.Stage = lctx.StageEvaluateClientRequest
 	rs, err := instance.RulesRepository.FindBy(query)
 	if err != nil {
