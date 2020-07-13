@@ -69,7 +69,7 @@ func (instance *CustomHeaders) handleRequest(ctx *context.Context) (proceed bool
 	}
 
 	if r := ctx.Rule; r != nil {
-		apply(rules.OptionsCustomHeadersOf(r.Options()).RequestHeaders)
+		apply(rules.OptionsCustomHeadersOf(r).RequestHeaders)
 	}
 
 	apply(instance.Request)
@@ -97,7 +97,7 @@ func (instance *CustomHeaders) handleResponse(ctx *context.Context) (proceed boo
 	}
 
 	if r := ctx.Rule; r != nil {
-		apply(rules.OptionsCustomHeadersOf(r.Options()).ResponseHeaders)
+		apply(rules.OptionsCustomHeadersOf(r).ResponseHeaders)
 	}
 
 	apply(instance.Response)

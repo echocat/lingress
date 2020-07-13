@@ -10,8 +10,11 @@ const (
 	annotationTransportEncoding = "lingress.echocat.org/transport-encoding"
 )
 
-func OptionsEncodingOf(options Options) *OptionsEncoding {
-	if v, ok := options[optionsEncodingKey].(*OptionsEncoding); ok {
+func OptionsEncodingOf(rule Rule) *OptionsEncoding {
+	if rule == nil {
+		return &OptionsEncoding{}
+	}
+	if v, ok := rule.Options()[optionsEncodingKey].(*OptionsEncoding); ok {
 		return v
 	}
 	return &OptionsEncoding{}

@@ -20,8 +20,11 @@ const (
 	annotationNginxCorsMaxAge             = "nginx.ingress.kubernetes.io/cors-max-age"
 )
 
-func OptionsCorsOf(options Options) *OptionsCors {
-	if v, ok := options[optionsCorsKey].(*OptionsCors); ok {
+func OptionsCorsOf(rule Rule) *OptionsCors {
+	if rule == nil {
+		return &OptionsCors{}
+	}
+	if v, ok := rule.Options()[optionsCorsKey].(*OptionsCors); ok {
 		return v
 	}
 	return &OptionsCors{}

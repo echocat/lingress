@@ -13,7 +13,7 @@ func init() {
 func PrefixInterceptor(ctx *context.Context) (proceed bool, err error) {
 	r := ctx.Rule
 	u := ctx.Upstream.Request.URL
-	opts := rules.OptionsPrefixOf(r.Options())
+	opts := rules.OptionsPrefixOf(r)
 
 	if len(opts.PathPrefix) > 0 || opts.StripRulePathPrefix.GetOr(false) {
 		path, err := rules.ParsePath(u.Path, true)

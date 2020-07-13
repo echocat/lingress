@@ -13,8 +13,11 @@ const (
 	annotationNginxXForwardedPrefix = "nginx.ingress.kubernetes.io/x-forwarded-prefix"
 )
 
-func OptionsPrefixOf(options Options) *OptionsPrefix {
-	if v, ok := options[optionsPrefixKey].(*OptionsPrefix); ok {
+func OptionsPrefixOf(rule Rule) *OptionsPrefix {
+	if rule == nil {
+		return &OptionsPrefix{}
+	}
+	if v, ok := rule.Options()[optionsPrefixKey].(*OptionsPrefix); ok {
 		return v
 	}
 	return &OptionsPrefix{}

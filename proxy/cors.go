@@ -85,7 +85,7 @@ func (instance *CorsInterceptor) RegisterFlag(fe support.FlagEnabled, appPrefix 
 }
 
 func (instance *CorsInterceptor) enableCors(ctx *context.Context) (proceed bool, err error) {
-	optionsCors := rules.OptionsCorsOf(ctx.Rule.Options())
+	optionsCors := rules.OptionsCorsOf(ctx.Rule)
 	if !instance.Enabled.Select(optionsCors.Enabled).GetOr(false) {
 		return true, nil
 	}
@@ -120,7 +120,7 @@ func (instance *CorsInterceptor) deleteHeaders(h http.Header) {
 }
 
 func (instance *CorsInterceptor) forceCorsHeaders(ctx *context.Context) (proceed bool, err error) {
-	cors := rules.OptionsCorsOf(ctx.Rule.Options())
+	cors := rules.OptionsCorsOf(ctx.Rule)
 	enabled := instance.Enabled.Select(cors.Enabled)
 	h := ctx.Client.Response.Header()
 

@@ -12,8 +12,11 @@ const (
 	annotationNginxWhitelistSourceRange = "nginx.ingress.kubernetes.io/whitelist-source-range"
 )
 
-func OptionsSecureOf(options Options) *OptionsSecure {
-	if v, ok := options[optionsSecureKey].(*OptionsSecure); ok {
+func OptionsSecureOf(rule Rule) *OptionsSecure {
+	if rule == nil {
+		return &OptionsSecure{}
+	}
+	if v, ok := rule.Options()[optionsSecureKey].(*OptionsSecure); ok {
 		return v
 	}
 	return &OptionsSecure{}

@@ -15,8 +15,11 @@ const (
 	annotationResponseHeaders = "lingress.echocat.org/headers-response"
 )
 
-func OptionsCustomHeadersOf(options Options) *OptionsCustomHeaders {
-	if v, ok := options[optionsCustomerHeadersKey].(*OptionsCustomHeaders); ok {
+func OptionsCustomHeadersOf(rule Rule) *OptionsCustomHeaders {
+	if rule == nil {
+		return &OptionsCustomHeaders{}
+	}
+	if v, ok := rule.Options()[optionsCustomerHeadersKey].(*OptionsCustomHeaders); ok {
 		return v
 	}
 	return &OptionsCustomHeaders{}

@@ -45,7 +45,7 @@ func (instance *Encoding) handleRequest(ctx *context.Context) (proceed bool, err
 	}
 
 	if r := ctx.Rule; r != nil {
-		if v := rules.OptionsEncodingOf(r.Options()).TransportEncoding; len(v) > 0 {
+		if v := rules.OptionsEncodingOf(r).TransportEncoding; len(v) > 0 {
 			req.TransferEncoding = v
 			req.Header[textproto.CanonicalMIMEHeaderKey("Transfer-Encoding")] = v
 			for _, p := range v {
