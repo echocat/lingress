@@ -155,7 +155,6 @@ func (instance *Proxy) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 		Path: ctx.Client.Request.RequestURI,
 	}
 
-	panic("bla")
 	ctx.Stage = lctx.StageEvaluateClientRequest
 	rs, err := instance.RulesRepository.FindBy(query)
 	if err != nil {
