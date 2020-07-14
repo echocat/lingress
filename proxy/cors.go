@@ -120,18 +120,19 @@ func (instance *CorsInterceptor) deleteHeaders(h http.Header) {
 }
 
 func (instance *CorsInterceptor) forceCorsHeaders(ctx *context.Context) (proceed bool, err error) {
+	proceed = true
 	cors := rules.OptionsCorsOf(ctx.Rule)
 	enabled := instance.Enabled.Select(cors.Enabled)
 	h := ctx.Client.Response.Header()
 
 	if enabled.GetOr(false) {
-		origin, err := ctx.Client.Origin()
-		if err != nil {
-			return false, fmt.Errorf("cannot enable cors: %w", err)
+		origin, oErr := ctx.Client.Origin()
+		if oErr != nil {
+			return false, fmt.Errorf("cannot enable cors: %w", oErr)
 		}
 		if origin == nil || !instance.AllowedOriginsHost.Evaluate(cors.AllowedOriginsHost, nil).Matches(origin.Host) {
 			instance.deleteHeaders(h)
-			return true, nil
+			return
 		}
 		h.Set("Access-Control-Allow-Origin", origin.String())
 		h.Set("Access-Control-Allow-Credentials", fmt.Sprint(instance.AllowedCredentials.Evaluate(cors.AllowedCredentials, true)))
