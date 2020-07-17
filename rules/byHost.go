@@ -31,16 +31,35 @@ func (instance *ByHost) All(consumer func(Rule) error) error {
 }
 
 func (instance *ByHost) Find(host string, path []string) (Rules, error) {
-	if existing, ok := instance.values[host]; ok {
-		if r, err := existing.Find(path); r != nil && r.Len() > 0 && err == nil {
-			return r, err
+	var byHost, fallback Rules
+	if v, ok := instance.values[host]; ok {
+		if r, err := v.Find(path); err != nil {
+			return nil, err
+		} else if r != nil && r.Len() > 0 {
+			byHost = r
 		}
 	}
-	if instance.fallback != nil {
-		if r, err := instance.fallback.Find(path); r != nil && r.Len() > 0 && err == nil {
-			return r, err
+	if v := instance.fallback; v != nil {
+		if r, err := instance.fallback.Find(path); err != nil {
+			return nil, err
+		} else if r != nil && r.Len() > 0 {
+			fallback = r
 		}
 	}
+
+	if byHost != nil && fallback != nil {
+		byHostPath := byHost.Any().Path()
+		fallbackPath := fallback.Any().Path()
+		if len(fallbackPath) > len(byHostPath) {
+			return fallback, nil
+		}
+		return byHost, nil
+	} else if byHost != nil {
+		return byHost, nil
+	} else if fallback != nil {
+		return fallback, nil
+	}
+
 	return rules{}, nil
 }
 
