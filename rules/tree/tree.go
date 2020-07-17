@@ -186,6 +186,7 @@ func (instance *Tree) find(path []string) (result []interface{}) {
 	current := instance.root
 
 	for _, key := range path {
+		matchInPart := false
 		if current.elements != nil {
 			if candidate, ok := current.elements[key]; ok {
 				result = candidate
@@ -194,7 +195,11 @@ func (instance *Tree) find(path []string) (result []interface{}) {
 		if current.children != nil {
 			if child, ok := current.children[key]; ok {
 				current = child
+				matchInPart = true
 			}
+		}
+		if !matchInPart {
+			break
 		}
 	}
 

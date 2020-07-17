@@ -86,6 +86,8 @@ func Test_Node_Find(t *testing.T) {
 	executeTestFindRun(t, "/a2/b2/c4", "A2B2")
 	executeTestFindRun(t, "/a3/b2/c4", "A3")
 	executeTestFindRun(t, "/a1/b1/c1/x1", "A1B1C1")
+	executeTestFindRun(t, "/a2", "A2")
+	executeTestFindRun(t, "/xxx/a2", "ROOT")
 }
 
 func executeTestFindRun(t *testing.T, path string, expectedElements ...interface{}) {

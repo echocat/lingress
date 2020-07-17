@@ -32,12 +32,16 @@ func (instance *ByHost) All(consumer func(Rule) error) error {
 
 func (instance *ByHost) Find(host string, path []string) (Rules, error) {
 	if existing, ok := instance.values[host]; ok {
-		return existing.Find(path)
-	} else if instance.fallback != nil {
-		return instance.fallback.Find(path)
-	} else {
-		return rules{}, nil
+		if r, err := existing.Find(path); r != nil && r.Len() > 0 && err == nil {
+			return r, err
+		}
 	}
+	if instance.fallback != nil {
+		if r, err := instance.fallback.Find(path); r != nil && r.Len() > 0 && err == nil {
+			return r, err
+		}
+	}
+	return rules{}, nil
 }
 
 func (instance *ByHost) Put(r Rule) error {
