@@ -135,7 +135,15 @@ func (instance *CorsInterceptor) forceCorsHeaders(ctx *context.Context) (proceed
 		if oErr != nil {
 			return false, fmt.Errorf("cannot enable cors: %w", oErr)
 		}
-		if origin == nil || !instance.AllowedOriginsHost.Evaluate(cors.AllowedOriginsHost, nil).Matches(origin.Host) {
+		if origin == nil {
+			instance.deleteHeaders(h)
+			return
+		}
+		host := origin.Host
+		if sHost, _, err := net.SplitHostPort(host); err == nil {
+			host = sHost
+		}
+		if !instance.AllowedOriginsHost.Evaluate(cors.AllowedOriginsHost, nil).Matches(host) {
 			instance.deleteHeaders(h)
 			return
 		}
