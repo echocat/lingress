@@ -5,6 +5,7 @@ import (
 	"github.com/echocat/lingress/context"
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/support"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -96,7 +97,11 @@ func (instance *CorsInterceptor) enableCors(ctx *context.Context) (proceed bool,
 	if origin == nil {
 		return true, nil
 	}
-	if !instance.AllowedOriginsHost.Evaluate(optionsCors.AllowedOriginsHost, nil).Matches(origin.Host) {
+	host := origin.Host
+	if sHost, _, err := net.SplitHostPort(host); err == nil {
+		host = sHost
+	}
+	if !instance.AllowedOriginsHost.Evaluate(optionsCors.AllowedOriginsHost, nil).Matches(host) {
 		ctx.Client.Response.Header().Set("X-Reason", "cors-origin-forbidden")
 		ctx.Result = context.ResultFailedWithAccessDenied
 		return false, nil
