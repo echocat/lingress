@@ -102,7 +102,7 @@ func (instance *CorsInterceptor) enableCors(ctx *context.Context) (proceed bool,
 		host = sHost
 	}
 	if !instance.AllowedOriginsHost.Evaluate(optionsCors.AllowedOriginsHost, nil).Matches(host) {
-		ctx.Client.Response.Header().Set("X-Reason", "cors-origin-now-allowed")
+		ctx.Client.Response.Header().Set("X-Cors-Hint", "origin-now-allowed")
 		return true, nil
 	}
 
