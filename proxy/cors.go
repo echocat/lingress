@@ -102,9 +102,8 @@ func (instance *CorsInterceptor) enableCors(ctx *context.Context) (proceed bool,
 		host = sHost
 	}
 	if !instance.AllowedOriginsHost.Evaluate(optionsCors.AllowedOriginsHost, nil).Matches(host) {
-		ctx.Client.Response.Header().Set("X-Reason", "cors-origin-forbidden")
-		ctx.Result = context.ResultFailedWithAccessDenied
-		return false, nil
+		ctx.Client.Response.Header().Set("X-Reason", "cors-origin-now-allowed")
+		return true, nil
 	}
 
 	if ctx.Client.Request.Method == "OPTIONS" {
