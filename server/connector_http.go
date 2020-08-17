@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"github.com/echocat/lingress/support"
 	log "github.com/sirupsen/logrus"
@@ -15,8 +14,6 @@ import (
 type HttpConnector struct {
 	Id      ConnectorId
 	Handler ConnectorHandler
-
-	TlsConfig *tls.Config
 
 	MaxConnections uint16
 

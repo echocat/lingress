@@ -179,7 +179,7 @@ func (instance *Lingress) Init(stop support.Channel) error {
 	if tlsConfig, err := instance.createTlsConfig(); err != nil {
 		return err
 	} else {
-		instance.Https.TlsConfig = tlsConfig
+		instance.Https.Server.TLSConfig = tlsConfig
 	}
 
 	if err := instance.Http.Serve(stop); err != nil {
