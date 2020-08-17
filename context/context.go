@@ -3,6 +3,7 @@ package context
 import (
 	"encoding/json"
 	"github.com/echocat/lingress/rules"
+	"github.com/echocat/lingress/server"
 	"github.com/echocat/lingress/support"
 	log "github.com/sirupsen/logrus"
 	"net/http"
@@ -33,7 +34,7 @@ type Context struct {
 	Properties map[string]interface{}
 }
 
-func AcquireContext(fromOtherReverseProxy bool, resp http.ResponseWriter, req *http.Request) *Context {
+func AcquireContext(connector server.ConnectorId, fromOtherReverseProxy bool, resp http.ResponseWriter, req *http.Request) *Context {
 	success := false
 	result := contextPool.Get().(*Context)
 	defer func(created *Context) {
@@ -45,7 +46,7 @@ func AcquireContext(fromOtherReverseProxy bool, resp http.ResponseWriter, req *h
 	result.Id = NewId(fromOtherReverseProxy, req)
 	result.CorrelationId = NewCorrelationId(fromOtherReverseProxy, req)
 	result.Stage = StageCreated
-	result.Client.configure(fromOtherReverseProxy, resp, req)
+	result.Client.configure(connector, fromOtherReverseProxy, resp, req)
 	result.Upstream.configure()
 
 	result.Rule = nil

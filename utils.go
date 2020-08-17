@@ -5,7 +5,6 @@ import (
 	"net"
 	"net/http"
 	"sync"
-	"time"
 )
 
 var (
@@ -22,20 +21,6 @@ var (
 		"fe80::/10", "fc00::/7", "::1/128",
 	)
 )
-
-type tcpKeepAliveListener struct {
-	*net.TCPListener
-}
-
-func (ln tcpKeepAliveListener) Accept() (net.Conn, error) {
-	tc, err := ln.AcceptTCP()
-	if err != nil {
-		return nil, err
-	}
-	_ = tc.SetKeepAlive(true)
-	_ = tc.SetKeepAlivePeriod(2 * time.Minute)
-	return tc, nil
-}
 
 type ConnectionInformation struct {
 	all map[net.Conn]http.ConnState

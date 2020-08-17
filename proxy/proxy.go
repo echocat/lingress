@@ -7,6 +7,7 @@ import (
 	"fmt"
 	lctx "github.com/echocat/lingress/context"
 	"github.com/echocat/lingress/rules"
+	"github.com/echocat/lingress/server"
 	"github.com/echocat/lingress/support"
 	log "github.com/sirupsen/logrus"
 	"io"
@@ -114,8 +115,8 @@ func (instance *Proxy) Init(stop support.Channel) error {
 	return nil
 }
 
-func (instance *Proxy) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
-	ctx := lctx.AcquireContext(instance.BehindOtherReverseProxy, resp, req)
+func (instance *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseWriter, req *http.Request) {
+	ctx := lctx.AcquireContext(connector.GetId(), instance.BehindOtherReverseProxy, resp, req)
 	defer ctx.Release()
 	ctx.Client.Started = time.Now()
 	defer func(ctx *lctx.Context) {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	lctx "github.com/echocat/lingress/context"
 	"github.com/echocat/lingress/rules"
+	"github.com/echocat/lingress/server"
 	"github.com/echocat/lingress/support"
 	log "github.com/sirupsen/logrus"
 	"net"
@@ -20,9 +21,9 @@ type Management struct {
 	rules  rules.Repository
 }
 
-func New(rulesRepository rules.Repository) (*Management, error) {
+func New(connectorIds []server.ConnectorId, rulesRepository rules.Repository) (*Management, error) {
 	result := &Management{
-		Metrics: NewMetrics(rulesRepository),
+		Metrics: NewMetrics(connectorIds, rulesRepository),
 		rules:   rulesRepository,
 		server: http.Server{
 			Addr:              ":8090",
@@ -69,8 +70,8 @@ func (instance *Management) CollectContext(ctx *lctx.Context) {
 	instance.Metrics.CollectContext(ctx)
 }
 
-func (instance *Management) CollectClientStarted() func() {
-	return instance.Metrics.CollectClientStarted()
+func (instance *Management) CollectClientStarted(connector server.ConnectorId) func() {
+	return instance.Metrics.CollectClientStarted(connector)
 }
 
 func (instance *Management) CollectUpstreamStarted() func() {

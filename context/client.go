@@ -3,6 +3,7 @@ package context
 import (
 	"errors"
 	"fmt"
+	"github.com/echocat/lingress/server"
 	"github.com/echocat/lingress/support"
 	"net"
 	"net/http"
@@ -15,6 +16,7 @@ var (
 )
 
 type Client struct {
+	Connector             server.ConnectorId
 	FromOtherReverseProxy bool
 	Response              http.ResponseWriter
 	Request               *http.Request
@@ -28,7 +30,8 @@ type Client struct {
 	address      *string
 }
 
-func (instance *Client) configure(fromOtherReverseProxy bool, resp http.ResponseWriter, req *http.Request) {
+func (instance *Client) configure(connector server.ConnectorId, fromOtherReverseProxy bool, resp http.ResponseWriter, req *http.Request) {
+	instance.Connector = connector
 	instance.FromOtherReverseProxy = fromOtherReverseProxy
 	instance.Response = resp
 	instance.Request = req
@@ -52,6 +55,7 @@ func (instance *Client) clean() {
 			_ = b.Close()
 		}
 	}
+	instance.Connector = ""
 	instance.FromOtherReverseProxy = false
 	instance.Response = nil
 	instance.Request = nil

@@ -3,6 +3,7 @@ package management
 import (
 	"github.com/echocat/lingress/context"
 	"github.com/echocat/lingress/rules"
+	"github.com/echocat/lingress/server"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -22,7 +23,7 @@ var (
 )
 
 type Metrics struct {
-	Client   *ClientMetrics
+	Client   ConnectorEnabledClientMetrics
 	Upstream *UpstreamMetrics
 	Rules    *RulesMetrics
 
@@ -34,6 +35,8 @@ type ClientMetrics struct {
 	Request     *RequestMetrics
 	Connections *ConnectionMetrics
 }
+
+type ConnectorEnabledClientMetrics map[server.ConnectorId]*ClientMetrics
 
 type UpstreamMetrics struct {
 	Request *RequestMetrics
@@ -77,15 +80,16 @@ type ConnectionStates struct {
 
 	Current uint64
 	Total   uint64
+	Max     uint64
 }
 
-func NewMetrics(rulesRepository rules.Repository) *Metrics {
+func NewMetrics(connectorIds []server.ConnectorId, rulesRepository rules.Repository) *Metrics {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(prometheus.NewGoCollector())
 	registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 
 	return &Metrics{
-		Client:   NewClientMetrics(registry),
+		Client:   NewConnectorEnabledClientMetrics(connectorIds, registry),
 		Upstream: NewUpstreamMetrics(registry),
 		Rules:    NewRulesMetrics(registry, rulesRepository),
 
@@ -176,16 +180,24 @@ func NewConnectionMetrics(registerer prometheus.Registerer, variant string) *Con
 	return result
 }
 
-func NewClientMetrics(registerer prometheus.Registerer) *ClientMetrics {
+func NewConnectorEnabledClientMetrics(connectorIds []server.ConnectorId, registerer prometheus.Registerer) ConnectorEnabledClientMetrics {
+	result := make(ConnectorEnabledClientMetrics, len(connectorIds))
+	for _, id := range connectorIds {
+		result[id] = NewClientMetrics(id, registerer)
+	}
+	return result
+}
+
+func NewClientMetrics(id server.ConnectorId, registerer prometheus.Registerer) *ClientMetrics {
 	return &ClientMetrics{
-		Request: NewRequestMetrics(registerer, "client", []float64{
+		Request: NewRequestMetrics(registerer, "client_"+string(id), []float64{
 			0.001,
 			0.01,
 			0.1,
 			1,
 			10,
 		}),
-		Connections: NewConnectionMetrics(registerer, "client"),
+		Connections: NewConnectionMetrics(registerer, "client_"+string(id)),
 	}
 }
 
@@ -229,23 +241,15 @@ func (instance *Metrics) ServeHTTP(resp http.ResponseWriter, req *http.Request) 
 
 func (instance *Metrics) CollectContext(ctx *context.Context) {
 	labels := instance.labelsFor(ctx)
-	if v := ctx.Client.Duration; v > -1 {
-		instance.Client.Request.DurationSeconds.With(labels).Observe(v.Seconds())
-		instance.Client.Request.Total.With(labels).Inc()
-	}
-
+	instance.Client.collectContext(labels, ctx)
 	if v := ctx.Upstream.Duration; v > -1 {
 		instance.Upstream.Request.DurationSeconds.With(labels).Observe(v.Seconds())
 		instance.Upstream.Request.Total.With(labels).Inc()
 	}
 }
 
-func (instance *Metrics) CollectClientStarted() func() {
-	source := instance.Client.Request.Source
-	atomic.AddUint64(&source.Current, 1)
-	return func() {
-		atomic.AddUint64(&source.Current, ^uint64(0))
-	}
+func (instance *Metrics) CollectClientStarted(connector server.ConnectorId) func() {
+	return instance.Client.collectClientStarted(connector)
 }
 
 func (instance *Metrics) CollectUpstreamStarted() func() {
@@ -311,4 +315,30 @@ func (instance *RulesMetrics) sources() float64 {
 		return nil
 	})
 	return float64(len(result))
+}
+
+func (instance ConnectorEnabledClientMetrics) collectContext(labels prometheus.Labels, ctx *context.Context) {
+	if instance == nil {
+		return
+	}
+	if v := instance[ctx.Client.Connector]; v != nil {
+		if d := ctx.Client.Duration; d > -1 {
+			v.Request.DurationSeconds.With(labels).Observe(d.Seconds())
+			v.Request.Total.With(labels).Inc()
+		}
+	}
+}
+
+func (instance ConnectorEnabledClientMetrics) collectClientStarted(connector server.ConnectorId) func() {
+	if instance == nil {
+		return func() {}
+	}
+	if v := instance[connector]; v != nil {
+		source := v.Request.Source
+		atomic.AddUint64(&source.Current, 1)
+		return func() {
+			atomic.AddUint64(&source.Current, ^uint64(0))
+		}
+	}
+	return func() {}
 }
