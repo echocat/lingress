@@ -10,6 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
+	"net/http/pprof"
 	"strings"
 	"time"
 )
@@ -19,17 +20,19 @@ type Management struct {
 
 	server http.Server
 	rules  rules.Repository
+	pprof  bool
 }
 
 func New(connectorIds []server.ConnectorId, rulesRepository rules.Repository) (*Management, error) {
 	result := &Management{
 		Metrics: NewMetrics(connectorIds, rulesRepository),
 		rules:   rulesRepository,
+		pprof:   false,
 		server: http.Server{
 			Addr:              ":8090",
 			MaxHeaderBytes:    2 << 20, // 2MB
 			ReadHeaderTimeout: 30 * time.Second,
-			WriteTimeout:      30 * time.Second,
+			WriteTimeout:      1 * time.Minute,
 			IdleTimeout:       5 * time.Minute,
 			ErrorLog: support.StdLog(log.Fields{
 				"context": "server.management",
@@ -62,6 +65,9 @@ func (instance *Management) RegisterFlag(fe support.FlagEnabled, appPrefix strin
 		PlaceHolder(fmt.Sprint(instance.server.IdleTimeout)).
 		Envar(support.FlagEnvName(appPrefix, "MANAGEMENT_IDLE_TIMEOUT")).
 		DurationVar(&instance.server.IdleTimeout)
+	fe.Flag("management.pprof", "Will serve at the management endpoint pprof profiling, too.").
+		Envar(support.FlagEnvName(appPrefix, "MANAGEMENT_PPROF")).
+		BoolVar(&instance.pprof)
 
 	return nil
 }
@@ -84,16 +90,28 @@ func (instance *Management) ServeHTTP(resp http.ResponseWriter, req *http.Reques
 			StreamJsonTo(resp, req)
 		return
 	}
-	if req.RequestURI == "/health" {
+	if req.URL.Path == "/health" {
 		instance.handleHealth(resp, req)
-	} else if req.RequestURI == "/status" {
+	} else if req.URL.Path == "/status" {
 		instance.handleStatus(resp, req)
-	} else if req.RequestURI == "/metrics" {
+	} else if req.URL.Path == "/metrics" {
 		instance.handleMetrics(resp, req)
-	} else if req.RequestURI == "/rules" {
+	} else if req.URL.Path == "/rules" {
 		instance.handleRules(resp, req, "")
-	} else if strings.HasPrefix(req.RequestURI, "/rules/") {
-		instance.handleRules(resp, req, req.RequestURI[7:])
+	} else if strings.HasPrefix(req.URL.Path, "/rules/") {
+		instance.handleRules(resp, req, req.URL.Path[7:])
+	} else if instance.pprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/cmdline") {
+		pprof.Cmdline(resp, req)
+	} else if instance.pprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/profile") {
+		pprof.Profile(resp, req)
+	} else if instance.pprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/symbol") {
+		pprof.Symbol(resp, req)
+	} else if instance.pprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/trace") {
+		pprof.Trace(resp, req)
+	} else if instance.pprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/") {
+		pprof.Index(resp, req)
+	} else if instance.pprof && req.URL.Path == "/debug/pprof" {
+		http.Redirect(resp, req, "/debug/pprof/", http.StatusMovedPermanently)
 	} else {
 		support.NewGenericResponse(http.StatusNotFound, http.StatusText(http.StatusNotFound), req).
 			StreamJsonTo(resp, req)
@@ -202,6 +220,15 @@ func (instance *Management) Init(stop support.Channel) error {
 	ln, err := net.Listen("tcp", instance.server.Addr)
 	if err != nil {
 		return err
+	}
+
+	if instance.pprof {
+		log.WithField("addr", instance.server.Addr).
+			Warnf("DO NOT USE IN PRODUCTION!"+
+				" pprof endpoints are activated for debugging at listen address %s."+
+				" This functionality is only for debug purposes.",
+				instance.server.Addr,
+			)
 	}
 
 	go func() {
