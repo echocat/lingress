@@ -66,7 +66,7 @@ func New(fps support.FileProviders) (*Lingress, error) {
 		}
 
 		result.Http.Handler = result
-		result.Http.MaxConnections = 512
+		result.Http.MaxConnections = 256
 
 		result.Https.Handler = result
 		result.Https.Server.Addr = ":8443"

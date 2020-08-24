@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"runtime/debug"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -32,6 +33,8 @@ type Proxy struct {
 	AccessLogger            AccessLogger
 	Interceptors            Interceptors
 	MetricsCollector        lctx.MetricsCollector
+
+	bufferPool sync.Pool
 }
 
 type AccessLogger func(*lctx.Context)
@@ -51,12 +54,14 @@ func New(rules rules.Repository) (*Proxy, error) {
 			RootCAs: support.Pool,
 		},
 	}
-	return &Proxy{
+	result := &Proxy{
 		Dialer:          dialer,
 		Transport:       transport,
 		RulesRepository: rules,
 		Interceptors:    DefaultInterceptors.Clone(),
-	}, nil
+	}
+	result.bufferPool.New = result.createBuffer
+	return result, nil
 }
 
 func (instance *Proxy) RegisterFlag(fe support.FlagEnabled, appPrefix string) error {
@@ -154,6 +159,9 @@ func (instance *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseW
 	query := rules.Query{
 		Host: ctx.Client.Host(),
 		Path: ctx.Client.Request.RequestURI,
+	}
+	if u := ctx.Client.Request.URL; u != nil {
+		query.Path = u.Path
 	}
 
 	ctx.Stage = lctx.StageEvaluateClientRequest
@@ -367,7 +375,7 @@ func (instance *Proxy) execute(ctx *lctx.Context) error {
 		return nil
 	}
 
-	err = instance.copyResponse(ctx.Client.Response, ctx.Upstream.Response.Body)
+	_, err = instance.copyBuffered(ctx.Client.Response, ctx.Upstream.Response.Body)
 	if err != nil {
 		//noinspection GoUnhandledErrorResult
 		defer ctx.Upstream.Response.Body.Close()
@@ -446,27 +454,20 @@ func (instance *Proxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 	return nil
 }
 
-func (instance *Proxy) copyResponse(dst io.Writer, src io.Reader) error {
-	var buf []byte
-	_, err := instance.copyBuffer(dst, src, buf)
-	return err
-}
-
-// copyBuffer returns any write errors or non-EOF read errors, and the amount
+// copyBuffered returns any write errors or non-EOF read errors, and the amount
 // of bytes written.
-func (instance *Proxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int64, error) {
-	if len(buf) == 0 {
-		buf = make([]byte, 32*1024)
-	}
+func (instance *Proxy) copyBuffered(dst io.Writer, src io.Reader) (int64, error) {
+	buf := instance.acquireBuffer()
+	defer instance.releaseBuffer(buf)
 	var written int64
 	for {
-		nr, rErr := src.Read(buf)
+		nr, rErr := src.Read(*buf)
 		if rErr != nil && rErr != io.EOF && rErr != context.Canceled {
 			log.WithError(rErr).
 				Warn("read error during body copy")
 		}
 		if nr > 0 {
-			nw, wErr := dst.Write(buf[:nr])
+			nw, wErr := dst.Write((*buf)[:nr])
 			if nw > 0 {
 				written += int64(nw)
 			}
@@ -484,4 +485,17 @@ func (instance *Proxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int
 			return written, rErr
 		}
 	}
+}
+
+func (instance *Proxy) createBuffer() interface{} {
+	result := make([]byte, 32*1024)
+	return &result
+}
+
+func (instance *Proxy) acquireBuffer() *[]byte {
+	return instance.bufferPool.Get().(*[]byte)
+}
+
+func (instance *Proxy) releaseBuffer(buf *[]byte) {
+	instance.bufferPool.Put(buf)
 }

@@ -23,7 +23,7 @@ type HttpConnector struct {
 func NewHttpConnector(id ConnectorId) (*HttpConnector, error) {
 	result := HttpConnector{
 		Id:             id,
-		MaxConnections: 1024,
+		MaxConnections: 512,
 
 		Server: http.Server{
 			Addr:              ":8080",
