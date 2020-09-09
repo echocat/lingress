@@ -17,7 +17,8 @@ type HttpConnector struct {
 
 	MaxConnections uint16
 
-	Server http.Server
+	Server       http.Server
+	ListenConfig net.ListenConfig
 }
 
 func NewHttpConnector(id ConnectorId) (*HttpConnector, error) {
@@ -35,6 +36,10 @@ func NewHttpConnector(id ConnectorId) (*HttpConnector, error) {
 				"context": "server.http",
 			}, log.DebugLevel),
 		},
+
+		ListenConfig: net.ListenConfig{
+			KeepAlive: 2 * time.Minute,
+		},
 	}
 
 	result.Server.Handler = http.HandlerFunc(result.serveHTTP)
@@ -44,11 +49,10 @@ func NewHttpConnector(id ConnectorId) (*HttpConnector, error) {
 }
 
 func (instance *HttpConnector) Serve(stop support.Channel) error {
-	ln, err := net.Listen("tcp", instance.Server.Addr)
+	ln, err := (&instance.ListenConfig).Listen(context.Background(), "tcp", instance.Server.Addr)
 	if err != nil {
 		return err
 	}
-	ln = tcpKeepAliveListener{ln.(*net.TCPListener)}
 	ln = newLimitedListener(instance.MaxConnections, ln)
 
 	var serve func() error
@@ -134,6 +138,10 @@ func (instance *HttpConnector) RegisterFlag(fe support.FlagEnabled, appPrefix st
 		PlaceHolder(fmt.Sprint(instance.Server.IdleTimeout)).
 		Envar(instance.clientFlagEnvVar(appPrefix, "IDLE_TIMEOUT")).
 		DurationVar(&instance.Server.IdleTimeout)
+	fe.Flag(instance.clientFlagName("keepAlive"), "Duration to keep a connection alive (if required); 0 means unlimited.").
+		PlaceHolder(fmt.Sprint(instance.ListenConfig.KeepAlive)).
+		Envar(instance.clientFlagEnvVar(appPrefix, "KEEP_ALIVE")).
+		DurationVar(&instance.ListenConfig.KeepAlive)
 
 	return nil
 }

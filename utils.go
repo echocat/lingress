@@ -3,8 +3,6 @@ package lingress
 import (
 	"github.com/echocat/lingress/support"
 	"net"
-	"net/http"
-	"sync"
 )
 
 var (
@@ -21,43 +19,3 @@ var (
 		"fe80::/10", "fc00::/7", "::1/128",
 	)
 )
-
-type ConnectionInformation struct {
-	all map[net.Conn]http.ConnState
-
-	mutex *sync.Mutex
-}
-
-func NewConnectionInformation() *ConnectionInformation {
-	return &ConnectionInformation{
-		all:   make(map[net.Conn]http.ConnState),
-		mutex: new(sync.Mutex),
-	}
-}
-
-func (instance *ConnectionInformation) SetState(
-	conn net.Conn,
-	newState http.ConnState,
-	keepFunc func(http.ConnState) bool,
-) (previousState http.ConnState) {
-	instance.mutex.Lock()
-	defer instance.mutex.Unlock()
-
-	keep := newState >= 0 || keepFunc(newState)
-
-	result, exists := instance.all[conn]
-	if exists {
-		if !keep {
-			delete(instance.all, conn)
-			return result
-		}
-		previousState = result
-		instance.all[conn] = newState
-		return previousState
-	}
-
-	if keep {
-		instance.all[conn] = newState
-	}
-	return -1
-}

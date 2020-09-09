@@ -1,24 +1,11 @@
 package server
 
 import (
+	"fmt"
 	"net"
+	"net/http"
 	"sync"
-	"time"
 )
-
-type tcpKeepAliveListener struct {
-	*net.TCPListener
-}
-
-func (ln tcpKeepAliveListener) Accept() (net.Conn, error) {
-	tc, err := ln.AcceptTCP()
-	if err != nil {
-		return nil, err
-	}
-	_ = tc.SetKeepAlive(true)
-	_ = tc.SetKeepAlivePeriod(2 * time.Minute)
-	return tc, nil
-}
 
 type limitedListener struct {
 	sync.Mutex
@@ -48,7 +35,14 @@ func (instance *limitedListener) Accept() (net.Conn, error) {
 	if c, err := instance.Listener.Accept(); err != nil {
 		return nil, err
 	} else {
-		result := &limitedConn{c, instance}
+		if err := c.(*net.TCPConn).SetLinger(0); err != nil {
+			return nil, fmt.Errorf("cannot set the SO_LINGER to 0")
+		}
+		result := &limitedConn{
+			Conn:                c,
+			annotatedRemoteAddr: &annotatedAddr{Addr: c.RemoteAddr()},
+			parent:              instance,
+		}
 		success = true
 		return result, nil
 	}
@@ -56,7 +50,13 @@ func (instance *limitedListener) Accept() (net.Conn, error) {
 
 type limitedConn struct {
 	net.Conn
-	parent *limitedListener
+	annotatedRemoteAddr AnnotatedAddr
+	parent              *limitedListener
+	annotatedAddr
+}
+
+func (instance *limitedConn) RemoteAddr() net.Addr {
+	return instance.annotatedRemoteAddr
 }
 
 func (instance *limitedConn) Close() error {
@@ -64,4 +64,23 @@ func (instance *limitedConn) Close() error {
 		instance.parent.sem <- true // release
 	}()
 	return instance.Conn.Close()
+}
+
+type AnnotatedAddr interface {
+	net.Addr
+	GetState() *http.ConnState
+	SetState(*http.ConnState)
+}
+
+type annotatedAddr struct {
+	net.Addr
+	state *http.ConnState
+}
+
+func (instance *annotatedAddr) GetState() *http.ConnState {
+	return instance.state
+}
+
+func (instance *annotatedAddr) SetState(v *http.ConnState) {
+	instance.state = v
 }

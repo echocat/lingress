@@ -14,6 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
+	"reflect"
 	"strings"
 	"sync/atomic"
 )
@@ -27,8 +28,9 @@ type Lingress struct {
 	Https              *server.HttpConnector
 	AccessLogQueueSize uint16
 
-	accessLogQueue        chan accessLogEntry
-	connectionInformation *ConnectionInformation
+	accessLogQueue chan accessLogEntry
+
+	unprocessableConnectionDocumented map[reflect.Type]bool
 }
 
 type accessLogEntry map[string]interface{}
@@ -55,14 +57,13 @@ func New(fps support.FileProviders) (*Lingress, error) {
 		return nil, err
 	} else {
 		result := &Lingress{
-			RulesRepository:       r,
-			Proxy:                 p,
-			Fallback:              f,
-			Management:            m,
-			Http:                  hHttp,
-			Https:                 hHttps,
-			connectionInformation: NewConnectionInformation(),
-			AccessLogQueueSize:    5000,
+			RulesRepository:    r,
+			Proxy:              p,
+			Fallback:           f,
+			Management:         m,
+			Http:               hHttp,
+			Https:              hHttps,
+			AccessLogQueueSize: 5000,
 		}
 
 		result.Http.Handler = result
@@ -113,13 +114,21 @@ func (instance *Lingress) ServeHTTP(connector server.Connector, resp http.Respon
 }
 
 func (instance *Lingress) OnConnState(connector server.Connector, conn net.Conn, state http.ConnState) {
-	previous := instance.connectionInformation.SetState(conn, state, func(target http.ConnState) bool {
-		return target != http.StateNew &&
-			target != http.StateActive &&
-			target != http.StateIdle
-	})
+	annotated, ok := conn.RemoteAddr().(server.AnnotatedAddr)
+	if !ok {
+		connType := reflect.TypeOf(conn)
+		if !instance.unprocessableConnectionDocumented[connType] {
+			instance.unprocessableConnectionDocumented[connType] = true
+			log.WithField("connType", connType.String()).
+				Error("cannot inspect connection of provided connection type; for those kinds of connections there will be no statistics be available")
+		}
+		return
+	}
 
-	if previous == state {
+	previous := annotated.GetState()
+	annotated.SetState(&state)
+
+	if previous != nil && *previous == state {
 		return
 	}
 
@@ -129,17 +138,17 @@ func (instance *Lingress) OnConnState(connector server.Connector, conn net.Conn,
 	}
 
 	source := client.Connections.Source
-	switch previous {
-	case http.StateNew:
-		atomic.AddUint64(&source.New, ^uint64(0))
-	case http.StateActive:
-		atomic.AddUint64(&source.Active, ^uint64(0))
-	case http.StateIdle:
-		atomic.AddUint64(&source.Idle, ^uint64(0))
-	case -1:
-		// ignore
-	default:
-		return
+	if previous != nil {
+		switch *previous {
+		case http.StateNew:
+			atomic.AddUint64(&source.New, ^uint64(0))
+		case http.StateActive:
+			atomic.AddUint64(&source.Active, ^uint64(0))
+		case http.StateIdle:
+			atomic.AddUint64(&source.Idle, ^uint64(0))
+		default:
+			return
+		}
 	}
 
 	switch state {
@@ -173,6 +182,8 @@ func (instance *Lingress) Init(stop support.Channel) error {
 	} else {
 		instance.accessLogQueue = nil
 	}
+
+	instance.unprocessableConnectionDocumented = make(map[reflect.Type]bool)
 
 	go instance.shutdownListener(stop)
 
