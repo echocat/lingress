@@ -15,6 +15,7 @@ type HttpConnector struct {
 	Id      ConnectorId
 	Handler ConnectorHandler
 
+	SoLinger       int16
 	MaxConnections uint16
 
 	Server       http.Server
@@ -25,6 +26,7 @@ func NewHttpConnector(id ConnectorId) (*HttpConnector, error) {
 	result := HttpConnector{
 		Id:             id,
 		MaxConnections: 512,
+		SoLinger:       -1,
 
 		Server: http.Server{
 			Addr:              ":8080",
@@ -53,7 +55,7 @@ func (instance *HttpConnector) Serve(stop support.Channel) error {
 	if err != nil {
 		return err
 	}
-	ln = newLimitedListener(instance.MaxConnections, ln)
+	ln = newLimitedListener(instance.MaxConnections, instance.SoLinger, ln)
 
 	var serve func() error
 	if tlsConfig := instance.Server.TLSConfig; tlsConfig != nil {
@@ -121,6 +123,10 @@ func (instance *HttpConnector) RegisterFlag(fe support.FlagEnabled, appPrefix st
 		PlaceHolder(fmt.Sprint(instance.MaxConnections)).
 		Envar(instance.serverFlagEnvVar(appPrefix, "MAX_CONNECTIONS")).
 		Uint16Var(&instance.MaxConnections)
+	fe.Flag(instance.serverFlagName("soLinger"), "Set the behavior of SO_LINGER.").
+		PlaceHolder(fmt.Sprint(instance.SoLinger)).
+		Envar(instance.serverFlagEnvVar(appPrefix, "SO_LINGER")).
+		Int16Var(&instance.SoLinger)
 
 	fe.Flag(instance.clientFlagName("maxHeaderBytes"), "Maximum number of bytes the server will read parsing the request header's keys and values, including the request line. It does not limit the size of the request body.").
 		PlaceHolder(fmt.Sprint(instance.Server.MaxHeaderBytes)).

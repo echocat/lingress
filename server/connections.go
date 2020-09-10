@@ -8,18 +8,20 @@ import (
 )
 
 type limitedListener struct {
+	linger int16
 	sync.Mutex
 	net.Listener
 	sem chan bool
 }
 
-func newLimitedListener(count uint16, l net.Listener) *limitedListener {
+func newLimitedListener(count uint16, linger int16, l net.Listener) *limitedListener {
 	sem := make(chan bool, count)
 	for i := uint16(0); i < count; i++ {
 		sem <- true
 	}
 	return &limitedListener{
 		Listener: l,
+		linger:   linger,
 		sem:      sem,
 	}
 }
@@ -35,8 +37,8 @@ func (instance *limitedListener) Accept() (net.Conn, error) {
 	if c, err := instance.Listener.Accept(); err != nil {
 		return nil, err
 	} else {
-		if err := c.(*net.TCPConn).SetLinger(0); err != nil {
-			return nil, fmt.Errorf("cannot set the SO_LINGER to 0")
+		if err := c.(*net.TCPConn).SetLinger(int(instance.linger)); err != nil {
+			return nil, fmt.Errorf("cannot set the SO_LINGER to %d", instance.linger)
 		}
 		result := &limitedConn{
 			Conn:                c,
