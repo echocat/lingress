@@ -3,7 +3,6 @@ package proxy
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	lctx "github.com/echocat/lingress/context"
 	"github.com/echocat/lingress/rules"
@@ -122,9 +121,14 @@ func (instance *Proxy) Init(stop support.Channel) error {
 
 func (instance *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseWriter, req *http.Request) {
 	ctx := lctx.AcquireContext(connector.GetId(), instance.BehindOtherReverseProxy, resp, req)
-	defer ctx.Release()
+	al := instance.AccessLogger
+	defer func() {
+		if al == nil {
+			ctx.Release()
+		}
+	}()
 	ctx.Client.Started = time.Now()
-	defer func(ctx *lctx.Context) {
+	defer func() {
 		if r := recover(); r != nil {
 			var err error
 			if v, ok := r.(error); ok {
@@ -138,8 +142,8 @@ func (instance *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseW
 				WithError(err).
 				Error("unhandled error inside of the finalization stack")
 		}
-	}(ctx)
-	defer func(ctx *lctx.Context) {
+	}()
+	defer func() {
 		if rh := instance.ResultHandler; rh != nil {
 			rh(ctx)
 		}
@@ -151,10 +155,10 @@ func (instance *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseW
 			mc.CollectContext(ctx)
 		}
 		_, _ = instance.switchStageAndCallInterceptors(lctx.StageDone, ctx)
-		if al := instance.AccessLogger; al != nil {
+		if al != nil {
 			al(ctx)
 		}
-	}(ctx)
+	}()
 
 	query := rules.Query{
 		Host: ctx.Client.Host(),
@@ -203,6 +207,9 @@ func (instance *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseW
 
 	if err := instance.execute(ctx); isDialError(err) {
 		instance.markDone(lctx.ResultFailedWithUpstreamUnavailable, ctx, err)
+		return
+	} else if isClientGoneError(err) {
+		instance.markDone(lctx.ResultFailedWithClientGone, ctx, err)
 		return
 	} else if err != nil {
 		if ctx.Client.Status > 0 {
@@ -379,12 +386,7 @@ func (instance *Proxy) execute(ctx *lctx.Context) error {
 	if err != nil {
 		//noinspection GoUnhandledErrorResult
 		defer ctx.Upstream.Response.Body.Close()
-		// Since we're streaming the response, if we run into an error all we can do
-		// is abort the request. Proxy should use ErrAbortHandler on read error while copying body.
-		if !shouldPanicOnCopyError(ctx.Upstream.Request) {
-			return errors.New("error; not a panic")
-		}
-		panic(http.ErrAbortHandler)
+		return fmt.Errorf("%w: %v", http.ErrAbortHandler, err)
 	}
 	//noinspection GoUnhandledErrorResult
 	ctx.Upstream.Response.Body.Close() // close now, instead of defer, to populate res.Trailer

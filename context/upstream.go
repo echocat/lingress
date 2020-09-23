@@ -9,6 +9,18 @@ import (
 	"time"
 )
 
+const (
+	FieldUpstreamAddress  = "address"
+	FieldUpstreamStatus   = "status"
+	FieldUpstreamStarted  = "started"
+	FieldUpstreamDuration = "duration"
+	FieldUpstreamUrl      = "url"
+	FieldUpstreamMethod   = "method"
+	FieldUpstreamProto    = "proto"
+	FieldUpstreamSource   = "source"
+	FieldUpstreamMatches  = "matches"
+)
+
 type Upstream struct {
 	Response *http.Response
 	Request  *http.Request
@@ -50,28 +62,40 @@ func (instance *Upstream) clean() {
 	instance.Duration = 0
 }
 
-func (instance Upstream) AsMap(r rules.Rule) map[string]interface{} {
-	buf := map[string]interface{}{}
+func (instance *Upstream) AsMap(r rules.Rule) map[string]interface{} {
+	buf := make(map[string]interface{})
+
+	instance.ApplyToMap(r, "", &buf)
+
+	if len(buf) == 0 {
+		return nil
+	}
+
+	return buf
+}
+
+func (instance *Upstream) ApplyToMap(r rules.Rule, prefix string, to *map[string]interface{}) {
 	if addr := instance.Address; addr != nil {
-		buf["address"] = addr.String()
+		(*to)[prefix+FieldUpstreamAddress] = addr.String()
 	}
 	if s := instance.Status; s > 0 {
-		buf["status"] = s
+		(*to)[prefix+FieldUpstreamStatus] = s
 	}
 	if t := instance.Started; t != emptyTime {
-		buf["started"] = t
+		(*to)[prefix+FieldUpstreamStarted] = t
 	}
 	if d := instance.Duration; d > 0 {
-		buf["duration"] = d / time.Microsecond
+		(*to)[prefix+FieldUpstreamDuration] = d / time.Microsecond
 	}
 	if req := instance.Request; req != nil {
-		buf["url"] = lazyUrlString{u: req.URL}
-		buf["method"] = req.Method
-		buf["proto"] = req.Proto
+		if u := req.URL; u != nil {
+			(*to)[prefix+FieldUpstreamUrl] = u.String()
+		}
+		(*to)[prefix+FieldUpstreamMethod] = req.Method
+		(*to)[prefix+FieldUpstreamProto] = req.Proto
 	}
 	if r != nil {
-		buf["source"] = r.Source().String()
-		buf["matches"] = r.Host() + "/" + strings.Join(r.Path(), "/")
+		(*to)[prefix+FieldUpstreamSource] = r.Source().String()
+		(*to)[prefix+FieldUpstreamMatches] = r.Host() + "/" + strings.Join(r.Path(), "/")
 	}
-	return buf
 }

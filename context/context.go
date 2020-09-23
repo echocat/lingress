@@ -11,6 +11,16 @@ import (
 	"time"
 )
 
+const (
+	FieldRequestId     = "requestId"
+	FieldCorrelationId = "correlationId"
+	FieldClient        = "client"
+	FieldUpstream      = "upstream"
+	FieldRuntime       = "runtime"
+	FieldResult        = "result"
+	FieldError         = "error"
+)
+
 var (
 	contextPool = sync.Pool{
 		New: func() interface{} {
@@ -84,7 +94,7 @@ func (instance *Context) MarkUnknown() {
 }
 
 func (instance *Context) Log() log.FieldLogger {
-	return log.WithFields(instance.AsMap())
+	return log.WithFields(instance.AsMap(false))
 }
 
 func (instance *Context) Release() {
@@ -104,22 +114,31 @@ func (instance *Context) Release() {
 }
 
 func (instance *Context) MarshalJSON() ([]byte, error) {
-	return json.Marshal(instance.AsMap())
+	return json.Marshal(instance.AsMap(false))
 }
 
-func (instance *Context) AsMap() map[string]interface{} {
+func (instance *Context) AsMap(inlineFields bool) map[string]interface{} {
+	const (
+		clientSubPrefix   = FieldClient + "."
+		upstreamSubPrefix = FieldUpstream + "."
+	)
 	buf := map[string]interface{}{
-		"id":            instance.Id,
-		"correlationId": instance.CorrelationId,
-		"client":        instance.Client.AsMap(),
-		"runtime":       support.Runtime(),
-		"result":        instance.Result.Name(),
+		FieldRequestId:     instance.Id,
+		FieldCorrelationId: instance.CorrelationId,
+		FieldRuntime:       support.Runtime(),
+		FieldResult:        instance.Result.Name(),
+	}
+	if inlineFields {
+		instance.Client.ApplyToMap(clientSubPrefix, &buf)
+		instance.Upstream.ApplyToMap(instance.Rule, upstreamSubPrefix, &buf)
+	} else {
+		buf[FieldClient] = instance.Client.AsMap()
+		if b := instance.Upstream.AsMap(instance.Rule); len(b) > 0 {
+			buf[FieldUpstream] = b
+		}
 	}
 	if err := instance.Error; err != nil {
-		buf["error"] = err
-	}
-	if b := instance.Upstream.AsMap(instance.Rule); len(b) > 0 {
-		buf["upstream"] = b
+		buf[FieldError] = err
 	}
 	return buf
 }

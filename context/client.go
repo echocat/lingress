@@ -11,6 +11,17 @@ import (
 	"time"
 )
 
+const (
+	FieldClientMethod    = "method"
+	FieldClientProto     = "proto"
+	FieldClientUserAgent = "userAgent"
+	FieldClientUrl       = "url"
+	FieldClientAddress   = "address"
+	FieldClientStatus    = "status"
+	FieldClientStarted   = "started"
+	FieldClientDuration  = "duration"
+)
+
 var (
 	ErrNoRequestSet = errors.New("no request set")
 )
@@ -68,51 +79,34 @@ func (instance *Client) clean() {
 	instance.address = nil
 }
 
-func (instance Client) AsMap() map[string]interface{} {
-	req := instance.Request
-
-	buf := map[string]interface{}{
-		"method":    req.Method,
-		"proto":     req.Proto,
-		"userAgent": support.UserAgentOfRequest(req),
-		"url":       lazyUrlString{v: &instance},
-	}
-
-	if r, err := instance.Address(); err == nil {
-		buf["address"] = r
-	}
-	if s := instance.Status; s > 0 {
-		buf["status"] = s
-	}
-	if t := instance.Started; t != emptyTime {
-		buf["started"] = t
-	}
-	if d := instance.Duration; d > -1 {
-		buf["duration"] = d / time.Microsecond
-	}
-
+func (instance *Client) AsMap() map[string]interface{} {
+	buf := make(map[string]interface{})
+	instance.ApplyToMap("", &buf)
 	return buf
 }
 
-type lazyUrlString struct {
-	v *Client
-	u *url.URL
-}
+func (instance *Client) ApplyToMap(prefix string, to *map[string]interface{}) {
+	req := instance.Request
 
-func (instance lazyUrlString) String() string {
-	if v := instance.v; v != nil {
-		if u, err := instance.v.RequestedUrl(); err == nil && u != nil {
-			return u.String()
-		}
+	(*to)[prefix+FieldClientMethod] = req.Method
+	(*to)[prefix+FieldClientProto] = req.Proto
+	(*to)[prefix+FieldClientUserAgent] = support.UserAgentOfRequest(req)
+	if u, _ := instance.RequestedUrl(); u != nil {
+		(*to)[prefix+FieldClientUrl] = u.String()
 	}
-	if u := instance.u; u != nil {
-		return u.String()
-	}
-	return ""
-}
 
-func (instance lazyUrlString) MarshalText() (text []byte, err error) {
-	return []byte(instance.String()), nil
+	if r, err := instance.Address(); err == nil {
+		(*to)[prefix+FieldClientAddress] = r
+	}
+	if s := instance.Status; s > 0 {
+		(*to)[prefix+FieldClientStatus] = s
+	}
+	if t := instance.Started; t != emptyTime {
+		(*to)[prefix+FieldClientStarted] = t
+	}
+	if d := instance.Duration; d > -1 {
+		(*to)[prefix+FieldClientDuration] = d / time.Microsecond
+	}
 }
 
 func (instance Client) schemeOf(req *http.Request) string {

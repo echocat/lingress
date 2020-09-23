@@ -27,13 +27,12 @@ type Lingress struct {
 	Http               *server.HttpConnector
 	Https              *server.HttpConnector
 	AccessLogQueueSize uint16
+	InlineAccessLog    bool
 
-	accessLogQueue chan accessLogEntry
+	accessLogQueue chan *accessLogEntry
 
 	unprocessableConnectionDocumented map[reflect.Type]bool
 }
-
-type accessLogEntry map[string]interface{}
 
 type ConnectionStates struct {
 	New    uint64
@@ -81,10 +80,13 @@ func New(fps support.FileProviders) (*Lingress, error) {
 }
 
 func (instance *Lingress) RegisterFlag(fe support.FlagEnabled, appPrefix string) error {
-	fe.Flag("accessLogQueueSize", "Maximum number of accessLog elements that could be queue before blocking.").
+	fe.Flag("accessLog.queueSize", "Maximum number of accessLog elements that could be queue before blocking.").
 		PlaceHolder(fmt.Sprint(instance.AccessLogQueueSize)).
 		Envar(support.FlagEnvName(appPrefix, "ACCESS_LOG_QUEUE_SIZE")).
 		Uint16Var(&instance.AccessLogQueueSize)
+	fe.Flag("accessLog.inline", "Instead of exploding the accessLog entries into sub-entries everything is inlined into the root object.").
+		Envar(support.FlagEnvName(appPrefix, "ACCESS_LOG_INLINE")).
+		BoolVar(&instance.InlineAccessLog)
 	if err := instance.RulesRepository.RegisterFlag(fe, appPrefix); err != nil {
 		return err
 	}
@@ -176,7 +178,7 @@ func (instance *Lingress) Init(stop support.Channel) error {
 	}
 
 	if s := instance.AccessLogQueueSize; s > 0 {
-		queue := make(chan accessLogEntry, instance.AccessLogQueueSize)
+		queue := make(chan *accessLogEntry, instance.AccessLogQueueSize)
 		go instance.accessLogQueueWorker(stop, queue)
 		instance.accessLogQueue = queue
 	} else {
@@ -247,7 +249,7 @@ func (instance *Lingress) shutdownListener(stop support.Channel) {
 	instance.Https.Shutdown()
 }
 
-func (instance *Lingress) accessLogQueueWorker(stop support.Channel, queue chan accessLogEntry) {
+func (instance *Lingress) accessLogQueueWorker(stop support.Channel, queue chan *accessLogEntry) {
 	stopCh := support.ToChan(stop)
 	for {
 		select {
@@ -261,7 +263,9 @@ func (instance *Lingress) accessLogQueueWorker(stop support.Channel, queue chan 
 
 func (instance *Lingress) onAccessLog(ctx *lctx.Context) {
 	if log.IsLevelEnabled(instance.logLevelByContext(ctx)) {
-		entry := ctx.AsMap()
+		entry := &accessLogEntry{
+			Context: ctx,
+		}
 		if q := instance.accessLogQueue; q != nil {
 			q <- entry
 		} else {
@@ -270,9 +274,12 @@ func (instance *Lingress) onAccessLog(ctx *lctx.Context) {
 	}
 }
 
-func (instance *Lingress) doAccessLog(entry accessLogEntry) {
+func (instance *Lingress) doAccessLog(entry *accessLogEntry) {
+	defer entry.Release()
+
+	entry.load(instance.InlineAccessLog)
 	status := 0
-	if c, ok := entry["client"]; ok {
+	if c, ok := entry.data["client"]; ok {
 		if ps, ok := c.(map[string]interface{})["status"]; ok {
 			if is, ok := ps.(int); ok {
 				status = is
@@ -283,11 +290,28 @@ func (instance *Lingress) doAccessLog(entry accessLogEntry) {
 		return
 	}
 
+	f := func(sub, field string) string {
+		if v := entry.getField(sub, instance.InlineAccessLog, field); v != nil {
+			return fmt.Sprint(v)
+		}
+		return "-"
+	}
+
 	lvl := instance.logLevelByStatus(status)
-	log.WithFields(log.Fields(entry)).Log(lvl, "accessLog")
+	log.
+		WithFields(entry.data).
+		WithField("event", "accessLog").
+		Logf(lvl, "[%s] %s %s %s %s %q",
+			f(lctx.FieldClient, lctx.FieldClientStatus),
+			f(lctx.FieldClient, lctx.FieldClientMethod),
+			f(lctx.FieldClient, lctx.FieldClientUrl),
+			f(lctx.FieldClient, lctx.FieldClientDuration),
+			f(lctx.FieldClient, lctx.FieldClientAddress),
+			f(lctx.FieldClient, lctx.FieldClientUserAgent),
+		)
 }
 
-func (instance *Lingress) shouldBeLogged(entry accessLogEntry) bool {
+func (instance *Lingress) shouldBeLogged(entry *accessLogEntry) bool {
 	userAgent, remotes := instance.userAgentAndRemoteOf(entry)
 	if strings.HasPrefix(userAgent, "kube-probe/") && instance.hasPrivateNetworkIp(remotes) {
 		return false
@@ -295,8 +319,8 @@ func (instance *Lingress) shouldBeLogged(entry accessLogEntry) bool {
 	return true
 }
 
-func (instance *Lingress) userAgentAndRemoteOf(entry accessLogEntry) (userAgent string, remotes []net.IP) {
-	c, ok := entry["client"]
+func (instance *Lingress) userAgentAndRemoteOf(entry *accessLogEntry) (userAgent string, remotes []net.IP) {
+	c, ok := entry.data["client"]
 	if !ok {
 		return
 	}
@@ -380,4 +404,29 @@ func (instance *Lingress) onResult(ctx *lctx.Context) {
 	}
 
 	ctx.Stage = lctx.StageDone
+}
+
+type accessLogEntry struct {
+	*lctx.Context
+	data map[string]interface{}
+}
+
+func (instance *accessLogEntry) load(inline bool) {
+	instance.data = instance.AsMap(inline)
+}
+
+func (instance *accessLogEntry) getField(sub string, inlined bool, field string) interface{} {
+	if sub == "" {
+		return instance.data[field]
+	}
+
+	if inlined {
+		return instance.data[sub+"."+field]
+	}
+
+	if sm, ok := instance.data[sub].(map[string]interface{}); ok {
+		return sm[field]
+	}
+
+	return nil
 }

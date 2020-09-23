@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"errors"
 	"golang.org/x/net/http/httpguts"
 	"io"
 	"net"
@@ -13,6 +14,10 @@ func isDialError(err error) bool {
 		return true
 	}
 	return false
+}
+
+func isClientGoneError(err error) bool {
+	return err == http.ErrAbortHandler || errors.Unwrap(err) == http.ErrAbortHandler
 }
 
 func retrieveUpgradeType(h http.Header) string {
@@ -104,17 +109,6 @@ var hopHeaders = []string{
 	"Trailer", // not Trailers per URL above; https://www.rfc-editor.org/errata_search.php?eid=4522
 	"Transfer-Encoding",
 	"Upgrade",
-}
-
-func shouldPanicOnCopyError(req *http.Request) bool {
-	if req.Context().Value(http.ServerContextKey) != nil {
-		// We seem to be running under an HTTP server, so
-		// it'll recover the panic.
-		return true
-	}
-	// Otherwise act like Go 1.10 and earlier to not break
-	// existing tests.
-	return false
 }
 
 func stripPrefix(path, prefix []string) []string {
