@@ -1,13 +1,14 @@
 package support
 
 import (
+	log "github.com/echocat/slf4g"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/text/language"
 )
 
 var (
-	fallbackTag = language.Make("en-US")
+	fallbackTag               = language.Make("en-US")
+	localizationContextLogger = log.GetLogger("localization-context")
 )
 
 type LocalizationContext struct {
@@ -39,9 +40,9 @@ func (instance *LocalizationContext) messageOrDefault(fallbackId string, id stri
 				if _, ok := err.(*i18n.MessageNotFoundErr); ok && fallbackId != "" {
 					return instance.Message(fallbackId), language.Tag{}
 				} else {
-					log.WithError(err).
-						WithField("accept", instance.AcceptLanguage).
-						WithField("id", id).
+					localizationContextLogger.WithError(err).
+						With("accept", instance.AcceptLanguage).
+						With("id", id).
 						Warn("There was a message id requested which does not exist; will respond with empty string.")
 					return "", fallbackTag
 				}
@@ -49,9 +50,9 @@ func (instance *LocalizationContext) messageOrDefault(fallbackId string, id stri
 				return valDefault, tagDefault
 			}
 		} else {
-			log.WithError(err).
-				WithField("accept", instance.AcceptLanguage).
-				WithField("id", id).
+			localizationContextLogger.WithError(err).
+				With("accept", instance.AcceptLanguage).
+				With("id", id).
 				Warn("There was a message id requested which does not exist; will respond with empty string.")
 			return "", fallbackTag
 		}

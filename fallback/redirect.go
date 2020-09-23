@@ -84,9 +84,9 @@ func (instance *Fallback) RedirectHtml(ctx *context.Context, statusCode int, tar
 		ctx.Client.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
 		ctx.Client.Response.WriteHeader(statusCode)
 		if err := tmpl.Execute(ctx.Client.Response, object); err != nil {
-			ctx.Log().
+			logger.WithFields(ctx.AsMap()).
 				WithError(err).
-				WithField("statusCode", statusCode).
+				With("statusCode", statusCode).
 				Error("could not render status page.")
 		}
 	}

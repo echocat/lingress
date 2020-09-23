@@ -3,8 +3,8 @@ package definition
 import (
 	"fmt"
 	"github.com/echocat/lingress/support"
+	log "github.com/echocat/slf4g"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
@@ -86,7 +86,7 @@ func (instance *Definition) onClusterElementAdded(new interface{}) {
 	key, err := cache.MetaNamespaceKeyFunc(new)
 	if err != nil {
 		l.WithError(err).
-			WithField("objectType", reflect.TypeOf(new).String()).
+			With("objectType", reflect.TypeOf(new).String()).
 			Error("cannot determine key of an object of type")
 	}
 
@@ -94,7 +94,7 @@ func (instance *Definition) onClusterElementAdded(new interface{}) {
 		return
 	}
 
-	l = l.WithField("key", key)
+	l = l.With("key", key)
 	if err := instance.OnElementAdded(key, new.(metav1.Object)); err != nil {
 		instance.lastError.Store(err)
 		if instance.OnError != nil {
@@ -114,7 +114,7 @@ func (instance *Definition) onClusterElementUpdated(old interface{}, new interfa
 	key, err := cache.MetaNamespaceKeyFunc(new)
 	if err != nil {
 		l.WithError(err).
-			WithField("objectType", reflect.TypeOf(new).String()).
+			With("objectType", reflect.TypeOf(new).String()).
 			Error("cannot determine key of an object of type")
 	}
 
@@ -122,7 +122,7 @@ func (instance *Definition) onClusterElementUpdated(old interface{}, new interfa
 		return
 	}
 
-	l = l.WithField("key", key)
+	l = l.With("key", key)
 	if err := instance.OnElementUpdated(key, old.(metav1.Object), new.(metav1.Object)); err != nil {
 		instance.lastError.Store(err)
 		if instance.OnError != nil {
@@ -142,7 +142,7 @@ func (instance *Definition) onClusterElementRemoved(old interface{}) {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(old)
 	if err != nil {
 		l.WithError(err).
-			WithField("objectType", reflect.TypeOf(old).String()).
+			With("objectType", reflect.TypeOf(old).String()).
 			Error("cannot determine key of an object of type")
 	}
 
@@ -150,7 +150,7 @@ func (instance *Definition) onClusterElementRemoved(old interface{}) {
 		return
 	}
 
-	l = l.WithField("key", key)
+	l = l.With("key", key)
 	if err := instance.OnElementRemoved(key); err != nil {
 		instance.lastError.Store(err)
 		if instance.OnError != nil {
@@ -164,14 +164,10 @@ func (instance *Definition) onClusterElementRemoved(old interface{}) {
 	}
 }
 
-func (instance *Definition) log() *log.Entry {
-	return log.WithField("type", instance.typeDescription)
+func (instance *Definition) log() log.Logger {
+	return logger.With("type", instance.typeDescription)
 }
 
-func (instance *Definition) logEvent(event string) *log.Entry {
-	return instance.log().WithField("event", event)
-}
-
-func (instance *Definition) logKey(event string, key string) *log.Entry {
-	return instance.logEvent(event).WithField("key", key)
+func (instance *Definition) logEvent(event string) log.Logger {
+	return instance.log().With("event", event)
 }

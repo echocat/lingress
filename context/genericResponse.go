@@ -2,9 +2,12 @@ package context
 
 import (
 	"github.com/echocat/lingress/support"
+	log "github.com/echocat/slf4g"
 	"net/http"
 	"time"
 )
+
+var errorHandlerLogger = log.GetLogger("error-handler")
 
 type GenericResponse struct {
 	context *Context
@@ -34,9 +37,9 @@ func (instance *Context) NewGenericResponse(statusCode int, message string) *Gen
 }
 
 func (instance *GenericResponse) errorHandler(_ http.ResponseWriter, _ *http.Request, message string, err error, status int) {
-	instance.context.Log().
+	errorHandlerLogger.WithFields(instance.context.AsMap()).
 		WithError(err).
-		WithField("statusCode", status).
+		With("statusCode", status).
 		Error(message)
 }
 

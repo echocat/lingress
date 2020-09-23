@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"github.com/echocat/lingress/support"
-	log "github.com/sirupsen/logrus"
+	"github.com/echocat/slf4g"
+	_ "github.com/echocat/slf4g/native"
+
 	"gopkg.in/alecthomas/kingpin.v2"
 	"os"
 	"os/exec"

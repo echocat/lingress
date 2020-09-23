@@ -7,7 +7,7 @@ import (
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/server"
 	"github.com/echocat/lingress/support"
-	log "github.com/sirupsen/logrus"
+	"github.com/echocat/slf4g"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -34,9 +34,7 @@ func New(connectorIds []server.ConnectorId, rulesRepository rules.Repository) (*
 			ReadHeaderTimeout: 30 * time.Second,
 			WriteTimeout:      1 * time.Minute,
 			IdleTimeout:       5 * time.Minute,
-			ErrorLog: support.StdLog(log.Fields{
-				"context": "server.management",
-			}, log.DebugLevel),
+			ErrorLog:          log.AsStdLogger(logger, log.LevelDebug),
 		},
 	}
 	result.server.Handler = result
@@ -223,8 +221,8 @@ func (instance *Management) Init(stop support.Channel) error {
 	}
 
 	if instance.pprof {
-		log.WithField("addr", instance.server.Addr).
-			Warnf("DO NOT USE IN PRODUCTION!"+
+		logger.With("addr", instance.server.Addr).
+			Warn("DO NOT USE IN PRODUCTION!"+
 				" pprof endpoints are activated for debugging at listen address %s."+
 				" This functionality is only for debug purposes.",
 				instance.server.Addr,
@@ -233,13 +231,13 @@ func (instance *Management) Init(stop support.Channel) error {
 
 	go func() {
 		if err := instance.server.Serve(ln); err != nil && err != http.ErrServerClosed {
-			log.WithError(err).
-				WithField("addr", instance.server.Addr).
+			logger.WithError(err).
+				With("addr", instance.server.Addr).
 				Error("server is unable to serve management interface")
 			stop.Broadcast()
 		}
 	}()
-	log.WithField("addr", instance.server.Addr).
+	logger.With("addr", instance.server.Addr).
 		Info("serve management interface")
 
 	return nil
@@ -249,8 +247,8 @@ func (instance *Management) shutdownListener(stop support.Channel) {
 	stop.Wait()
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
 	if err := instance.server.Shutdown(ctx); err != nil {
-		log.WithError(err).
-			WithField("addr", instance.server.Addr).
+		logger.WithError(err).
+			With("addr", instance.server.Addr).
 			Warn("cannot graceful shutdown management interface")
 	}
 }

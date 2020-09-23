@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"github.com/echocat/lingress/support"
-	log "github.com/sirupsen/logrus"
+	log "github.com/echocat/slf4g"
 	"net"
 	"net/http"
 	"strings"
 	"time"
 )
+
+var connectorLogger = log.GetLogger("connector")
 
 type HttpConnector struct {
 	Id      ConnectorId
@@ -34,9 +36,7 @@ func NewHttpConnector(id ConnectorId) (*HttpConnector, error) {
 			ReadHeaderTimeout: 30 * time.Second,
 			WriteTimeout:      30 * time.Second,
 			IdleTimeout:       5 * time.Minute,
-			ErrorLog: support.StdLog(log.Fields{
-				"context": "server.http",
-			}, log.DebugLevel),
+			ErrorLog:          log.AsStdLogger(connectorLogger.With("connector", id), log.LevelDebug),
 		},
 
 		ListenConfig: net.ListenConfig{
@@ -70,13 +70,13 @@ func (instance *HttpConnector) Serve(stop support.Channel) error {
 
 	go func() {
 		if err := serve(); err != nil && err != http.ErrServerClosed {
-			log.WithError(err).
-				WithField("address", instance.Server.Addr).
+			connectorLogger.WithError(err).
+				With("address", instance.Server.Addr).
 				Error("server is unable to serve proxy interface")
 			stop.Broadcast()
 		}
 	}()
-	log.WithField("address", instance.Server.Addr).
+	connectorLogger.With("address", instance.Server.Addr).
 		Info("serve proxy interface")
 
 	return nil

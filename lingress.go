@@ -10,8 +10,9 @@ import (
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/server"
 	"github.com/echocat/lingress/support"
+	"github.com/echocat/slf4g"
+	"github.com/echocat/slf4g/fields"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
 	"reflect"
@@ -28,12 +29,14 @@ type Lingress struct {
 	Https              *server.HttpConnector
 	AccessLogQueueSize uint16
 
+	AccessLogger log.Logger
+
 	accessLogQueue chan accessLogEntry
 
 	unprocessableConnectionDocumented map[reflect.Type]bool
 }
 
-type accessLogEntry map[string]interface{}
+type accessLogEntry fields.Map
 
 type ConnectionStates struct {
 	New    uint64
@@ -64,6 +67,7 @@ func New(fps support.FileProviders) (*Lingress, error) {
 			Http:               hHttp,
 			Https:              hHttps,
 			AccessLogQueueSize: 5000,
+			AccessLogger:       log.GetLogger("access-log"),
 		}
 
 		result.Http.Handler = result
@@ -119,7 +123,7 @@ func (instance *Lingress) OnConnState(connector server.Connector, conn net.Conn,
 		connType := reflect.TypeOf(conn)
 		if !instance.unprocessableConnectionDocumented[connType] {
 			instance.unprocessableConnectionDocumented[connType] = true
-			log.WithField("connType", connType.String()).
+			logger.With("connType", connType.String()).
 				Error("cannot inspect connection of provided connection type; for those kinds of connections there will be no statistics be available")
 		}
 		return
@@ -260,8 +264,8 @@ func (instance *Lingress) accessLogQueueWorker(stop support.Channel, queue chan 
 }
 
 func (instance *Lingress) onAccessLog(ctx *lctx.Context) {
-	if log.IsLevelEnabled(instance.logLevelByContext(ctx)) {
-		entry := ctx.AsMap()
+	if instance.AccessLogger.IsLevelEnabled(instance.logLevelByContext(ctx)) {
+		entry := accessLogEntry(ctx.AsMap())
 		if q := instance.accessLogQueue; q != nil {
 			q <- entry
 		} else {
@@ -284,7 +288,7 @@ func (instance *Lingress) doAccessLog(entry accessLogEntry) {
 	}
 
 	lvl := instance.logLevelByStatus(status)
-	log.WithFields(log.Fields(entry)).Log(lvl, "accessLog")
+	instance.AccessLogger.WithFields(fields.Map(entry)).Log(lvl)
 }
 
 func (instance *Lingress) shouldBeLogged(entry accessLogEntry) bool {
@@ -341,13 +345,13 @@ func (instance *Lingress) logLevelByContext(ctx *lctx.Context) log.Level {
 
 func (instance *Lingress) logLevelByStatus(status int) log.Level {
 	if status < 500 {
-		return log.InfoLevel
+		return log.LevelInfo
 	} else if status == http.StatusBadGateway ||
 		status == http.StatusServiceUnavailable ||
 		status == http.StatusGatewayTimeout {
-		return log.WarnLevel
+		return log.LevelWarn
 	} else {
-		return log.ErrorLevel
+		return log.LevelError
 	}
 }
 
@@ -358,7 +362,7 @@ func (instance *Lingress) onResult(ctx *lctx.Context) {
 
 	ctx.Stage = lctx.StagePrepareClientResponse
 	if proceed, err := instance.Proxy.Interceptors.Handle(ctx); err != nil {
-		ctx.Log().WithError(err).Error("cannot prepare error response")
+		logger.WithFields(ctx.AsMap()).WithError(err).Error("cannot prepare error response")
 		return
 	} else if !proceed {
 		return

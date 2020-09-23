@@ -3,9 +3,9 @@ package main
 import (
 	"github.com/echocat/lingress"
 	"github.com/echocat/lingress/support"
-	_ "github.com/echocat/lingress/support"
+	"github.com/echocat/slf4g"
+	_ "github.com/echocat/slf4g/native"
 	"github.com/gobuffalo/packr"
-	log "github.com/sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"os"
 	"os/signal"
@@ -25,6 +25,8 @@ var (
 		Static:       static,
 		Templates:    templates,
 	}
+
+	logger = log.GetLogger("main")
 )
 
 func main() {
@@ -45,9 +47,9 @@ func main() {
 		support.ChannelDoOnEvent(stop, func() {
 			close(intSig)
 		})
-		log.WithField("revision", rt.Revision).
-			WithField("branch", rt.Branch).
-			WithField("build", rt.Build).
+		logger.With("revision", rt.Revision).
+			With("branch", rt.Branch).
+			With("build", rt.Build).
 			Infof("starting %s...", rt.Name())
 		if err := l.Init(stop); err != nil {
 			return err

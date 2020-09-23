@@ -9,7 +9,7 @@ import (
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/server"
 	"github.com/echocat/lingress/support"
-	log "github.com/sirupsen/logrus"
+	log "github.com/echocat/slf4g"
 	"io"
 	"net"
 	"net/http"
@@ -134,7 +134,7 @@ func (instance *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseW
 			}
 
 			stack := string(debug.Stack())
-			log.WithField("stack", stack).
+			logger.With("stack", stack).
 				WithError(err).
 				Error("unhandled error inside of the finalization stack")
 		}

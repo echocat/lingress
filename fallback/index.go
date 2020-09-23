@@ -21,12 +21,12 @@ func init() {
 func (instance *Fallback) Unknown(ctx *context.Context) {
 	u, err := ctx.Client.RequestedUrl()
 	if err != nil {
-		ctx.Log().WithError(err).Error("cannot resolve requestedUrl for handling fallback")
+		logger.WithFields(ctx.AsMap()).WithError(err).Error("cannot resolve requestedUrl for handling fallback")
 		http.Error(ctx.Client.Response, "Not found", ctx.Client.Status)
 		return
 	}
 	if u == nil {
-		ctx.Log().Error("cannot resolve requestedUrl for handling fallback")
+		logger.WithFields(ctx.AsMap()).Error("cannot resolve requestedUrl for handling fallback")
 		http.Error(ctx.Client.Response, "Not found", ctx.Client.Status)
 		return
 	}

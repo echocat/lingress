@@ -5,7 +5,7 @@ import (
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/server"
 	"github.com/echocat/lingress/support"
-	log "github.com/sirupsen/logrus"
+	"github.com/echocat/slf4g/fields"
 	"net/http"
 	"sync"
 	"time"
@@ -83,10 +83,6 @@ func (instance *Context) MarkUnknown() {
 	instance.Client.Status = http.StatusNotFound
 }
 
-func (instance *Context) Log() log.FieldLogger {
-	return log.WithFields(instance.AsMap())
-}
-
 func (instance *Context) Release() {
 	instance.Client.clean()
 	instance.Upstream.clean()
@@ -107,9 +103,9 @@ func (instance *Context) MarshalJSON() ([]byte, error) {
 	return json.Marshal(instance.AsMap())
 }
 
-func (instance *Context) AsMap() map[string]interface{} {
-	buf := map[string]interface{}{
-		"id":            instance.Id,
+func (instance *Context) AsMap() fields.Map {
+	buf := fields.Map{
+		"requestId":     instance.Id,
 		"correlationId": instance.CorrelationId,
 		"client":        instance.Client.AsMap(),
 		"runtime":       support.Runtime(),
