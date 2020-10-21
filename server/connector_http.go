@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/echocat/lingress/support"
+	"github.com/pires/go-proxyproto"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
@@ -17,6 +18,9 @@ type HttpConnector struct {
 
 	SoLinger       int16
 	MaxConnections uint16
+
+	// See https://www.haproxy.org/download/2.3/doc/proxy-protocol.txt
+	RespectProxyProtocol bool
 
 	Server       http.Server
 	ListenConfig net.ListenConfig
@@ -57,6 +61,10 @@ func (instance *HttpConnector) Serve(stop support.Channel) error {
 	}
 	ln = newLimitedListener(instance.MaxConnections, instance.SoLinger, ln)
 
+	if instance.RespectProxyProtocol {
+		ln = &proxyproto.Listener{Listener: ln}
+	}
+
 	var serve func() error
 	if tlsConfig := instance.Server.TLSConfig; tlsConfig != nil {
 		serve = func() error {
@@ -83,11 +91,12 @@ func (instance *HttpConnector) Serve(stop support.Channel) error {
 }
 
 func (instance *HttpConnector) Shutdown() {
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	if err := instance.Server.Shutdown(ctx); err != nil {
 		log.WithError(err).
 			Warnf("cannot graceful shutdown %s proxy interface %s", instance.Id, instance.Server.Addr)
 	}
+	cancel()
 }
 
 func (instance *HttpConnector) flagName(prefix, suffix string) string {
@@ -127,6 +136,10 @@ func (instance *HttpConnector) RegisterFlag(fe support.FlagEnabled, appPrefix st
 		PlaceHolder(fmt.Sprint(instance.SoLinger)).
 		Envar(instance.serverFlagEnvVar(appPrefix, "SO_LINGER")).
 		Int16Var(&instance.SoLinger)
+	fe.Flag(instance.serverFlagName("proxyProtocol.respect"), "If set to true the proxy protocol will be respected. See: https://www.haproxy.org/download/2.3/doc/proxy-protocol.txt").
+		PlaceHolder(fmt.Sprint(instance.RespectProxyProtocol)).
+		Envar(instance.serverFlagEnvVar(appPrefix, "PROXY_PROTOCOL_RESPECT")).
+		BoolVar(&instance.RespectProxyProtocol)
 
 	fe.Flag(instance.clientFlagName("maxHeaderBytes"), "Maximum number of bytes the server will read parsing the request header's keys and values, including the request line. It does not limit the size of the request body.").
 		PlaceHolder(fmt.Sprint(instance.Server.MaxHeaderBytes)).
