@@ -292,7 +292,7 @@ func (instance *repositoryImplState) visitIngress(ingress *v1beta1.Ingress, targ
 						Warn("illegal path in ingress; ingress will not functioning")
 				} else if backend, err := instance.ingressToBackend(source, forPath.Backend); err != nil {
 					return err
-				} else if options, err := instance.mewOptionsBy(ingress); err != nil {
+				} else if options, err := instance.newOptionsBy(ingress); err != nil {
 					return err
 				} else if backend != nil {
 					r := NewRule(host, path, source, backend, options)
@@ -307,7 +307,7 @@ func (instance *repositoryImplState) visitIngress(ingress *v1beta1.Ingress, targ
 	return nil
 }
 
-func (instance *repositoryImplState) mewOptionsBy(ingress *v1beta1.Ingress) (Options, error) {
+func (instance *repositoryImplState) newOptionsBy(ingress *v1beta1.Ingress) (Options, error) {
 	result := instance.OptionsFactory()
 	if err := result.Set(ingress.GetAnnotations()); err != nil {
 		return nil, err
@@ -321,38 +321,63 @@ func (instance *repositoryImplState) ingressToBackend(source *sourceReference, i
 		WithField("port", ib.ServicePort).
 		WithField("source", source.String())
 
-	if service, err := instance.ingressToService(source, ib); err != nil {
+	service, err := instance.ingressToService(source, ib)
+	if err != nil {
 		return nil, err
 	} else if service == nil {
 		l.Warn("service not found; maybe orphan ingress?; ingress will not functioning")
 		return nil, nil
-	} else if service.Spec.Type != v1.ServiceTypeClusterIP {
+	}
+	if service.Spec.Type != v1.ServiceTypeClusterIP {
 		l.WithField("serviceType", service.Spec.Type).
 			Warn("unsupported serviceType; ingress will not functioning")
 		return nil, nil
-	} else if strings.TrimSpace(service.Spec.ClusterIP) == "" {
+	}
+	if strings.TrimSpace(service.Spec.ClusterIP) == "" {
 		l.Warnf("serviceType is '%s' but clusterIP of service is not set; ingress will not functioning", v1.ServiceTypeClusterIP)
 		return nil, nil
-	} else if addr, err := instance.clusterIpBasedServiceToAddr(service.Spec.ClusterIP, ib.ServicePort); err != nil {
+	}
+	port, err := instance.evaluateServicePort(ib.ServicePort, service)
+	if err != nil {
+		l.WithError(err).
+			Warn("cannot resolve backend port; ingress will not functioning")
+		return nil, nil
+	}
+	addr, err := instance.clusterIpBasedServiceToAddr(service.Spec.ClusterIP, port)
+	if err != nil {
 		l.WithError(err).
 			Warn("cannot resolve backend address; ingress will not functioning")
 		return nil, nil
-	} else {
-		return addr, nil
+	}
+
+	return addr, nil
+}
+
+func (instance *repositoryImplState) evaluateServicePort(in intstr.IntOrString, service *v1.Service) (int32, error) {
+	switch in.Type {
+	case intstr.Int:
+		return in.IntVal, nil
+	case intstr.String:
+		for _, candidate := range service.Spec.Ports {
+			if candidate.Name == in.StrVal {
+				return candidate.Port, nil
+			}
+		}
+		return 0, fmt.Errorf("unknown service reference %s:%s", service.Name, in.StrVal)
+	default:
+		return 0, fmt.Errorf("only port type String or Int is currently supported; but got: %d", in.Type)
 	}
 }
 
-func (instance *repositoryImplState) clusterIpBasedServiceToAddr(ipStr string, portStr intstr.IntOrString) (net.Addr, error) {
+func (instance *repositoryImplState) clusterIpBasedServiceToAddr(ipStr string, port int32) (net.Addr, error) {
 	if ips, err := net.LookupIP(ipStr); err != nil {
 		return nil, err
 	} else if len(ips) <= 0 {
 		return nil, fmt.Errorf("host %s cannot be resovled to any IP address", ipStr)
-	} else if port, err := net.LookupPort("tcp", portStr.String()); err != nil {
-		return nil, fmt.Errorf("cannot handle port of type %v: %v", portStr, err)
 	} else {
 		return &net.TCPAddr{
 			IP:   ips[0],
-			Port: port,
+			Port: int(port),
 		}, nil
 	}
 }
