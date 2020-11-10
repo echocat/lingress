@@ -99,6 +99,7 @@ func (instance *ByHost) HasContent() bool {
 func (instance *ByHost) Clone() *ByHost {
 	result := NewByHost(instance.onAdded, instance.onRemoved)
 
+	result.fallback = instance.fallback.Clone()
 	for k, v := range instance.values {
 		result.values[k] = v.Clone()
 	}
