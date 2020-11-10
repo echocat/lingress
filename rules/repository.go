@@ -279,6 +279,19 @@ func (instance *repositoryImplState) visitIngress(ingress *v1beta1.Ingress, targ
 		return err
 	}
 
+	if v := ingress.Spec.Backend; v != nil {
+		if backend, err := instance.ingressToBackend(source, *v); err != nil {
+			return err
+		} else if options, err := instance.newOptionsBy(ingress); err != nil {
+			return err
+		} else if backend != nil {
+			r := NewRule("", []string{}, source, backend, options)
+			if err := target.Put(r); err != nil {
+				return err
+			}
+		}
+	}
+
 	for _, forHost := range ingress.Spec.Rules {
 		host := normalizeHostname(forHost.Host)
 		if forHost.IngressRuleValue.HTTP != nil && forHost.IngressRuleValue.HTTP.Paths != nil {
