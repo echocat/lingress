@@ -16,12 +16,12 @@ func init() {
 }
 
 type ForceSecureInterceptor struct {
-	Enabled rules.ForceableBool
+	Enabled rules.ForcibleBool
 }
 
 func NewForceSecureInterceptor() *ForceSecureInterceptor {
 	return &ForceSecureInterceptor{
-		Enabled: rules.NewForceableBool(rules.False, false),
+		Enabled: rules.NewForcibleBool(rules.False, false),
 	}
 }
 

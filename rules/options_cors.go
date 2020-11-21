@@ -31,12 +31,12 @@ func OptionsCorsOf(rule Rule) *OptionsCors {
 }
 
 type OptionsCors struct {
-	Enabled            ForceableBool `json:"enabled,omitempty"`
-	AllowedOriginsHost HostPatterns  `json:"allowedOriginsHost,omitempty"`
-	AllowedMethods     Methods       `json:"allowedMethods,omitempty"`
-	AllowedHeaders     HeaderNames   `json:"allowedHeaders,omitempty"`
-	AllowedCredentials Bool          `json:"allowedCredentials,omitempty"`
-	MaxAge             Duration      `json:"maxAge,omitempty"`
+	Enabled            ForcibleBool `json:"enabled,omitempty"`
+	AllowedOriginsHost HostPatterns `json:"allowedOriginsHost,omitempty"`
+	AllowedMethods     Methods      `json:"allowedMethods,omitempty"`
+	AllowedHeaders     HeaderNames  `json:"allowedHeaders,omitempty"`
+	AllowedCredentials Bool         `json:"allowedCredentials,omitempty"`
+	MaxAge             Duration     `json:"maxAge,omitempty"`
 }
 
 func (instance OptionsCors) Name() string {
@@ -74,17 +74,17 @@ func (instance *OptionsCors) Set(annotations Annotations) (err error) {
 	return
 }
 
-func evaluateOptionCorsEnable(annotations map[string]string) (ForceableBool, error) {
+func evaluateOptionCorsEnable(annotations map[string]string) (ForcibleBool, error) {
 	if v, ok := annotations[annotationCorsEnabled]; ok {
-		return AnnotationIsForceableBool(annotationCorsEnabled, v)
+		return AnnotationIsForcibleBool(annotationCorsEnabled, v)
 	}
 	if v, ok := annotations[annotationCorsEnabledAlternative]; ok {
-		return AnnotationIsForceableBool(annotationCorsEnabledAlternative, v)
+		return AnnotationIsForcibleBool(annotationCorsEnabledAlternative, v)
 	}
 	if v, ok := annotations[annotationNginxCorsEnable]; ok {
-		return AnnotationIsForceableBool(annotationNginxCorsEnable, v)
+		return AnnotationIsForcibleBool(annotationNginxCorsEnable, v)
 	}
-	return NewForceableBool(NotDefined, false), nil
+	return NewForcibleBool(NotDefined, false), nil
 }
 
 func evaluateOptionCorsAllowedOriginsHosts(annotations map[string]string) (HostPatterns, error) {

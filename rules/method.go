@@ -119,17 +119,17 @@ func (instance Methods) IsPresent() bool {
 	return len(instance) > 0
 }
 
-type ForceableMethods struct {
-	Forceable
+type ForcibleMethods struct {
+	Forcible
 }
 
-func NewForceableMethods(init Methods, forced bool) ForceableMethods {
+func NewForcibleMethods(init Methods, forced bool) ForcibleMethods {
 	val := init
-	return ForceableMethods{
-		Forceable: NewForceable(&val, forced),
+	return ForcibleMethods{
+		Forcible: NewForcible(&val, forced),
 	}
 }
 
-func (instance ForceableMethods) Evaluate(other Methods, def Methods) Methods {
-	return instance.Forceable.Evaluate(other, def).(Methods)
+func (instance ForcibleMethods) Evaluate(other Methods, def Methods) Methods {
+	return instance.Forcible.Evaluate(other, def).(Methods)
 }
