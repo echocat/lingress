@@ -77,10 +77,10 @@ func AnnotationIsTrue(name, value string) (Bool, error) {
 	return 0, fmt.Errorf("illegal boolean value for annotation %s: %s", name, value)
 }
 
-func AnnotationIsForceableBool(name, value string) (result ForceableBool, err error) {
-	result = NewForceableBool(False, false)
+func AnnotationIsForcibleBool(name, value string) (result ForcibleBool, err error) {
+	result = NewForcibleBool(False, false)
 	if err := result.Set(value); err != nil {
-		return ForceableBool{}, fmt.Errorf("illegal boolean value for annotation %s: %s", name, value)
+		return ForcibleBool{}, fmt.Errorf("illegal boolean value for annotation %s: %s", name, value)
 	}
 	return
 }

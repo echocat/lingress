@@ -20,22 +20,22 @@ var (
 )
 
 type CorsInterceptor struct {
-	AllowedOriginsHost rules.ForceableHostPatterns
-	AllowedMethods     rules.ForceableMethods
-	AllowedHeaders     rules.ForceableHeaderNames
-	AllowedCredentials rules.ForceableBool
-	MaxAge             rules.ForceableDuration
-	Enabled            rules.ForceableBool
+	AllowedOriginsHost rules.ForcibleHostPatterns
+	AllowedMethods     rules.ForcibleMethods
+	AllowedHeaders     rules.ForcibleHeaderNames
+	AllowedCredentials rules.ForcibleBool
+	MaxAge             rules.ForcibleDuration
+	Enabled            rules.ForcibleBool
 }
 
 func NewCorsInterceptor() *CorsInterceptor {
 	return &CorsInterceptor{
-		AllowedOriginsHost: rules.NewForceableHostPatterns(rules.HostPatterns{}, false),
-		AllowedMethods:     rules.NewForceableMethods(rules.Methods{}, false),
-		AllowedHeaders:     rules.NewForceableHeaders(rules.HeaderNames{}, false),
-		AllowedCredentials: rules.NewForceableBool(rules.True, false),
-		MaxAge:             rules.NewForceableDuration(defaultMaxAge, false),
-		Enabled:            rules.NewForceableBool(rules.False, false),
+		AllowedOriginsHost: rules.NewForcibleHostPatterns(rules.HostPatterns{}, false),
+		AllowedMethods:     rules.NewForcibleMethods(rules.Methods{}, false),
+		AllowedHeaders:     rules.NewForcibleHeaders(rules.HeaderNames{}, false),
+		AllowedCredentials: rules.NewForcibleBool(rules.True, false),
+		MaxAge:             rules.NewForcibleDuration(defaultMaxAge, false),
+		Enabled:            rules.NewForcibleBool(rules.False, false),
 	}
 }
 

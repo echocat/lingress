@@ -94,17 +94,17 @@ func (instance HostPatterns) IsPresent() bool {
 	return len(instance) > 0
 }
 
-type ForceableHostPatterns struct {
-	Forceable
+type ForcibleHostPatterns struct {
+	Forcible
 }
 
-func NewForceableHostPatterns(init HostPatterns, forced bool) ForceableHostPatterns {
+func NewForcibleHostPatterns(init HostPatterns, forced bool) ForcibleHostPatterns {
 	val := init
-	return ForceableHostPatterns{
-		Forceable: NewForceable(&val, forced),
+	return ForcibleHostPatterns{
+		Forcible: NewForcible(&val, forced),
 	}
 }
 
-func (instance ForceableHostPatterns) Evaluate(other HostPatterns, def HostPatterns) HostPatterns {
-	return instance.Forceable.Evaluate(other, def).(HostPatterns)
+func (instance ForcibleHostPatterns) Evaluate(other HostPatterns, def HostPatterns) HostPatterns {
+	return instance.Forcible.Evaluate(other, def).(HostPatterns)
 }

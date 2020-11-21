@@ -76,17 +76,17 @@ func (instance HeaderNames) IsPresent() bool {
 	return len(instance) > 0
 }
 
-type ForceableHeaderNames struct {
-	Forceable
+type ForcibleHeaderNames struct {
+	Forcible
 }
 
-func NewForceableHeaders(init HeaderNames, forced bool) ForceableHeaderNames {
+func NewForcibleHeaders(init HeaderNames, forced bool) ForcibleHeaderNames {
 	val := init
-	return ForceableHeaderNames{
-		Forceable: NewForceable(&val, forced),
+	return ForcibleHeaderNames{
+		Forcible: NewForcible(&val, forced),
 	}
 }
 
-func (instance ForceableHeaderNames) Evaluate(other HeaderNames, def HeaderNames) HeaderNames {
-	return instance.Forceable.Evaluate(other, def).(HeaderNames)
+func (instance ForcibleHeaderNames) Evaluate(other HeaderNames, def HeaderNames) HeaderNames {
+	return instance.Forcible.Evaluate(other, def).(HeaderNames)
 }

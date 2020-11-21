@@ -80,18 +80,18 @@ func (instance Bool) IsPresent() bool {
 	return instance == True || instance == False
 }
 
-type ForceableBool struct {
-	Forceable
+type ForcibleBool struct {
+	Forcible
 }
 
-func NewForceableBool(init Bool, forced bool) ForceableBool {
+func NewForcibleBool(init Bool, forced bool) ForcibleBool {
 	val := init
-	return ForceableBool{
-		Forceable: NewForceable(&val, forced),
+	return ForcibleBool{
+		Forcible: NewForcible(&val, forced),
 	}
 }
 
-func (instance ForceableBool) GetOr(def bool) bool {
+func (instance ForcibleBool) GetOr(def bool) bool {
 	switch *(instance.value.(*Bool)) {
 	case True:
 		return true
@@ -101,33 +101,33 @@ func (instance ForceableBool) GetOr(def bool) bool {
 	return def
 }
 
-func (instance ForceableBool) Select(target ForceableBool) ForceableBool {
-	return ForceableBool{
-		Forceable: instance.Forceable.Select(target.Forceable),
+func (instance ForcibleBool) Select(target ForcibleBool) ForcibleBool {
+	return ForcibleBool{
+		Forcible: instance.Forcible.Select(target.Forcible),
 	}
 }
 
-func (instance ForceableBool) Evaluate(other Bool, def bool) bool {
-	return instance.Forceable.Evaluate(other, NewBool(def)).(bool)
+func (instance ForcibleBool) Evaluate(other Bool, def bool) bool {
+	return instance.Forcible.Evaluate(other, NewBool(def)).(bool)
 }
 
-type Forceable struct {
+type Forcible struct {
 	value  MutableValue
 	forced bool
 }
 
-func NewForceable(value MutableValue, forced bool) Forceable {
-	return Forceable{
+func NewForcible(value MutableValue, forced bool) Forcible {
+	return Forcible{
 		value:  value,
 		forced: forced,
 	}
 }
 
-func (instance Forceable) Get() interface{} {
+func (instance Forcible) Get() interface{} {
 	return instance.value.Get()
 }
 
-func (instance Forceable) Evaluate(other Value, def Value) interface{} {
+func (instance Forcible) Evaluate(other Value, def Value) interface{} {
 	if instance.forced {
 		if instance.IsPresent() {
 			return instance.Get()
@@ -140,7 +140,7 @@ func (instance Forceable) Evaluate(other Value, def Value) interface{} {
 	return def.Get()
 }
 
-func (instance Forceable) Select(target Forceable) Forceable {
+func (instance Forcible) Select(target Forcible) Forcible {
 	if instance.forced {
 		return instance
 	}
@@ -150,7 +150,7 @@ func (instance Forceable) Select(target Forceable) Forceable {
 	return instance
 }
 
-func (instance *Forceable) Set(plain string) error {
+func (instance *Forcible) Set(plain string) error {
 	forced := false
 	if len(plain) > 0 && plain[0] == '!' {
 		forced = true
@@ -163,7 +163,7 @@ func (instance *Forceable) Set(plain string) error {
 	return nil
 }
 
-func (instance Forceable) String() string {
+func (instance Forcible) String() string {
 	result := ""
 	if instance.forced {
 		result += "!"
@@ -174,11 +174,11 @@ func (instance Forceable) String() string {
 	return result
 }
 
-func (instance Forceable) IsPresent() bool {
+func (instance Forcible) IsPresent() bool {
 	return instance.value != nil && instance.value.IsPresent()
 }
 
-func (instance Forceable) IsForced() bool {
+func (instance Forcible) IsForced() bool {
 	return instance.forced
 }
 
@@ -223,17 +223,17 @@ func (instance Duration) IsPresent() bool {
 	return instance > 0
 }
 
-type ForceableDuration struct {
-	Forceable
+type ForcibleDuration struct {
+	Forcible
 }
 
-func NewForceableDuration(init Duration, forced bool) ForceableDuration {
+func NewForcibleDuration(init Duration, forced bool) ForcibleDuration {
 	val := init
-	return ForceableDuration{
-		Forceable: NewForceable(&val, forced),
+	return ForcibleDuration{
+		Forcible: NewForcible(&val, forced),
 	}
 }
 
-func (instance ForceableDuration) Evaluate(other Duration, def Duration) Duration {
-	return instance.Forceable.Evaluate(other, def).(Duration)
+func (instance ForcibleDuration) Evaluate(other Duration, def Duration) Duration {
+	return instance.Forcible.Evaluate(other, def).(Duration)
 }
