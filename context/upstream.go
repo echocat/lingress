@@ -96,6 +96,6 @@ func (instance *Upstream) ApplyToMap(r rules.Rule, prefix string, to *map[string
 	}
 	if r != nil {
 		(*to)[prefix+FieldUpstreamSource] = r.Source().String()
-		(*to)[prefix+FieldUpstreamMatches] = r.Host() + "/" + strings.Join(r.Path(), "/")
+		(*to)[prefix+FieldUpstreamMatches] = r.Host().String() + "/" + strings.Join(r.Path(), "/")
 	}
 }

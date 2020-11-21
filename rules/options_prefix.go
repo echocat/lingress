@@ -1,5 +1,7 @@
 package rules
 
+import "github.com/echocat/lingress/value"
+
 var _ = RegisterDefaultOptionsPart(&OptionsPrefix{})
 
 const (
@@ -24,9 +26,9 @@ func OptionsPrefixOf(rule Rule) *OptionsPrefix {
 }
 
 type OptionsPrefix struct {
-	StripRulePathPrefix Bool     `json:"stripRulePathPrefix,omitempty"`
-	PathPrefix          []string `json:"pathPrefix,omitempty"`
-	XForwardedPrefix    Bool     `json:"xForwardedPrefix,omitempty"`
+	StripRulePathPrefix value.Bool `json:"stripRulePathPrefix,omitempty"`
+	PathPrefix          []string   `json:"pathPrefix,omitempty"`
+	XForwardedPrefix    value.Bool `json:"xForwardedPrefix,omitempty"`
 }
 
 func (instance OptionsPrefix) Name() string {
@@ -52,14 +54,14 @@ func (instance *OptionsPrefix) Set(annotations Annotations) (err error) {
 	return
 }
 
-func evaluateOptionStripRulePathPrefix(annotations map[string]string) (Bool, error) {
+func evaluateOptionStripRulePathPrefix(annotations map[string]string) (value.Bool, error) {
 	if v, ok := annotations[annotationStripRulePathPrefix]; ok {
 		return AnnotationIsTrue(annotationStripRulePathPrefix, v)
 	}
 	if _, ok := annotations[annotationNginxRewriteTarget]; ok {
-		return True, nil
+		return value.True, nil
 	}
-	return NotDefined, nil
+	return value.UndefinedBool, nil
 }
 
 func evaluateOptionPathPrefix(annotations map[string]string) ([]string, error) {
@@ -72,12 +74,12 @@ func evaluateOptionPathPrefix(annotations map[string]string) ([]string, error) {
 	return []string{}, nil
 }
 
-func evaluateOptionXForwardedPrefix(annotations map[string]string) (Bool, error) {
+func evaluateOptionXForwardedPrefix(annotations map[string]string) (value.Bool, error) {
 	if v, ok := annotations[annotationXForwardedPrefix]; ok {
 		return AnnotationIsTrue(annotationXForwardedPrefix, v)
 	}
 	if v, ok := annotations[annotationNginxXForwardedPrefix]; ok {
 		return AnnotationIsTrue(annotationNginxXForwardedPrefix, v)
 	}
-	return NotDefined, nil
+	return value.UndefinedBool, nil
 }

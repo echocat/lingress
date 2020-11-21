@@ -1,6 +1,9 @@
 package rules
 
-import "strings"
+import (
+	"github.com/echocat/lingress/value"
+	"strings"
+)
 
 type HostPattern []string
 
@@ -95,13 +98,13 @@ func (instance HostPatterns) IsPresent() bool {
 }
 
 type ForcibleHostPatterns struct {
-	Forcible
+	value.Forcible
 }
 
 func NewForcibleHostPatterns(init HostPatterns, forced bool) ForcibleHostPatterns {
 	val := init
 	return ForcibleHostPatterns{
-		Forcible: NewForcible(&val, forced),
+		Forcible: value.NewForcible(&val, forced),
 	}
 }
 

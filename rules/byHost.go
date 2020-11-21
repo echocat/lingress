@@ -1,107 +1,172 @@
 package rules
 
-type ByHost struct {
-	values   map[string]*ByPath
-	fallback *ByPath
+import (
+	"github.com/echocat/lingress/value"
+)
 
-	onAdded   OnAdded
-	onRemoved OnRemoved
+type ByHost struct {
+	hostFullMatch           map[value.Fqdn]*ByPath
+	hostPrefixWildcardMatch map[value.Fqdn]*ByPath
+	allHostsMatching        *ByPath
+
+	onAdded        OnAdded
+	onRemoved      OnRemoved
+	findStrategies []func(host value.Fqdn, path []string) (Rules, error)
 }
 
 func NewByHost(onAdded OnAdded, onRemoved OnRemoved) *ByHost {
-	return &ByHost{
-		values:   make(map[string]*ByPath),
-		fallback: NewByPath(onAdded, onRemoved),
+	result := &ByHost{
+		hostFullMatch:           make(map[value.Fqdn]*ByPath),
+		hostPrefixWildcardMatch: make(map[value.Fqdn]*ByPath),
+		allHostsMatching:        NewByPath(onAdded, onRemoved),
 
 		onAdded:   onAdded,
 		onRemoved: onRemoved,
 	}
+	return result
 }
 
 func (instance *ByHost) All(consumer func(Rule) error) error {
-	for _, value := range instance.values {
+	for _, value := range instance.hostFullMatch {
 		if err := value.All(consumer); err != nil {
 			return err
 		}
 	}
-	if err := instance.fallback.All(consumer); err != nil {
+	if err := instance.allHostsMatching.All(consumer); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (instance *ByHost) Find(host string, path []string) (Rules, error) {
-	var byHost, fallback Rules
-	if v, ok := instance.values[host]; ok {
-		if r, err := v.Find(path); err != nil {
+func (instance *ByHost) Find(host value.Fqdn, path []string) (Rules, error) {
+	var result Rules = rules{}
+	for _, strategy := range allFindHostByStrategies {
+		candidate, err := strategy(instance, host, path)
+		if err != nil {
 			return nil, err
-		} else if r != nil && r.Len() > 0 {
-			byHost = r
 		}
-	}
-	if v := instance.fallback; v != nil {
-		if r, err := instance.fallback.Find(path); err != nil {
-			return nil, err
-		} else if r != nil && r.Len() > 0 {
-			fallback = r
+		if candidate == nil {
+			continue
+		}
+		resultAny, candidateAny := result.Any(), candidate.Any()
+		if candidateAny == nil {
+			continue
+		}
+		if resultAny == nil || len(candidateAny.Path()) > len(resultAny.Path()) {
+			result = candidate
 		}
 	}
 
-	if byHost != nil && fallback != nil {
-		byHostPath := byHost.Any().Path()
-		fallbackPath := fallback.Any().Path()
-		if len(fallbackPath) > len(byHostPath) {
-			return fallback, nil
-		}
-		return byHost, nil
-	} else if byHost != nil {
-		return byHost, nil
-	} else if fallback != nil {
-		return fallback, nil
-	}
+	return result, nil
+}
 
-	return rules{}, nil
+var allFindHostByStrategies = []func(instance *ByHost, host value.Fqdn, path []string) (Rules, error){
+	findHostByFullMatchStrategy,
+	findHostByPrefixWildcardMatchStrategy,
+	findHostByAllHostsMatchStrategy,
+}
+
+func findHostByFullMatchStrategy(instance *ByHost, host value.Fqdn, path []string) (Rules, error) {
+	v, ok := instance.hostFullMatch[host]
+	if !ok {
+		return nil, nil
+	}
+	r, err := v.Find(path)
+	if err != nil {
+		return nil, err
+	}
+	if r == nil || r.Len() <= 0 {
+		return nil, nil
+	}
+	return r, nil
+}
+
+func findHostByPrefixWildcardMatchStrategy(instance *ByHost, host value.Fqdn, path []string) (Rules, error) {
+	v, ok := instance.hostPrefixWildcardMatch[host.Parent()]
+	if !ok {
+		return nil, nil
+	}
+	r, err := v.Find(path)
+	if err != nil {
+		return nil, err
+	}
+	if r == nil || r.Len() <= 0 {
+		return nil, nil
+	}
+	return r, nil
+}
+
+func findHostByAllHostsMatchStrategy(instance *ByHost, _ value.Fqdn, path []string) (Rules, error) {
+	r, err := instance.allHostsMatching.Find(path)
+	if err != nil {
+		return nil, err
+	}
+	if r == nil || r.Len() <= 0 {
+		return nil, nil
+	}
+	return r, nil
 }
 
 func (instance *ByHost) Put(r Rule) error {
-	host := r.Host()
+	hostMaybeWithWildcard := r.Host()
 
-	if host == "" {
-		return instance.fallback.Put(r)
-	} else if existing, ok := instance.values[host]; ok {
-		return existing.Put(r)
-	} else {
-		value := NewByPath(instance.onAdded, instance.onRemoved)
-		instance.values[host] = value
-		return value.Put(r)
+	if hostMaybeWithWildcard == "" {
+		return instance.allHostsMatching.Put(r)
 	}
+
+	hadWildcard, host, err := hostMaybeWithWildcard.WithoutWildcard()
+	if err != nil {
+		return err
+	}
+
+	var target map[value.Fqdn]*ByPath
+	if hadWildcard {
+		target = instance.hostPrefixWildcardMatch
+	} else {
+		target = instance.hostFullMatch
+	}
+
+	if existing, ok := target[host]; ok {
+		return existing.Put(r)
+	}
+
+	value := NewByPath(instance.onAdded, instance.onRemoved)
+	target[host] = value
+	return value.Put(r)
 }
 
 func (instance *ByHost) Remove(predicate Predicate) error {
-	if err := instance.fallback.Remove(predicate); err != nil {
+	if err := instance.allHostsMatching.Remove(predicate); err != nil {
 		return err
 	}
-	for host, v := range instance.values {
+	for host, v := range instance.hostFullMatch {
 		if err := v.Remove(predicate); err != nil {
 			return err
 		}
 		if !v.HasContent() {
-			delete(instance.values, host)
+			delete(instance.hostFullMatch, host)
+		}
+	}
+	for host, v := range instance.hostPrefixWildcardMatch {
+		if err := v.Remove(predicate); err != nil {
+			return err
+		}
+		if !v.HasContent() {
+			delete(instance.hostPrefixWildcardMatch, host)
 		}
 	}
 	return nil
-}
-
-func (instance *ByHost) HasContent() bool {
-	return len(instance.values) > 0
 }
 
 func (instance *ByHost) Clone() *ByHost {
 	result := NewByHost(instance.onAdded, instance.onRemoved)
 
-	result.fallback = instance.fallback.Clone()
-	for k, v := range instance.values {
-		result.values[k] = v.Clone()
+	result.allHostsMatching = instance.allHostsMatching.Clone()
+	for k, v := range instance.hostFullMatch {
+		result.hostFullMatch[k] = v.Clone()
+	}
+	for k, v := range instance.hostPrefixWildcardMatch {
+		result.hostPrefixWildcardMatch[k] = v.Clone()
 	}
 
 	return result
