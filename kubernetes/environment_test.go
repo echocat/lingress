@@ -165,6 +165,7 @@ func Test_Environment_get_with_incluster_succeeds(t *testing.T) {
 	env := MustNewEnvironment()
 	env.tokenFile = "resources/serviceaccount_token"
 	env.rootCAFile = "resources/serviceaccount_ca.crt"
+	env.namespaceFile = "resources/serviceaccount_namespace"
 	err := env.Kubeconfig.Set(KubeconfigInCluster)
 	g.Expect(err).To(BeNil())
 
@@ -174,6 +175,7 @@ func Test_Environment_get_with_incluster_succeeds(t *testing.T) {
 	g.Expect(instance).ToNot(BeNil())
 	g.Expect(instance.restConfig).NotTo(BeNil())
 	g.Expect(instance.contextName).To(Equal("incluster"))
+	g.Expect(env.Namespace).To(Equal("aNamespace"))
 }
 
 func Test_Environment_get_with_incluster_without_envVarServicePort_fails(t *testing.T) {
