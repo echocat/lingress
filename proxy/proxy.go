@@ -8,6 +8,7 @@ import (
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/server"
 	"github.com/echocat/lingress/support"
+	"github.com/echocat/lingress/value"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net"
@@ -160,15 +161,21 @@ func (instance *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseW
 		}
 	}()
 
+	ctx.Stage = lctx.StageEvaluateClientRequest
+	var host value.Fqdn
+	if err := host.Set(ctx.Client.Host()); err != nil {
+		instance.markDone(lctx.ResultFailedWithIllegalHost, ctx, err)
+		return
+	}
+
 	query := rules.Query{
-		Host: ctx.Client.Host(),
+		Host: host,
 		Path: ctx.Client.Request.RequestURI,
 	}
 	if u := ctx.Client.Request.URL; u != nil {
 		query.Path = u.Path
 	}
 
-	ctx.Stage = lctx.StageEvaluateClientRequest
 	rs, err := instance.RulesRepository.FindBy(query)
 	if err != nil {
 		instance.markDone(lctx.ResultFailedWithUnexpectedError, ctx, err)

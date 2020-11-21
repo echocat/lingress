@@ -5,6 +5,7 @@ import (
 	"github.com/echocat/lingress/context"
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/support"
+	"github.com/echocat/lingress/value"
 	"net"
 	"net/http"
 )
@@ -16,12 +17,12 @@ func init() {
 }
 
 type ForceSecureInterceptor struct {
-	Enabled rules.ForcibleBool
+	Enabled value.ForcibleBool
 }
 
 func NewForceSecureInterceptor() *ForceSecureInterceptor {
 	return &ForceSecureInterceptor{
-		Enabled: rules.NewForcibleBool(rules.False, false),
+		Enabled: value.NewForcibleBool(value.False, false),
 	}
 }
 

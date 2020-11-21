@@ -3,6 +3,7 @@ package rules
 import (
 	"errors"
 	"fmt"
+	"github.com/echocat/lingress/value"
 	"net/http"
 	"strings"
 )
@@ -120,13 +121,13 @@ func (instance Methods) IsPresent() bool {
 }
 
 type ForcibleMethods struct {
-	Forcible
+	value.Forcible
 }
 
 func NewForcibleMethods(init Methods, forced bool) ForcibleMethods {
 	val := init
 	return ForcibleMethods{
-		Forcible: NewForcible(&val, forced),
+		Forcible: value.NewForcible(&val, forced),
 	}
 }
 

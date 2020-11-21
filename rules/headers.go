@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"github.com/echocat/lingress/value"
 	"strings"
 )
 
@@ -77,13 +78,13 @@ func (instance HeaderNames) IsPresent() bool {
 }
 
 type ForcibleHeaderNames struct {
-	Forcible
+	value.Forcible
 }
 
 func NewForcibleHeaders(init HeaderNames, forced bool) ForcibleHeaderNames {
 	val := init
 	return ForcibleHeaderNames{
-		Forcible: NewForcible(&val, forced),
+		Forcible: value.NewForcible(&val, forced),
 	}
 }
 

@@ -2,6 +2,7 @@ package rules
 
 import (
 	"fmt"
+	"github.com/echocat/lingress/value"
 	"net"
 	"reflect"
 	"strings"
@@ -67,20 +68,20 @@ func (instance *Options) Set(annotations Annotations) error {
 	return nil
 }
 
-func AnnotationIsTrue(name, value string) (Bool, error) {
-	if value == "true" {
-		return True, nil
+func AnnotationIsTrue(name, v string) (value.Bool, error) {
+	if v == "true" {
+		return value.True, nil
 	}
-	if value == "false" {
-		return False, nil
+	if v == "false" {
+		return value.False, nil
 	}
-	return 0, fmt.Errorf("illegal boolean value for annotation %s: %s", name, value)
+	return 0, fmt.Errorf("illegal boolean value for annotation %s: %s", name, v)
 }
 
-func AnnotationIsForcibleBool(name, value string) (result ForcibleBool, err error) {
-	result = NewForcibleBool(False, false)
-	if err := result.Set(value); err != nil {
-		return ForcibleBool{}, fmt.Errorf("illegal boolean value for annotation %s: %s", name, value)
+func AnnotationIsForcibleBool(name, v string) (result value.ForcibleBool, err error) {
+	result = value.NewForcibleBool(value.False, false)
+	if err := result.Set(v); err != nil {
+		return value.ForcibleBool{}, fmt.Errorf("illegal boolean value for annotation %s: %s", name, v)
 	}
 	return
 }
