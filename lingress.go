@@ -17,6 +17,7 @@ import (
 	"reflect"
 	"strings"
 	"sync/atomic"
+	"time"
 )
 
 type Lingress struct {
@@ -292,6 +293,11 @@ func (instance *Lingress) doAccessLog(entry *accessLogEntry) {
 
 	f := func(sub, field string) string {
 		if v := entry.getField(sub, instance.InlineAccessLog, field); v != nil {
+			if d, ok := v.(time.Duration); ok {
+				// Because beforehand we removed that value to be microsecond. Now, for the formatter,
+				// it needs to be nanosecond again.
+				v = d * time.Microsecond
+			}
 			return fmt.Sprint(v)
 		}
 		return "-"
