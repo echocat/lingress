@@ -1,5 +1,7 @@
 package rules
 
+import "github.com/echocat/lingress/value"
+
 var _ = RegisterDefaultOptionsPart(&OptionsSecure{})
 
 const (
@@ -23,8 +25,8 @@ func OptionsSecureOf(rule Rule) *OptionsSecure {
 }
 
 type OptionsSecure struct {
-	ForceSecure        Bool      `json:"forceSecure,omitempty"`
-	WhitelistedRemotes []Address `json:"whitelistedRemotes,omitempty"`
+	ForceSecure        value.Bool `json:"forceSecure,omitempty"`
+	WhitelistedRemotes []Address  `json:"whitelistedRemotes,omitempty"`
 }
 
 func (instance OptionsSecure) Name() string {
@@ -46,14 +48,14 @@ func (instance *OptionsSecure) Set(annotations Annotations) (err error) {
 	return
 }
 
-func evaluateOptionForceSecure(annotations map[string]string) (Bool, error) {
+func evaluateOptionForceSecure(annotations map[string]string) (value.Bool, error) {
 	if v, ok := annotations[annotationForceSecure]; ok {
 		return AnnotationIsTrue(annotationForceSecure, v)
 	}
 	if v, ok := annotations[annotationNginxForceSslRedirect]; ok {
 		return AnnotationIsTrue(annotationNginxForceSslRedirect, v)
 	}
-	return NotDefined, nil
+	return value.UndefinedBool, nil
 }
 
 func evaluateOptionWhitelistedRemotes(annotations map[string]string) ([]Address, error) {

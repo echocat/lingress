@@ -1,5 +1,7 @@
 package rules
 
+import "github.com/echocat/lingress/value"
+
 var _ = RegisterDefaultOptionsPart(&OptionsCors{})
 
 const (
@@ -31,12 +33,12 @@ func OptionsCorsOf(rule Rule) *OptionsCors {
 }
 
 type OptionsCors struct {
-	Enabled            ForcibleBool `json:"enabled,omitempty"`
-	AllowedOriginsHost HostPatterns `json:"allowedOriginsHost,omitempty"`
-	AllowedMethods     Methods      `json:"allowedMethods,omitempty"`
-	AllowedHeaders     HeaderNames  `json:"allowedHeaders,omitempty"`
-	AllowedCredentials Bool         `json:"allowedCredentials,omitempty"`
-	MaxAge             Duration     `json:"maxAge,omitempty"`
+	Enabled            value.ForcibleBool `json:"enabled,omitempty"`
+	AllowedOriginsHost HostPatterns       `json:"allowedOriginsHost,omitempty"`
+	AllowedMethods     Methods            `json:"allowedMethods,omitempty"`
+	AllowedHeaders     HeaderNames        `json:"allowedHeaders,omitempty"`
+	AllowedCredentials value.Bool         `json:"allowedCredentials,omitempty"`
+	MaxAge             value.Duration     `json:"maxAge,omitempty"`
 }
 
 func (instance OptionsCors) Name() string {
@@ -74,7 +76,7 @@ func (instance *OptionsCors) Set(annotations Annotations) (err error) {
 	return
 }
 
-func evaluateOptionCorsEnable(annotations map[string]string) (ForcibleBool, error) {
+func evaluateOptionCorsEnable(annotations map[string]string) (value.ForcibleBool, error) {
 	if v, ok := annotations[annotationCorsEnabled]; ok {
 		return AnnotationIsForcibleBool(annotationCorsEnabled, v)
 	}
@@ -84,7 +86,7 @@ func evaluateOptionCorsEnable(annotations map[string]string) (ForcibleBool, erro
 	if v, ok := annotations[annotationNginxCorsEnable]; ok {
 		return AnnotationIsForcibleBool(annotationNginxCorsEnable, v)
 	}
-	return NewForcibleBool(NotDefined, false), nil
+	return value.NewForcibleBool(value.UndefinedBool, false), nil
 }
 
 func evaluateOptionCorsAllowedOriginsHosts(annotations map[string]string) (HostPatterns, error) {
@@ -114,22 +116,22 @@ func evaluateOptionCorsAllowedHeaders(annotations map[string]string) (HeaderName
 	return nil, nil
 }
 
-func evaluateOptionCorsAllowedCredentials(annotations map[string]string) (Bool, error) {
+func evaluateOptionCorsAllowedCredentials(annotations map[string]string) (value.Bool, error) {
 	if v, ok := annotations[annotationCorsAllowedCredentials]; ok {
 		return AnnotationIsTrue(annotationCorsAllowedCredentials, v)
 	}
 	if v, ok := annotations[annotationNginxCorsAllowedCredentials]; ok {
 		return AnnotationIsTrue(annotationNginxCorsAllowedCredentials, v)
 	}
-	return NotDefined, nil
+	return value.UndefinedBool, nil
 }
 
-func evaluateOptionCorsMaxAge(annotations map[string]string) (Duration, error) {
+func evaluateOptionCorsMaxAge(annotations map[string]string) (value.Duration, error) {
 	if v, ok := annotations[annotationCorsMaxAge]; ok {
-		return ParseDuration(v)
+		return value.ParseDuration(v)
 	}
 	if v, ok := annotations[annotationNginxCorsMaxAge]; ok {
-		return ParseDuration(v)
+		return value.ParseDuration(v)
 	}
 	return 0, nil
 }

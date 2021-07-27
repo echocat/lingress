@@ -27,6 +27,7 @@ var (
 	ResultFallback                      SimpleResult = 7
 	ResultFailedWithUnauthorized        SimpleResult = 8
 	ResultFailedWithClientGone          SimpleResult = 9
+	ResultFailedWithIllegalHost         SimpleResult = 10
 )
 
 var (
@@ -41,6 +42,7 @@ var (
 		ResultFailedWithUnauthorized:        "unauthorized",
 		ResultFallback:                      "fallback",
 		ResultFailedWithClientGone:          "clientGone",
+		ResultFailedWithIllegalHost:         "illegalHost",
 	}
 
 	resultToStatus = map[Result]int{
@@ -54,6 +56,7 @@ var (
 		ResultFailedWithUnauthorized:        http.StatusUnauthorized,
 		ResultFallback:                      http.StatusOK,
 		ResultFailedWithClientGone:          http.StatusGone,
+		ResultFailedWithIllegalHost:         http.StatusUnprocessableEntity,
 	}
 )
 

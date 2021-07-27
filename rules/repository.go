@@ -5,6 +5,7 @@ import (
 	"github.com/echocat/lingress/definition"
 	"github.com/echocat/lingress/kubernetes"
 	"github.com/echocat/lingress/support"
+	"github.com/echocat/lingress/value"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
@@ -18,7 +19,7 @@ import (
 )
 
 type Query struct {
-	Host string
+	Host value.Fqdn
 	Path string
 }
 
@@ -43,6 +44,7 @@ type KubernetesBasedRepository struct {
 	ByHostRules  *ByHost
 	ResyncAfter  time.Duration
 	IngressClass []string
+	HostWildcard value.ForcibleString
 
 	CertificatesSecret string
 	CertificatesByHost CertificatesByHost
@@ -56,6 +58,7 @@ func NewRepository() (CombinedRepository, error) {
 		result := &KubernetesBasedRepository{
 			Environment:  environment,
 			IngressClass: []string{},
+			HostWildcard: value.NewForcibleString("", false),
 
 			CertificatesSecret: "certificates",
 			OptionsFactory:     DefaultOptionsFactory,
@@ -78,6 +81,15 @@ func (instance *KubernetesBasedRepository) RegisterFlag(fe support.FlagEnabled, 
 		PlaceHolder(instance.CertificatesSecret).
 		Envar(support.FlagEnvName(appPrefix, "SECRET_CERTIFICATES")).
 		StringVar(&instance.CertificatesSecret)
+	fe.Flag("hosts.wildcard", "Default wildcard pattern for ingress configuration."+
+		" As Kubernetes ingress configuration does not support wildcards as '*' this argument specifies"+
+		" a specific domain segment to be a placeholder; like 'x--wildcard--x' instead of '*'."+
+		" If empty no wildcards are supported at all."+
+		" This can be overwritten by the 'lingress.echocat.org/hosts-wildcard' annotation."+
+		" If this parameter is prefixed with '!' the annotation cannot override this behavior.").
+		PlaceHolder(instance.HostWildcard.String()).
+		Envar(support.FlagEnvName(appPrefix, "HOSTS_WILDCARD")).
+		SetValue(&instance.HostWildcard)
 
 	return instance.Environment.RegisterFlag(fe, appPrefix)
 }
@@ -293,7 +305,6 @@ func (instance *repositoryImplState) visitIngress(ingress *v1beta1.Ingress, targ
 	}
 
 	for _, forHost := range ingress.Spec.Rules {
-		host := normalizeHostname(forHost.Host)
 		if forHost.IngressRuleValue.HTTP != nil && forHost.IngressRuleValue.HTTP.Paths != nil {
 			for _, forPath := range forHost.IngressRuleValue.HTTP.Paths {
 				if path, err := ParsePath(forPath.Path, false); err != nil {
@@ -307,6 +318,13 @@ func (instance *repositoryImplState) visitIngress(ingress *v1beta1.Ingress, targ
 					return err
 				} else if options, err := instance.newOptionsBy(ingress); err != nil {
 					return err
+				} else if host, err := instance.parseHost(&forHost, options); err != nil {
+					log.WithField("service", fmt.Sprintf("%s/%s", source.namespace, forPath.Backend.ServiceName)).
+						WithField("port", forPath.Backend.ServicePort).
+						WithField("source", source.String()).
+						WithField("path", forPath.Path).
+						WithError(err).
+						Warn("illegal host in ingress; ingress will not functioning")
 				} else if backend != nil {
 					r := NewRule(host, path, source, backend, options)
 					if err := target.Put(r); err != nil {
@@ -318,6 +336,25 @@ func (instance *repositoryImplState) visitIngress(ingress *v1beta1.Ingress, targ
 	}
 
 	return nil
+}
+
+func (instance *repositoryImplState) parseHost(ingressRule *v1beta1.IngressRule, options Options) (value.WildcardSupportingFqdn, error) {
+	plain := normalizeHostname(ingressRule.Host)
+	var hostWildcardFromOptions value.String
+	if v, ok := options[optionsMatchingKey].(*OptionsMatching); ok {
+		hostWildcardFromOptions = v.HostWildcard
+	}
+	hostWildcard := instance.HostWildcard.Evaluate(hostWildcardFromOptions, "")
+	if hostWildcard != "" {
+		if strings.HasPrefix(plain, hostWildcard.String()+".") {
+			plain = "*" + plain[len(hostWildcard):]
+		}
+	}
+	var result value.WildcardSupportingFqdn
+	if err := result.Set(plain); err != nil {
+		return "", err
+	}
+	return result, nil
 }
 
 func (instance *repositoryImplState) newOptionsBy(ingress *v1beta1.Ingress) (Options, error) {
@@ -406,7 +443,7 @@ func (instance *KubernetesBasedRepository) All(consumer func(Rule) error) error 
 }
 
 func (instance *KubernetesBasedRepository) FindBy(q Query) (Rules, error) {
-	host := normalizeHostname(q.Host)
+	host := q.Host
 	path, err := ParsePath(q.Path, true)
 	if err != nil {
 		return nil, err

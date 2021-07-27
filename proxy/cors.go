@@ -5,6 +5,7 @@ import (
 	"github.com/echocat/lingress/context"
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/support"
+	"github.com/echocat/lingress/value"
 	"net"
 	"net/http"
 	"strconv"
@@ -16,16 +17,16 @@ func init() {
 }
 
 var (
-	defaultMaxAge = rules.Duration(24 * time.Hour)
+	defaultMaxAge = value.Duration(24 * time.Hour)
 )
 
 type CorsInterceptor struct {
 	AllowedOriginsHost rules.ForcibleHostPatterns
 	AllowedMethods     rules.ForcibleMethods
 	AllowedHeaders     rules.ForcibleHeaderNames
-	AllowedCredentials rules.ForcibleBool
-	MaxAge             rules.ForcibleDuration
-	Enabled            rules.ForcibleBool
+	AllowedCredentials value.ForcibleBool
+	MaxAge             value.ForcibleDuration
+	Enabled            value.ForcibleBool
 }
 
 func NewCorsInterceptor() *CorsInterceptor {
@@ -33,9 +34,9 @@ func NewCorsInterceptor() *CorsInterceptor {
 		AllowedOriginsHost: rules.NewForcibleHostPatterns(rules.HostPatterns{}, false),
 		AllowedMethods:     rules.NewForcibleMethods(rules.Methods{}, false),
 		AllowedHeaders:     rules.NewForcibleHeaders(rules.HeaderNames{}, false),
-		AllowedCredentials: rules.NewForcibleBool(rules.True, false),
-		MaxAge:             rules.NewForcibleDuration(defaultMaxAge, false),
-		Enabled:            rules.NewForcibleBool(rules.False, false),
+		AllowedCredentials: value.NewForcibleBool(value.True, false),
+		MaxAge:             value.NewForcibleDuration(defaultMaxAge, false),
+		Enabled:            value.NewForcibleBool(value.False, false),
 	}
 }
 

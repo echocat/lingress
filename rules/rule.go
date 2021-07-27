@@ -3,12 +3,13 @@ package rules
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/echocat/lingress/value"
 	"net"
 	"strings"
 )
 
 type Rule interface {
-	Host() string
+	Host() value.WildcardSupportingFqdn
 	Path() []string
 	Source() SourceReference
 	Backend() net.Addr
@@ -28,7 +29,7 @@ type OnAdded func(path []string, r Rule)
 type OnRemoved func(path []string, r Rule)
 
 type rule struct {
-	host       string
+	host       value.WildcardSupportingFqdn
 	path       []string
 	source     SourceReference
 	backend    net.Addr
@@ -36,7 +37,7 @@ type rule struct {
 	statistics *Statistics
 }
 
-func NewRule(host string, path []string, source SourceReference, backend net.Addr, options Options) Rule {
+func NewRule(host value.WildcardSupportingFqdn, path []string, source SourceReference, backend net.Addr, options Options) Rule {
 	return &rule{
 		host:       host,
 		path:       path,
@@ -52,7 +53,7 @@ func (instance *rule) clone() *rule {
 	return &r
 }
 
-func (instance *rule) Host() string {
+func (instance *rule) Host() value.WildcardSupportingFqdn {
 	return instance.host
 }
 
@@ -82,7 +83,7 @@ func (instance *rule) String() string {
 
 func (instance *rule) MarshalJSON() ([]byte, error) {
 	buf := make(map[string]string)
-	buf["host"] = instance.host
+	buf["host"] = instance.host.String()
 	buf["path"] = "/" + strings.Join(instance.Path(), "/")
 	buf["source"] = instance.Source().String()
 	buf["backend"] = instance.Backend().String()
