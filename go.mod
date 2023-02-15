@@ -9,7 +9,7 @@ require (
 	github.com/imdario/mergo v0.3.7
 	github.com/nicksnyder/go-i18n/v2 v2.0.0-beta.6
 	github.com/onsi/gomega v1.4.3
-	github.com/pires/go-proxyproto v0.6.0
+	github.com/pires/go-proxyproto v0.6.1
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
 	github.com/satori/go.uuid v1.2.0
