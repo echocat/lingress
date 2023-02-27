@@ -13,8 +13,8 @@ require (
 	github.com/prometheus/client_golang v1.11.1
 	github.com/satori/go.uuid v1.2.0
 	github.com/sirupsen/logrus v1.6.0
-	golang.org/x/net v0.0.0-20200625001655-4c5254603344
-	golang.org/x/text v0.3.2
+	golang.org/x/net v0.0.0-20220722155237-a158d28d115b
+	golang.org/x/text v0.3.8
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/yaml.v2 v2.3.0
 	k8s.io/api v0.0.0-20190819141258-3544db3b9e44
