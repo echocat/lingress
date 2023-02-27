@@ -4,10 +4,10 @@ go 1.14
 
 require (
 	github.com/gobuffalo/packr v1.30.1
-	github.com/google/uuid v1.0.0
+	github.com/google/uuid v1.1.1
 	github.com/imdario/mergo v0.3.7
 	github.com/nicksnyder/go-i18n/v2 v2.0.0-beta.6
-	github.com/onsi/gomega v1.4.3
+	github.com/onsi/gomega v1.7.0
 	github.com/pires/go-proxyproto v0.6.1
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.1
@@ -17,7 +17,7 @@ require (
 	golang.org/x/text v0.3.8
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/yaml.v2 v2.3.0
-	k8s.io/api v0.0.0-20190819141258-3544db3b9e44
-	k8s.io/apimachinery v0.0.0-20190817020851-f2f3a405f61d
-	k8s.io/client-go v0.0.0-20190819141724-e14f31a72a77
+	k8s.io/api v0.20.0-alpha.2
+	k8s.io/apimachinery v0.20.0-alpha.2
+	k8s.io/client-go v0.20.0-alpha.2
 )
