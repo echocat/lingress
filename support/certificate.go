@@ -5,8 +5,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"fmt"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"math/big"
 	"time"
 )
@@ -17,7 +17,7 @@ func CreateDummyCertificate() (tls.Certificate, error) {
 
 func CreateDummyCertificateFor(name string) (tls.Certificate, error) {
 	fail := func(err error) (tls.Certificate, error) {
-		return tls.Certificate{}, errors.Wrap(err, "cannot create dummy certificate")
+		return tls.Certificate{}, fmt.Errorf("cannot create dummy certificate: %w", err)
 	}
 	pk, err := CreatePrivateKey()
 	if err != nil {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"golang.org/x/text/language"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"path"
 )
 
@@ -14,7 +14,7 @@ var (
 )
 
 func LoadBundle(provider FileProvider) (bundle *i18n.Bundle, err error) {
-	bundle = &i18n.Bundle{DefaultLanguage: language.English}
+	bundle = i18n.NewBundle(language.English)
 	bundle.RegisterUnmarshalFunc("yaml", yaml.Unmarshal)
 	bundle.RegisterUnmarshalFunc("yml", yaml.Unmarshal)
 

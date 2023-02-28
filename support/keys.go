@@ -5,13 +5,13 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
-	"github.com/pkg/errors"
+	"fmt"
 )
 
 func CreatePrivateKey() (interface{}, error) {
 	pk, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot create RSA 4096 private key")
+		return nil, fmt.Errorf("cannot create RSA 4096 private key: %w", err)
 	}
 	return pk, err
 }

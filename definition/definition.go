@@ -3,7 +3,6 @@ package definition
 import (
 	"fmt"
 	"github.com/echocat/lingress/support"
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -60,7 +59,7 @@ func (instance *Definition) Init(stop support.Channel) error {
 	}
 	if err := instance.lastError.Load(); err != nil {
 		stop.Broadcast()
-		return errors.Wrapf(err.(error), "initial %s synchronization failed", instance.typeDescription)
+		return fmt.Errorf("initial %s synchronization failed: %w", instance.typeDescription, err.(error))
 	}
 	return nil
 }

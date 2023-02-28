@@ -10,7 +10,6 @@ import (
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/server"
 	"github.com/echocat/lingress/support"
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
@@ -212,7 +211,7 @@ func (instance *Lingress) Init(stop support.Channel) error {
 
 func (instance *Lingress) createTlsConfig() (*tls.Config, error) {
 	fail := func(err error) (*tls.Config, error) {
-		return nil, errors.Wrap(err, "cannot create TLS config")
+		return nil, fmt.Errorf("cannot create TLS config: %w", err)
 	}
 	defaultCert, err := support.CreateDummyCertificate()
 	if err != nil {
