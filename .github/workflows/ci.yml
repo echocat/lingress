@@ -30,8 +30,9 @@ jobs:
 
       - name: Packr
         run: |
-          go run github.com/gobuffalo/packr/packr clean
-          go run github.com/gobuffalo/packr/packr -z -i fallback
+          go install github.com/gobuffalo/packr/packr@latest
+          packr clean
+          packr -z -i fallback
 
       - name: Test
         run: |
