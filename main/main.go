@@ -1,12 +1,12 @@
 package main
 
 import (
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/echocat/lingress"
 	"github.com/echocat/lingress/support"
 	_ "github.com/echocat/lingress/support"
+	"github.com/echocat/slf4g"
 	"github.com/gobuffalo/packr"
-	log "github.com/sirupsen/logrus"
-	"gopkg.in/alecthomas/kingpin.v2"
 	"os"
 	"os/signal"
 )
@@ -45,9 +45,9 @@ func main() {
 		support.ChannelDoOnEvent(stop, func() {
 			close(intSig)
 		})
-		log.WithField("revision", rt.Revision).
-			WithField("branch", rt.Branch).
-			WithField("build", rt.Build).
+		log.With("revision", rt.Revision).
+			With("branch", rt.Branch).
+			With("build", rt.Build).
 			Infof("starting %s...", rt.Name())
 		if err := l.Init(stop); err != nil {
 			return err

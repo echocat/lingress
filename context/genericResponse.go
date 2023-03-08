@@ -36,7 +36,7 @@ func (instance *Context) NewGenericResponse(statusCode int, message string) *Gen
 func (instance *GenericResponse) errorHandler(_ http.ResponseWriter, _ *http.Request, message string, err error, status int) {
 	instance.context.Log().
 		WithError(err).
-		WithField("statusCode", status).
+		With("statusCode", status).
 		Error(message)
 }
 

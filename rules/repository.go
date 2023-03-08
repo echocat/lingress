@@ -6,7 +6,7 @@ import (
 	"github.com/echocat/lingress/kubernetes"
 	"github.com/echocat/lingress/support"
 	"github.com/echocat/lingress/value"
-	log "github.com/sirupsen/logrus"
+	"github.com/echocat/slf4g"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -136,11 +136,11 @@ func (instance *KubernetesBasedRepository) Init(stop support.Channel) error {
 }
 
 func (instance *KubernetesBasedRepository) onRuleAdded(_ []string, r Rule) {
-	log.WithField("rule", r).Debug("rule added")
+	log.With("rule", r).Debug("rule added")
 }
 
 func (instance *KubernetesBasedRepository) onRuleRemoved(_ []string, r Rule) {
-	log.WithField("rule", r).Debug("rule removed")
+	log.With("rule", r).Debug("rule removed")
 }
 
 type repositoryImplState struct {
@@ -165,15 +165,15 @@ func (instance *repositoryImplState) onSecretCertificatesChanged(key string, new
 		if ext == ".crt" || ext == ".cer" {
 			privateKeyFile := base + ".key"
 			if pk, ok := s.Data[privateKeyFile]; !ok {
-				log.WithField("secret", key).
-					WithField("certificate", file).
-					WithField("privateKey", privateKeyFile).
+				log.With("secret", key).
+					With("certificate", file).
+					With("privateKey", privateKeyFile).
 					Warn("cannot find expected privateKey in secret for provided certificate; ignoring...")
 			} else if err := cbh.AddBytes(candidate, pk); err != nil {
 				log.WithError(err).
-					WithField("secret", key).
-					WithField("certificate", file).
-					WithField("privateKey", privateKeyFile).
+					With("secret", key).
+					With("certificate", file).
+					With("privateKey", privateKeyFile).
 					Warn("cannot parse certificate and privateKey pair from secret; ignoring...")
 			}
 		}
@@ -308,10 +308,10 @@ func (instance *repositoryImplState) visitIngress(ingress *v1beta1.Ingress, targ
 		if forHost.IngressRuleValue.HTTP != nil && forHost.IngressRuleValue.HTTP.Paths != nil {
 			for _, forPath := range forHost.IngressRuleValue.HTTP.Paths {
 				if path, err := ParsePath(forPath.Path, false); err != nil {
-					log.WithField("service", fmt.Sprintf("%s/%s", source.namespace, forPath.Backend.ServiceName)).
-						WithField("port", forPath.Backend.ServicePort).
-						WithField("source", source.String()).
-						WithField("path", forPath.Path).
+					log.With("service", fmt.Sprintf("%s/%s", source.namespace, forPath.Backend.ServiceName)).
+						With("port", forPath.Backend.ServicePort).
+						With("source", source.String()).
+						With("path", forPath.Path).
 						WithError(err).
 						Warn("illegal path in ingress; ingress will not functioning")
 				} else if backend, err := instance.ingressToBackend(source, forPath.Backend); err != nil {
@@ -319,10 +319,10 @@ func (instance *repositoryImplState) visitIngress(ingress *v1beta1.Ingress, targ
 				} else if options, err := instance.newOptionsBy(ingress); err != nil {
 					return err
 				} else if host, err := instance.parseHost(&forHost, options); err != nil {
-					log.WithField("service", fmt.Sprintf("%s/%s", source.namespace, forPath.Backend.ServiceName)).
-						WithField("port", forPath.Backend.ServicePort).
-						WithField("source", source.String()).
-						WithField("path", forPath.Path).
+					log.With("service", fmt.Sprintf("%s/%s", source.namespace, forPath.Backend.ServiceName)).
+						With("port", forPath.Backend.ServicePort).
+						With("source", source.String()).
+						With("path", forPath.Path).
 						WithError(err).
 						Warn("illegal host in ingress; ingress will not functioning")
 				} else if backend != nil {
@@ -367,9 +367,9 @@ func (instance *repositoryImplState) newOptionsBy(ingress *v1beta1.Ingress) (Opt
 }
 
 func (instance *repositoryImplState) ingressToBackend(source *sourceReference, ib v1beta1.IngressBackend) (net.Addr, error) {
-	l := log.WithField("service", ib.ServiceName).
-		WithField("port", ib.ServicePort).
-		WithField("source", source.String())
+	l := log.With("service", ib.ServiceName).
+		With("port", ib.ServicePort).
+		With("source", source.String())
 
 	service, err := instance.ingressToService(source, ib)
 	if err != nil {
@@ -379,7 +379,7 @@ func (instance *repositoryImplState) ingressToBackend(source *sourceReference, i
 		return nil, nil
 	}
 	if service.Spec.Type != v1.ServiceTypeClusterIP {
-		l.WithField("serviceType", service.Spec.Type).
+		l.With("serviceType", service.Spec.Type).
 			Warn("unsupported serviceType; ingress will not functioning")
 		return nil, nil
 	}

@@ -1,68 +1,33 @@
 package support
 
 import (
-	log "github.com/sirupsen/logrus"
-	stdlog "log"
-	"os"
-	"time"
+	_ "github.com/echocat/slf4g-klog/bridge/hook"
+	"github.com/echocat/slf4g/native"
+	"github.com/echocat/slf4g/native/facade/value"
 )
 
 var (
-	logLevelFacadeVal = &logLevelFacade{}
-
-	_ = RegisterFlagRegistrar(logLevelFacadeVal)
+	loggerValue = value.NewProvider(native.DefaultProvider)
+	_           = RegisterFlagRegistrar(&logFacade{})
 )
 
-type logLevelFacade struct{}
+type logFacade struct{}
 
-func (instance logLevelFacade) String() string {
-	return log.GetLevel().String()
-}
+func (instance *logFacade) RegisterFlag(fe FlagEnabled, appPrefix string) error {
+	Must(loggerValue.Consumer.Formatter.Set("json"))
 
-func (instance *logLevelFacade) Set(plain string) error {
-	var n log.Level
-	if err := n.UnmarshalText([]byte(plain)); err != nil {
-		return err
-	}
-	log.SetLevel(n)
-	return nil
-}
-
-func (instance *logLevelFacade) RegisterFlag(fe FlagEnabled, appPrefix string) error {
-	fe.Flag("logLevel", "On which level the output should be logged").
-		PlaceHolder("<log level; default: " + instance.String() + ">").
+	fe.Flag("logLevel", "").
+		PlaceHolder("<log level; default: " + loggerValue.Level.String() + ">").
 		Envar(FlagEnvName(appPrefix, "LOG_LEVEL")).
-		SetValue(instance)
+		SetValue(loggerValue.Level)
+	fe.Flag("logFormat", "").
+		PlaceHolder("<log format; default: " + loggerValue.Level.String() + ">").
+		Envar(FlagEnvName(appPrefix, "LOG_FORMAT")).
+		SetValue(loggerValue.Consumer.Formatter)
+	fe.Flag("logColor", "").
+		PlaceHolder("<log color; default: " + loggerValue.Consumer.Formatter.ColorMode.String() + ">").
+		Envar(FlagEnvName(appPrefix, "LOG_COLOR")).
+		SetValue(loggerValue.Consumer.Formatter.ColorMode)
+
 	return nil
-}
-
-func init() {
-	log.SetFormatter(&log.JSONFormatter{
-		TimestampFormat: time.RFC3339Nano,
-		FieldMap: log.FieldMap{
-			log.FieldKeyTime:  "@timestamp",
-			log.FieldKeyLevel: "@level",
-			log.FieldKeyMsg:   "@message",
-			log.FieldKeyFunc:  "@caller",
-		},
-	})
-	log.SetLevel(log.InfoLevel)
-	log.SetOutput(os.Stderr)
-}
-
-func StdLog(fields log.Fields, lvl log.Level) *stdlog.Logger {
-	return stdlog.New(&LogWriter{
-		Fields: fields,
-		Level:  lvl,
-	}, "", 0)
-}
-
-type LogWriter struct {
-	Fields log.Fields
-	Level  log.Level
-}
-
-func (instance *LogWriter) Write(p []byte) (n int, err error) {
-	log.StandardLogger().Log(instance.Level, string(p))
-	return len(p), nil
 }

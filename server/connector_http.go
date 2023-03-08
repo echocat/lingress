@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/echocat/lingress/support"
+	"github.com/echocat/slf4g"
+	"github.com/echocat/slf4g/level"
+	sdk "github.com/echocat/slf4g/sdk/bridge"
 	"github.com/pires/go-proxyproto"
-	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
 	"strings"
@@ -38,9 +40,11 @@ func NewHttpConnector(id ConnectorId) (*HttpConnector, error) {
 			ReadHeaderTimeout: 30 * time.Second,
 			WriteTimeout:      30 * time.Second,
 			IdleTimeout:       5 * time.Minute,
-			ErrorLog: support.StdLog(log.Fields{
-				"context": "server.http",
-			}, log.DebugLevel),
+			ErrorLog: sdk.NewWrapper(
+				log.GetRootLogger().
+					With("context", "server.http"),
+				level.Debug,
+			),
 		},
 
 		ListenConfig: net.ListenConfig{
@@ -79,12 +83,12 @@ func (instance *HttpConnector) Serve(stop support.Channel) error {
 	go func() {
 		if err := serve(); err != nil && err != http.ErrServerClosed {
 			log.WithError(err).
-				WithField("address", instance.Server.Addr).
+				With("address", instance.Server.Addr).
 				Error("server is unable to serve proxy interface")
 			stop.Broadcast()
 		}
 	}()
-	log.WithField("address", instance.Server.Addr).
+	log.With("address", instance.Server.Addr).
 		Info("serve proxy interface")
 
 	return nil

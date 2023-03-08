@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/echocat/lingress/support"
-	log "github.com/sirupsen/logrus"
-	"gopkg.in/alecthomas/kingpin.v2"
+	"github.com/echocat/slf4g"
 	"os"
 	"os/exec"
 	"path/filepath"
