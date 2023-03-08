@@ -3,7 +3,8 @@ package support
 import (
 	"encoding/json"
 	"encoding/xml"
-	log "github.com/sirupsen/logrus"
+	"github.com/echocat/slf4g"
+	"github.com/echocat/slf4g/fields"
 	"gopkg.in/yaml.v3"
 	"net/http"
 	"time"
@@ -72,14 +73,24 @@ func (instance GenericResponse) logError(resp http.ResponseWriter, req *http.Req
 		f(resp, req, message, err, instance.Status)
 		return
 	}
-	log.WithFields(log.Fields{
-		"runtime":       Runtime(),
-		"requestId":     instance.RequestId,
-		"correlationId": instance.CorrelationId,
-		"remoteIp":      RequestBasedLazyStringerFor(req, RemoteIpOfRequest),
-		"host":          RequestBasedLazyStringerFor(req, HostOfRequest),
-		"method":        req.Method,
-		"requestUri":    RequestBasedLazyStringerFor(req, UriOfRequest),
-		"userAgent":     RequestBasedLazyStringerFor(req, UserAgentOfRequest),
+	log.WithAll(map[string]any{
+		"runtime": Runtime(),
+		"requestId": fields.LazyFunc(func() interface{} {
+			if v := instance.RequestId; v != "" {
+				return v
+			}
+			return fields.Exclude
+		}),
+		"correlationId": fields.LazyFunc(func() interface{} {
+			if v := instance.CorrelationId; v != "" {
+				return v
+			}
+			return fields.Exclude
+		}),
+		"remoteIp":   RequestBasedLazyStringerFor(req, RemoteIpOfRequest),
+		"host":       RequestBasedLazyStringerFor(req, HostOfRequest),
+		"method":     req.Method,
+		"requestUri": RequestBasedLazyStringerFor(req, UriOfRequest),
+		"userAgent":  RequestBasedLazyStringerFor(req, UserAgentOfRequest),
 	}).WithError(err).Error(message)
 }

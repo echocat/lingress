@@ -10,7 +10,8 @@ import (
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/server"
 	"github.com/echocat/lingress/support"
-	log "github.com/sirupsen/logrus"
+	"github.com/echocat/slf4g"
+	"github.com/echocat/slf4g/level"
 	"net"
 	"net/http"
 	"reflect"
@@ -121,7 +122,7 @@ func (instance *Lingress) OnConnState(connector server.Connector, conn net.Conn,
 		connType := reflect.TypeOf(conn)
 		if !instance.unprocessableConnectionDocumented[connType] {
 			instance.unprocessableConnectionDocumented[connType] = true
-			log.WithField("connType", connType.String()).
+			log.With("connType", connType.String()).
 				Error("cannot inspect connection of provided connection type; for those kinds of connections there will be no statistics be available")
 		}
 		return
@@ -303,10 +304,12 @@ func (instance *Lingress) doAccessLog(entry *accessLogEntry) {
 	}
 
 	lvl := instance.logLevelByStatus(status)
-	log.
-		WithFields(entry.data).
-		WithField("event", "accessLog").
-		Logf(lvl, "[%s] %s %s %s %s %q",
+
+	logger := log.GetRootLogger()
+
+	event := logger.NewEvent(lvl, entry.data).
+		With("event", "accessLog").
+		Withf("message", "[%s] %s %s %s %s %q",
 			f(lctx.FieldClient, lctx.FieldClientStatus),
 			f(lctx.FieldClient, lctx.FieldClientMethod),
 			f(lctx.FieldClient, lctx.FieldClientUrl),
@@ -314,6 +317,8 @@ func (instance *Lingress) doAccessLog(entry *accessLogEntry) {
 			f(lctx.FieldClient, lctx.FieldClientAddress),
 			f(lctx.FieldClient, lctx.FieldClientUserAgent),
 		)
+
+	logger.Log(event, 0)
 }
 
 func (instance *Lingress) shouldBeLogged(entry *accessLogEntry) bool {
@@ -361,22 +366,22 @@ func (instance *Lingress) hasPrivateNetworkIp(ips []net.IP) bool {
 	return false
 }
 
-func (instance *Lingress) logLevelByContext(ctx *lctx.Context) log.Level {
+func (instance *Lingress) logLevelByContext(ctx *lctx.Context) level.Level {
 	if err := ctx.Error; err != nil && ctx.Client.Status <= 0 {
 		ctx.Client.Status = 500
 	}
 	return instance.logLevelByStatus(ctx.Client.Status)
 }
 
-func (instance *Lingress) logLevelByStatus(status int) log.Level {
+func (instance *Lingress) logLevelByStatus(status int) level.Level {
 	if status < 500 {
-		return log.InfoLevel
+		return level.Info
 	} else if status == http.StatusBadGateway ||
 		status == http.StatusServiceUnavailable ||
 		status == http.StatusGatewayTimeout {
-		return log.WarnLevel
+		return level.Warn
 	} else {
-		return log.ErrorLevel
+		return level.Error
 	}
 }
 

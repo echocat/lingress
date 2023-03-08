@@ -4,7 +4,7 @@ import (
 	"encoding/base32"
 	"encoding/base64"
 	"encoding/json"
-	"github.com/satori/go.uuid"
+	"github.com/google/uuid"
 	"net/http"
 )
 
@@ -31,7 +31,7 @@ func newId(fromOtherReverseProxy bool, fromHeader string, req *http.Request) Id 
 			}
 		}
 	}
-	val := uuid.NewV4()
+	val := uuid.New()
 	return Id(val)
 }
 
@@ -44,7 +44,7 @@ func (instance Id) MarshalJSON() ([]byte, error) {
 }
 
 func ParseId(plain string) (Id, error) {
-	val, err := uuid.FromString(plain)
+	val, err := uuid.Parse(plain)
 	if err != nil {
 		return Id{}, err
 	}

@@ -72,7 +72,7 @@ func (instance *Fallback) StatusAsHtml(ctx *context.Context, statusCode int, pat
 		if err := tmpl.Execute(ctx.Client.Response, object); err != nil {
 			ctx.Log().
 				WithError(err).
-				WithField("statusCode", statusCode).
+				With("statusCode", statusCode).
 				Error("could not render status page.")
 		}
 	}

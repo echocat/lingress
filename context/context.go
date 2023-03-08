@@ -5,7 +5,7 @@ import (
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/server"
 	"github.com/echocat/lingress/support"
-	log "github.com/sirupsen/logrus"
+	"github.com/echocat/slf4g"
 	"net/http"
 	"sync"
 	"time"
@@ -93,8 +93,8 @@ func (instance *Context) MarkUnknown() {
 	instance.Client.Status = http.StatusNotFound
 }
 
-func (instance *Context) Log() log.FieldLogger {
-	return log.WithFields(instance.AsMap(false))
+func (instance *Context) Log() log.Logger {
+	return log.WithAll(instance.AsMap(false))
 }
 
 func (instance *Context) Release() {
