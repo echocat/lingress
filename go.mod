@@ -11,7 +11,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/imdario/mergo v0.3.13
 	github.com/nicksnyder/go-i18n/v2 v2.2.1
-	github.com/onsi/gomega v1.27.2
+	github.com/onsi/gomega v1.27.6
 	github.com/pires/go-proxyproto v0.6.2
 	github.com/prometheus/client_golang v1.14.0
 	golang.org/x/net v0.8.0
@@ -37,7 +37,7 @@ require (
 	github.com/gobuffalo/envy v1.7.0 // indirect
 	github.com/gobuffalo/packd v0.3.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
