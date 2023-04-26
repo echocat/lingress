@@ -9,7 +9,7 @@ require (
 	github.com/echocat/slf4g/native v1.4.1
 	github.com/gobuffalo/packr v1.30.1
 	github.com/google/uuid v1.3.0
-	github.com/imdario/mergo v0.3.13
+	github.com/imdario/mergo v0.3.15
 	github.com/nicksnyder/go-i18n/v2 v2.2.1
 	github.com/onsi/gomega v1.27.6
 	github.com/pires/go-proxyproto v0.6.2
