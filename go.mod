@@ -12,7 +12,7 @@ require (
 	github.com/imdario/mergo v0.3.15
 	github.com/nicksnyder/go-i18n/v2 v2.2.1
 	github.com/onsi/gomega v1.27.6
-	github.com/pires/go-proxyproto v0.6.2
+	github.com/pires/go-proxyproto v0.7.0
 	github.com/prometheus/client_golang v1.15.0
 	golang.org/x/net v0.8.0
 	golang.org/x/text v0.8.0
