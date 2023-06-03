@@ -11,7 +11,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/imdario/mergo v0.3.16
 	github.com/nicksnyder/go-i18n/v2 v2.2.1
-	github.com/onsi/gomega v1.27.6
+	github.com/onsi/gomega v1.27.7
 	github.com/pires/go-proxyproto v0.7.0
 	github.com/prometheus/client_golang v1.15.1
 	golang.org/x/net v0.10.0
@@ -30,7 +30,7 @@ require (
 	github.com/echocat/slf4g-logr v1.0.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.9.0 // indirect
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
-	github.com/go-logr/logr v1.2.3 // indirect
+	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
 	github.com/go-openapi/jsonreference v0.20.1 // indirect
 	github.com/go-openapi/swag v0.22.3 // indirect
