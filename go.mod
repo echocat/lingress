@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/alecthomas/kingpin/v2 v2.3.2
 	github.com/echocat/slf4g v1.4.2
-	github.com/echocat/slf4g-klog v1.0.0
+	github.com/echocat/slf4g-klog v1.4.2
 	github.com/echocat/slf4g/native v1.4.1
 	github.com/gobuffalo/packr v1.30.1
 	github.com/google/uuid v1.3.0
@@ -64,7 +64,7 @@ require (
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/klog/v2 v2.90.1 // indirect
+	k8s.io/klog/v2 v2.100.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230501164219-8b0f38b5fd1f // indirect
 	k8s.io/utils v0.0.0-20230220204549-a5ecb0141aa5 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
