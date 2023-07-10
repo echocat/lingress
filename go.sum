@@ -30,8 +30,8 @@ github.com/echocat/slf4g-klog v1.4.2 h1:VusS5eY1KBPvfMrTDC8Vmr973HzM56RZeQt6tmWf
 github.com/echocat/slf4g-klog v1.4.2/go.mod h1:yHJb6YE7ZhLXiJVlD8Hb0RJCRMtcrsGzG49bSVZU+4Q=
 github.com/echocat/slf4g-logr v1.0.0 h1:IQ632GT3thKHTMfWlcAetFdb3wTrlJu4X2RSfK9D1K0=
 github.com/echocat/slf4g-logr v1.0.0/go.mod h1:zHnMosxZ6DMk4hpvffsz0kKkQURsLJgqxwwqAJmbdoY=
-github.com/echocat/slf4g/native v1.4.1 h1:A5hhJhDZrgEP0Xb3rZN25kNOl3kp38p5f0hsRophb0o=
-github.com/echocat/slf4g/native v1.4.1/go.mod h1:xUHMo76WMTt5U6jgaQpFN1e53lTihlQC3+ZHA/o8ZPw=
+github.com/echocat/slf4g/native v1.5.0 h1:g5XHA7KKM67ZYecT60q7QIaFrcwLXZsPwmhzc72Mv1Q=
+github.com/echocat/slf4g/native v1.5.0/go.mod h1:EBFwDjQLneY1qgKzuuwuZtvLI4Flks77eGx3Lf8h+uQ=
 github.com/emicklei/go-restful/v3 v3.9.0 h1:XwGDlfxEnQZzuopoqxwSEllNcCOM9DhhFyhFIIGKwxE=
 github.com/emicklei/go-restful/v3 v3.9.0/go.mod h1:6n3XBCmQQb25CM2LCACGz8ukIrRry+4bhvbpWn3mrbc=
 github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
@@ -230,7 +230,6 @@ golang.org/x/sys v0.0.0-20201119102817-f84b799fce68/go.mod h1:h1NjWce9XRLGQEsW7w
 golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
-golang.org/x/sys v0.1.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.9.0 h1:KS/R3tvhPqvJvwcKfnBHJwwthS11LRhmM5D59eEXa0s=
 golang.org/x/sys v0.9.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
