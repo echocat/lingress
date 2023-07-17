@@ -23,14 +23,12 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815/go.mod h1:WwZ+bS3ebgob9U8Nd0kOddGdZWjyMGR8Wziv+TBNwSE=
 github.com/echocat/slf4g v0.0.0/go.mod h1:R4ge09pgerMnd/bJQeKVFm4igVYgJW6CqfUOzT/CA10=
-github.com/echocat/slf4g v1.0.0/go.mod h1:h3PyXsLZEun57/b4pISjYvsbrCDHIyuBcJNQw+e65jk=
-github.com/echocat/slf4g v1.4.2/go.mod h1:h3PyXsLZEun57/b4pISjYvsbrCDHIyuBcJNQw+e65jk=
 github.com/echocat/slf4g v1.5.0 h1:KFd+9tyHY1n+SCQ1gVgc571rqdVdNHa2Zg1+/o05n3c=
 github.com/echocat/slf4g v1.5.0/go.mod h1:h3PyXsLZEun57/b4pISjYvsbrCDHIyuBcJNQw+e65jk=
-github.com/echocat/slf4g-klog v1.4.2 h1:VusS5eY1KBPvfMrTDC8Vmr973HzM56RZeQt6tmWfZW8=
-github.com/echocat/slf4g-klog v1.4.2/go.mod h1:yHJb6YE7ZhLXiJVlD8Hb0RJCRMtcrsGzG49bSVZU+4Q=
-github.com/echocat/slf4g-logr v1.0.0 h1:IQ632GT3thKHTMfWlcAetFdb3wTrlJu4X2RSfK9D1K0=
-github.com/echocat/slf4g-logr v1.0.0/go.mod h1:zHnMosxZ6DMk4hpvffsz0kKkQURsLJgqxwwqAJmbdoY=
+github.com/echocat/slf4g-klog v1.5.0 h1:JR5ZRbxBiimDFGpKVX3XnNTwRxZuj4wp0Qsdraynpoc=
+github.com/echocat/slf4g-klog v1.5.0/go.mod h1:ml0gA1dzWK3/hYiP2MuBZq1rmM5JkxYCdRWiiIlL/fo=
+github.com/echocat/slf4g-logr v1.5.0 h1:39OY3y/GSlvhfxlWOZMteY+ZDnsWlourUu08EpX/sLE=
+github.com/echocat/slf4g-logr v1.5.0/go.mod h1:1DgeHYZegLBBueaByK7SkJIl1+NlEYaF8EqDfk4lYQw=
 github.com/echocat/slf4g/native v1.5.0 h1:g5XHA7KKM67ZYecT60q7QIaFrcwLXZsPwmhzc72Mv1Q=
 github.com/echocat/slf4g/native v1.5.0/go.mod h1:EBFwDjQLneY1qgKzuuwuZtvLI4Flks77eGx3Lf8h+uQ=
 github.com/emicklei/go-restful/v3 v3.9.0 h1:XwGDlfxEnQZzuopoqxwSEllNcCOM9DhhFyhFIIGKwxE=
@@ -41,7 +39,6 @@ github.com/evanphx/json-patch v4.12.0+incompatible h1:4onqiflcdA9EOZ4RxV643DvftH
 github.com/evanphx/json-patch v4.12.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/go-logr/logr v1.2.0/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
-github.com/go-logr/logr v1.2.3/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
 github.com/go-logr/logr v1.2.4 h1:g01GSCwiDw2xSZfjJ2/T9M+S6pFdcNtFYsp+Y43HYDQ=
 github.com/go-logr/logr v1.2.4/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
 github.com/go-openapi/jsonpointer v0.19.6 h1:eCs3fxoIi3Wh6vtgmLTOjdhSpiqphQ+DaPn38N2ZdrE=
