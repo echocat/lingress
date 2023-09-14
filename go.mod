@@ -6,7 +6,7 @@ require (
 	github.com/alecthomas/kingpin/v2 v2.3.2
 	github.com/echocat/slf4g v1.5.0
 	github.com/echocat/slf4g-klog v1.5.0
-	github.com/echocat/slf4g/native v1.5.0
+	github.com/echocat/slf4g/native v1.5.1
 	github.com/gobuffalo/packr v1.30.1
 	github.com/google/uuid v1.3.1
 	github.com/imdario/mergo v0.3.16
@@ -58,7 +58,7 @@ require (
 	github.com/xhit/go-str2duration/v2 v2.1.0 // indirect
 	golang.org/x/mod v0.9.0 // indirect
 	golang.org/x/oauth2 v0.8.0 // indirect
-	golang.org/x/sys v0.11.0 // indirect
+	golang.org/x/sys v0.12.0 // indirect
 	golang.org/x/term v0.11.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
