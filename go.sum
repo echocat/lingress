@@ -19,8 +19,8 @@ github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/echocat/slf4g v1.5.0/go.mod h1:h3PyXsLZEun57/b4pISjYvsbrCDHIyuBcJNQw+e65jk=
-github.com/echocat/slf4g v1.5.1 h1:09PnuPs1VEV7SHlbKFm0nA2l7b1WsGprCh9oucKk+CA=
-github.com/echocat/slf4g v1.5.1/go.mod h1:YvF/d1TcPvT+/xiHStLHPI4xPT1GGeEmPczn2MSljNA=
+github.com/echocat/slf4g v1.5.2 h1:QBdnMI95Ju9j0VHsZ7IHGFKqrsF1EBN1n9EqWIjM4dw=
+github.com/echocat/slf4g v1.5.2/go.mod h1:YvF/d1TcPvT+/xiHStLHPI4xPT1GGeEmPczn2MSljNA=
 github.com/echocat/slf4g-klog v1.5.0 h1:JR5ZRbxBiimDFGpKVX3XnNTwRxZuj4wp0Qsdraynpoc=
 github.com/echocat/slf4g-klog v1.5.0/go.mod h1:ml0gA1dzWK3/hYiP2MuBZq1rmM5JkxYCdRWiiIlL/fo=
 github.com/echocat/slf4g-logr v1.5.0 h1:39OY3y/GSlvhfxlWOZMteY+ZDnsWlourUu08EpX/sLE=
