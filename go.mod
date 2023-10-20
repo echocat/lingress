@@ -6,7 +6,7 @@ require (
 	github.com/alecthomas/kingpin/v2 v2.3.2
 	github.com/echocat/slf4g v1.5.1
 	github.com/echocat/slf4g-klog v1.5.0
-	github.com/echocat/slf4g/native v1.5.1
+	github.com/echocat/slf4g/native v1.5.2
 	github.com/gobuffalo/packr v1.30.1
 	github.com/google/uuid v1.3.1
 	github.com/imdario/mergo v0.3.16
