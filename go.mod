@@ -10,7 +10,7 @@ require (
 	github.com/gobuffalo/packr v1.30.1
 	github.com/google/uuid v1.3.1
 	github.com/imdario/mergo v0.3.16
-	github.com/nicksnyder/go-i18n/v2 v2.2.1
+	github.com/nicksnyder/go-i18n/v2 v2.2.2
 	github.com/onsi/gomega v1.28.1
 	github.com/pires/go-proxyproto v0.7.0
 	github.com/prometheus/client_golang v1.17.0
