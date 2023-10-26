@@ -8,7 +8,7 @@ require (
 	github.com/echocat/slf4g-klog v1.5.0
 	github.com/echocat/slf4g/native v1.5.2
 	github.com/gobuffalo/packr v1.30.1
-	github.com/google/uuid v1.3.1
+	github.com/google/uuid v1.4.0
 	github.com/imdario/mergo v0.3.16
 	github.com/nicksnyder/go-i18n/v2 v2.2.2
 	github.com/onsi/gomega v1.29.0
