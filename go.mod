@@ -3,7 +3,7 @@ module github.com/echocat/lingress
 go 1.20
 
 require (
-	github.com/alecthomas/kingpin/v2 v2.3.2
+	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/echocat/slf4g v1.5.2
 	github.com/echocat/slf4g-klog v1.5.2
 	github.com/echocat/slf4g/native v1.5.2
