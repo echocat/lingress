@@ -9,9 +9,6 @@ const (
 
 	annotationForceSecure        = "lingress.echocat.org/force-secure"
 	annotationWhitelistedRemotes = "lingress.echocat.org/whitelisted-remotes"
-
-	annotationNginxForceSslRedirect     = "nginx.ingress.kubernetes.io/force-ssl-redirect"
-	annotationNginxWhitelistSourceRange = "nginx.ingress.kubernetes.io/whitelist-source-range"
 )
 
 func OptionsSecureOf(rule Rule) *OptionsSecure {
@@ -52,18 +49,12 @@ func evaluateOptionForceSecure(annotations map[string]string) (value.Bool, error
 	if v, ok := annotations[annotationForceSecure]; ok {
 		return AnnotationIsTrue(annotationForceSecure, v)
 	}
-	if v, ok := annotations[annotationNginxForceSslRedirect]; ok {
-		return AnnotationIsTrue(annotationNginxForceSslRedirect, v)
-	}
 	return value.UndefinedBool, nil
 }
 
 func evaluateOptionWhitelistedRemotes(annotations map[string]string) ([]Address, error) {
 	if v, ok := annotations[annotationWhitelistedRemotes]; ok {
 		return AnnotationAddresses(annotationWhitelistedRemotes, v)
-	}
-	if v, ok := annotations[annotationNginxWhitelistSourceRange]; ok {
-		return AnnotationAddresses(annotationNginxWhitelistSourceRange, v)
 	}
 	return nil, nil
 }

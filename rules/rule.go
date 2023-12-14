@@ -3,6 +3,7 @@ package rules
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/echocat/lingress/rules/tree"
 	"github.com/echocat/lingress/value"
 	"net"
 	"strings"
@@ -11,10 +12,31 @@ import (
 type Rule interface {
 	Host() value.WildcardSupportingFqdn
 	Path() []string
+	PathType() PathType
 	Source() SourceReference
 	Backend() net.Addr
 	Options() Options
 	Statistics() *Statistics
+
+	tree.Cloneable[Rule]
+}
+
+type PathType uint8
+
+const (
+	PathTypeExact PathType = iota
+	PathTypePrefix
+)
+
+func (instance PathType) String() string {
+	switch instance {
+	case PathTypeExact:
+		return "Exact"
+	case PathTypePrefix:
+		return "Prefix"
+	default:
+		return fmt.Sprintf("Unknown-%d", instance)
+	}
 }
 
 type Predicate func(path []string, r Rule) bool
@@ -31,16 +53,18 @@ type OnRemoved func(path []string, r Rule)
 type rule struct {
 	host       value.WildcardSupportingFqdn
 	path       []string
+	pathType   PathType
 	source     SourceReference
 	backend    net.Addr
 	options    Options
 	statistics *Statistics
 }
 
-func NewRule(host value.WildcardSupportingFqdn, path []string, source SourceReference, backend net.Addr, options Options) Rule {
+func NewRule(host value.WildcardSupportingFqdn, path []string, pathType PathType, source SourceReference, backend net.Addr, options Options) Rule {
 	return &rule{
 		host:       host,
 		path:       path,
+		pathType:   pathType,
 		source:     source,
 		backend:    backend,
 		options:    options,
@@ -53,12 +77,20 @@ func (instance *rule) clone() *rule {
 	return &r
 }
 
+func (instance *rule) Clone() Rule {
+	return instance.clone()
+}
+
 func (instance *rule) Host() value.WildcardSupportingFqdn {
 	return instance.host
 }
 
 func (instance *rule) Path() []string {
 	return instance.path
+}
+
+func (instance *rule) PathType() PathType {
+	return instance.pathType
 }
 
 func (instance *rule) Source() SourceReference {

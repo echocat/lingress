@@ -1,6 +1,6 @@
 # lingress
 
-Is an experemtary ingress controller.
+Is an experimental ingress controller.
 
 **WARNING: This project is still under heavy development. Everything could still change.**
 

@@ -2,6 +2,7 @@ package fallback
 
 import (
 	"github.com/echocat/lingress/support"
+	log "github.com/echocat/slf4g"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"html/template"
 	"time"
@@ -12,14 +13,16 @@ type Fallback struct {
 	RedirectTemplate *template.Template
 	StatusTemplate   *template.Template
 	Bundle           *i18n.Bundle
+	Logger           log.Logger
 
 	ReloadTimeoutOnTemporaryIssues time.Duration
 }
 
-func New(fps support.FileProviders) (*Fallback, error) {
+func New(fps support.FileProviders, logger log.Logger) (*Fallback, error) {
 	result := Fallback{
 		FileProviders:                  fps,
 		ReloadTimeoutOnTemporaryIssues: time.Second * 15,
+		Logger:                         logger,
 	}
 
 	sTmpl, err := newTemplate(fps.GetTemplates(), "status.html", template.FuncMap{

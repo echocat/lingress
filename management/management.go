@@ -7,7 +7,9 @@ import (
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/server"
 	"github.com/echocat/lingress/support"
-	log "github.com/sirupsen/logrus"
+	"github.com/echocat/slf4g"
+	"github.com/echocat/slf4g/level"
+	sdk "github.com/echocat/slf4g/sdk/bridge"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -17,15 +19,17 @@ import (
 
 type Management struct {
 	Metrics *Metrics
+	Logger  log.Logger
 
 	server http.Server
 	rules  rules.Repository
 	pprof  bool
 }
 
-func New(connectorIds []server.ConnectorId, rulesRepository rules.Repository) (*Management, error) {
+func New(connectorIds []server.ConnectorId, rulesRepository rules.Repository, logger log.Logger) (*Management, error) {
 	result := &Management{
 		Metrics: NewMetrics(connectorIds, rulesRepository),
+		Logger:  logger,
 		rules:   rulesRepository,
 		pprof:   false,
 		server: http.Server{
@@ -34,9 +38,7 @@ func New(connectorIds []server.ConnectorId, rulesRepository rules.Repository) (*
 			ReadHeaderTimeout: 30 * time.Second,
 			WriteTimeout:      1 * time.Minute,
 			IdleTimeout:       5 * time.Minute,
-			ErrorLog: support.StdLog(log.Fields{
-				"context": "server.management",
-			}, log.DebugLevel),
+			ErrorLog:          sdk.NewWrapper(logger, level.Debug),
 		},
 	}
 	result.server.Handler = result
@@ -84,10 +86,14 @@ func (instance *Management) CollectUpstreamStarted() func() {
 	return instance.Metrics.CollectUpstreamStarted()
 }
 
+func (instance *Management) getLogger() log.Logger {
+	return instance.Logger
+}
+
 func (instance *Management) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	if req.Method != "GET" {
 		support.NewGenericResponse(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed), req).
-			StreamJsonTo(resp, req)
+			StreamJsonTo(resp, req, instance.getLogger)
 		return
 	}
 	if req.URL.Path == "/health" {
@@ -114,13 +120,13 @@ func (instance *Management) ServeHTTP(resp http.ResponseWriter, req *http.Reques
 		http.Redirect(resp, req, "/debug/pprof/", http.StatusMovedPermanently)
 	} else {
 		support.NewGenericResponse(http.StatusNotFound, http.StatusText(http.StatusNotFound), req).
-			StreamJsonTo(resp, req)
+			StreamJsonTo(resp, req, instance.getLogger)
 	}
 }
 
 func (instance *Management) handleHealth(resp http.ResponseWriter, req *http.Request) {
 	support.NewGenericResponse(http.StatusOK, http.StatusText(http.StatusOK), req).
-		StreamJsonTo(resp, req)
+		StreamJsonTo(resp, req, instance.getLogger)
 }
 
 func (instance *Management) handleStatus(resp http.ResponseWriter, req *http.Request) {
@@ -154,7 +160,7 @@ func (instance *Management) handleStatus(resp http.ResponseWriter, req *http.Req
 	}
 	support.NewGenericResponse(http.StatusOK, http.StatusText(http.StatusOK), req).
 		WithData(data).
-		StreamJsonTo(resp, req)
+		StreamJsonTo(resp, req, instance.getLogger)
 }
 
 func (instance *Management) handleMetrics(resp http.ResponseWriter, req *http.Request) {
@@ -169,6 +175,7 @@ func (instance *Management) handleRules(resp http.ResponseWriter, req *http.Requ
 		if requestedSource == "" || requestedSource == source {
 			entry := map[string]interface{}{
 				"statistics": rule.Statistics(),
+				"pathType":   rule.PathType(),
 			}
 			if h := rule.Host(); h != "" {
 				entry["host"] = h
@@ -191,10 +198,11 @@ func (instance *Management) handleRules(resp http.ResponseWriter, req *http.Requ
 		}
 		return nil
 	}); err != nil {
-		log.WithError(err).
+		instance.Logger.
+			WithError(err).
 			Error("unable to read rules")
 		support.NewGenericResponse(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), req).
-			StreamJsonTo(resp, req)
+			StreamJsonTo(resp, req, instance.getLogger)
 		return
 	}
 
@@ -204,14 +212,14 @@ func (instance *Management) handleRules(resp http.ResponseWriter, req *http.Requ
 		var ok bool
 		if data, ok = result[requestedSource]; !ok {
 			support.NewGenericResponse(http.StatusNotFound, http.StatusText(http.StatusNotFound), req).
-				StreamJsonTo(resp, req)
+				StreamJsonTo(resp, req, instance.getLogger)
 			return
 		}
 	}
 
 	support.NewGenericResponse(http.StatusOK, http.StatusText(http.StatusOK), req).
 		WithData(data).
-		StreamJsonTo(resp, req)
+		StreamJsonTo(resp, req, instance.getLogger)
 }
 
 func (instance *Management) Init(stop support.Channel) error {
@@ -223,23 +231,25 @@ func (instance *Management) Init(stop support.Channel) error {
 	}
 
 	if instance.pprof {
-		log.WithField("addr", instance.server.Addr).
-			Warnf("DO NOT USE IN PRODUCTION!"+
-				" pprof endpoints are activated for debugging at listen address %s."+
+		instance.Logger.
+			With("addr", instance.server.Addr).
+			Warn("DO NOT USE IN PRODUCTION!" +
+				" pprof endpoints are activated for debugging at listening." +
 				" This functionality is only for debug purposes.",
-				instance.server.Addr,
 			)
 	}
 
 	go func() {
 		if err := instance.server.Serve(ln); err != nil && err != http.ErrServerClosed {
-			log.WithError(err).
-				WithField("addr", instance.server.Addr).
+			instance.Logger.
+				WithError(err).
+				With("addr", instance.server.Addr).
 				Error("server is unable to serve management interface")
 			stop.Broadcast()
 		}
 	}()
-	log.WithField("addr", instance.server.Addr).
+	instance.Logger.
+		With("addr", instance.server.Addr).
 		Info("serve management interface")
 
 	return nil
@@ -247,10 +257,12 @@ func (instance *Management) Init(stop support.Channel) error {
 
 func (instance *Management) shutdownListener(stop support.Channel) {
 	stop.Wait()
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancelFnc := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancelFnc()
 	if err := instance.server.Shutdown(ctx); err != nil {
-		log.WithError(err).
-			WithField("addr", instance.server.Addr).
+		instance.Logger.
+			WithError(err).
+			With("addr", instance.server.Addr).
 			Warn("cannot graceful shutdown management interface")
 	}
 }

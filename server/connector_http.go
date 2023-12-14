@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/echocat/lingress/support"
+	"github.com/echocat/slf4g"
+	"github.com/echocat/slf4g/level"
+	sdk "github.com/echocat/slf4g/sdk/bridge"
 	"github.com/pires/go-proxyproto"
-	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
 	"strings"
@@ -15,6 +17,7 @@ import (
 type HttpConnector struct {
 	Id      ConnectorId
 	Handler ConnectorHandler
+	Logger  log.Logger
 
 	SoLinger       int16
 	MaxConnections uint16
@@ -26,9 +29,10 @@ type HttpConnector struct {
 	ListenConfig net.ListenConfig
 }
 
-func NewHttpConnector(id ConnectorId) (*HttpConnector, error) {
+func NewHttpConnector(id ConnectorId, logger log.Logger) (*HttpConnector, error) {
 	result := HttpConnector{
 		Id:             id,
+		Logger:         logger,
 		MaxConnections: 512,
 		SoLinger:       -1,
 
@@ -38,9 +42,7 @@ func NewHttpConnector(id ConnectorId) (*HttpConnector, error) {
 			ReadHeaderTimeout: 30 * time.Second,
 			WriteTimeout:      30 * time.Second,
 			IdleTimeout:       5 * time.Minute,
-			ErrorLog: support.StdLog(log.Fields{
-				"context": "server.http",
-			}, log.DebugLevel),
+			ErrorLog:          sdk.NewWrapper(logger, level.Debug),
 		},
 
 		ListenConfig: net.ListenConfig{
@@ -78,13 +80,15 @@ func (instance *HttpConnector) Serve(stop support.Channel) error {
 
 	go func() {
 		if err := serve(); err != nil && err != http.ErrServerClosed {
-			log.WithError(err).
-				WithField("address", instance.Server.Addr).
+			instance.Logger.
+				WithError(err).
+				With("address", instance.Server.Addr).
 				Error("server is unable to serve proxy interface")
 			stop.Broadcast()
 		}
 	}()
-	log.WithField("address", instance.Server.Addr).
+	instance.Logger.
+		With("address", instance.Server.Addr).
 		Info("serve proxy interface")
 
 	return nil
@@ -93,7 +97,8 @@ func (instance *HttpConnector) Serve(stop support.Channel) error {
 func (instance *HttpConnector) Shutdown() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	if err := instance.Server.Shutdown(ctx); err != nil {
-		log.WithError(err).
+		instance.Logger.
+			WithError(err).
 			Warnf("cannot graceful shutdown %s proxy interface %s", instance.Id, instance.Server.Addr)
 	}
 	cancel()

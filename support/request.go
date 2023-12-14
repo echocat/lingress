@@ -1,7 +1,7 @@
 package support
 
 import (
-	"fmt"
+	"github.com/echocat/slf4g/fields"
 	"net/http"
 	"strings"
 )
@@ -22,7 +22,7 @@ func RequestIdOfRequest(req *http.Request) string {
 	return ""
 }
 
-func CorrelationIdOfRequest(req *http.Request) string {
+func CorrelationIdOfRequest(req *http.Request) any {
 	if x := req.Header.Get("X-Correlation-ID"); len(x) > 0 && len(x) <= 256 {
 		if len(x) > 256 {
 			return x[:255]
@@ -32,14 +32,14 @@ func CorrelationIdOfRequest(req *http.Request) string {
 	return ""
 }
 
-func HostOfRequest(req *http.Request) string {
+func HostOfRequest(req *http.Request) any {
 	if x := req.Header.Get("X-Forwarded-Host"); len(x) > 0 {
 		return x
 	}
 	return req.Host
 }
 
-func RemoteIpOfRequest(req *http.Request) string {
+func RemoteIpOfRequest(req *http.Request) any {
 	if x := req.Header.Get("X-Forwarded-For"); len(x) > 0 {
 		return x
 	}
@@ -54,7 +54,7 @@ func RemoteIpOfRequest(req *http.Request) string {
 	return remote
 }
 
-func UriOfRequest(req *http.Request) string {
+func UriOfRequest(req *http.Request) any {
 	if x := req.Header.Get("X-Original-URI"); len(x) > 0 {
 		return x
 	}
@@ -75,12 +75,16 @@ func UserAgentOfRequest(req *http.Request) string {
 	return ""
 }
 
+func UserAgentOfRequestAny(req *http.Request) any {
+	return UserAgentOfRequest(req)
+}
+
 func PathOfRequest(req *http.Request) string {
 	return req.URL.Path
 }
 
-func RequestBasedLazyStringerFor(req *http.Request, delegate func(*http.Request) string) fmt.Stringer {
-	return ToLazyStringer(func() string {
+func RequestBasedLazyFor(req *http.Request, delegate func(*http.Request) any) fields.Lazy {
+	return fields.LazyFunc(func() interface{} {
 		return delegate(req)
 	})
 }

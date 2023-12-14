@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<html lang="{{ "title" | langBy }}">
+<html lang="{{ `title` | langBy }}">
 <head>
-    {{ $statusMessage := join "." "status-message" .statusCode | i18nOrDefault "status-message.default" -}}
+    {{ $statusMessage := join `.` `status-message` .statusCode | i18nOrDefault `status-message.default` -}}
     <meta charset="UTF-8">
     <meta http-equiv="Content-type" content="text/html;charset=UTF-8">
     <meta name="robots" content="noindex,nofollow"/>
@@ -16,7 +16,7 @@
     {{if and (.statusCode | isStatusTemporaryIssue) .canHandleTemporary -}}
         <meta http-equiv="refresh" content="{{ .autoReloadSeconds }}">
     {{- end }}
-    <title>{{ .statusCode }}. {{ $statusMessage }} · {{ "title" | i18n }}</title>
+    <title>{{ .statusCode }}. {{ $statusMessage }}</title>
     <style>
         html,
         body {
@@ -26,7 +26,7 @@
         }
 
         body {
-            font-family: Arial, sans-serif;
+            font-family: "Roboto Light", Arial, sans-serif;
             text-align: center;
             background: #FFFFFF;
             color: #000000;
@@ -68,10 +68,6 @@
             transition: all 0.8s;
         }
 
-        .requestId::before, .correlationId::before {
-            content: '#';
-        }
-
         .requestId:active, .correlationId:active {
             opacity: 1;
             transition: 0s;
@@ -83,39 +79,35 @@
 <body>
 <section></section>
 <main>
-    <p>
-        <a href="https://echo.cat">echocat</a>
-    </p>
     <p class="status">{{ .statusCode }}. {{ $statusMessage }}</p>
     {{if .statusCode | isStatusClientSideIssue -}}
-        <p>{{ "explaination.clientSideIssue" | i18n }}</p>
+        <p>{{ `explanation.clientSideIssue` | i18n }}</p>
     {{- else if and (.statusCode | isStatusTemporaryIssue) .canHandleTemporary -}}
-        <p>{{ "explaination.temporaryIssue" | i18n }}</p>
+        <p>{{ `explanation.temporaryIssue` | i18n }}</p>
     {{- else if .statusCode | isStatusServerSideIssue -}}
-        <p>{{ "explaination.serverSideIssue" | i18n }}</p>
+        <p>{{ `explanation.serverSideIssue` | i18n }}</p>
     {{- end -}}
     {{if or .requestId .correlationId }}
         <p class="ids">
             {{if .requestId }}
-                <span title="Request ID" class="requestId">#{{.requestId}}</span>
+                <span title="Request ID" class="requestId" onclick="copyToClipboard(this)">#{{.requestId}}</span>
             {{end}}
             {{if .correlationId }}
-                <span title="Correlation ID" class="correlationId">#{{.correlationId}}</span>
+                <span title="Correlation ID" class="correlationId" onclick="copyToClipboard(this)">#{{.correlationId}}</span>
             {{end}}
         </p>
     {{end}}
 </main>
 <section></section>
-<footer>
-    © 2015-{{.year}} <a href="https://echo.cat">echocat</a>
-</footer>
+<footer></footer>
 <script>
-    function copyToClipboard(content) {
-        var el = document.createElement('textarea');
-        el.value = content;
+    function copyToClipboard(src) {
+        const el = document.createElement('textarea');
+        el.value = src.innerText;
         document.body.appendChild(el);
         el.select();
-        document.execCommand('copy');
+        el.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(el.value);
         document.body.removeChild(el);
     }
 </script>

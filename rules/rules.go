@@ -1,17 +1,21 @@
 package rules
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+)
 
 type Rules interface {
 	Get(int) Rule
 	Len() int
 	Any() Rule
+	AnyFilteredBy(path []string) Rule
 }
 
-type rules []interface{}
+type rules []Rule
 
 func (instance rules) Get(i int) Rule {
-	return instance[i].(Rule)
+	return instance[i]
 }
 
 func (instance rules) Len() int {
@@ -23,7 +27,19 @@ func (instance rules) Len() int {
 
 func (instance rules) Any() Rule {
 	if len(instance) > 0 {
-		return (instance)[0].(Rule)
+		return (instance)[0]
+	}
+	return nil
+}
+
+func (instance rules) AnyFilteredBy(path []string) Rule {
+	for _, candidate := range instance {
+		if candidate.PathType() != PathTypeExact {
+			return candidate
+		}
+		if slices.Equal(path, candidate.Path()) {
+			return candidate
+		}
 	}
 	return nil
 }

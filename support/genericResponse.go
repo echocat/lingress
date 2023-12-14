@@ -3,7 +3,7 @@ package support
 import (
 	"encoding/json"
 	"encoding/xml"
-	log "github.com/sirupsen/logrus"
+	"github.com/echocat/slf4g"
 	"gopkg.in/yaml.v3"
 	"net/http"
 	"time"
@@ -38,48 +38,51 @@ func (instance GenericResponse) WithData(data interface{}) GenericResponse {
 	return result
 }
 
-func (instance GenericResponse) StreamJsonTo(resp http.ResponseWriter, req *http.Request) {
+func (instance GenericResponse) StreamJsonTo(resp http.ResponseWriter, req *http.Request, logProvider func() log.Logger) {
 	resp.Header().Set("Content-Type", "application/json")
 	resp.WriteHeader(instance.Status)
 	j := json.NewEncoder(resp)
 	j.SetIndent("", "  ")
 	if err := j.Encode(instance.Data); err != nil {
-		instance.logError(resp, req, "Could not render json response.", err)
+		instance.logError(resp, req, "Could not render json response.", err, logProvider)
 	}
 }
 
-func (instance GenericResponse) StreamYamlTo(resp http.ResponseWriter, req *http.Request) {
+func (instance GenericResponse) StreamYamlTo(resp http.ResponseWriter, req *http.Request, logProvider func() log.Logger) {
 	resp.Header().Set("Content-Type", "application/x-yaml")
 	resp.WriteHeader(instance.Status)
 	y := yaml.NewEncoder(resp)
 	if err := y.Encode(instance.Data); err != nil {
-		instance.logError(resp, req, "Could not render yml response.", err)
+		instance.logError(resp, req, "Could not render yml response.", err, logProvider)
 	}
 }
 
-func (instance GenericResponse) StreamXmlTo(resp http.ResponseWriter, req *http.Request) {
+func (instance GenericResponse) StreamXmlTo(resp http.ResponseWriter, req *http.Request, logProvider func() log.Logger) {
 	resp.Header().Set("Content-Type", "application/xml")
 	resp.WriteHeader(instance.Status)
 	x := xml.NewEncoder(resp)
 	x.Indent("", "  ")
 	if err := x.Encode(instance.Data); err != nil {
-		instance.logError(resp, req, "Could not render xml response.", err)
+		instance.logError(resp, req, "Could not render xml response.", err, logProvider)
 	}
 }
 
-func (instance GenericResponse) logError(resp http.ResponseWriter, req *http.Request, message string, err error) {
+func (instance GenericResponse) logError(resp http.ResponseWriter, req *http.Request, message string, err error, logProvider func() log.Logger) {
 	if f := instance.ErrorHandler; f != nil {
 		f(resp, req, message, err, instance.Status)
 		return
 	}
-	log.WithFields(log.Fields{
-		"runtime":       Runtime(),
-		"requestId":     instance.RequestId,
-		"correlationId": instance.CorrelationId,
-		"remoteIp":      RequestBasedLazyStringerFor(req, RemoteIpOfRequest),
-		"host":          RequestBasedLazyStringerFor(req, HostOfRequest),
-		"method":        req.Method,
-		"requestUri":    RequestBasedLazyStringerFor(req, UriOfRequest),
-		"userAgent":     RequestBasedLazyStringerFor(req, UserAgentOfRequest),
-	}).WithError(err).Error(message)
+	logProvider().
+		WithAll(map[string]any{
+			"runtime":       Runtime(),
+			"requestId":     instance.RequestId,
+			"correlationId": instance.CorrelationId,
+			"remoteIp":      RequestBasedLazyFor(req, RemoteIpOfRequest),
+			"host":          RequestBasedLazyFor(req, HostOfRequest),
+			"method":        req.Method,
+			"requestUri":    RequestBasedLazyFor(req, UriOfRequest),
+			"userAgent":     RequestBasedLazyFor(req, UserAgentOfRequestAny),
+		}).
+		WithError(err).
+		Error(message)
 }

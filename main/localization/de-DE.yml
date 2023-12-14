@@ -1,0 +1,15 @@
+content-moved.message: Dieser Inhalt wurde verschoben
+content-moved.link: hier klicken um zu folgen
+
+explanation.clientSideIssue: Entschuldigung, so funktioniert das leider nicht. Bitte überprüfen Sie Ihre Eingabe und versuchen Sie es erneut.
+explanation.serverSideIssue: Entschuldigung, da haben wir wohl etwas falsch gemacht. Wir werden das so schnell wie möglich in Ordnung bringen.
+explanation.temporaryIssue: Diese Seite wird sich automatisch neu laden sobald der Dienst wieder verfügbar ist. Bitte warten...
+
+status-message.default: Fehler
+
+status-message.400: Ungültige Anfrage
+status-message.401: Nicht autorisiert
+status-message.403: Zugriff verweigert
+status-message.404: Dokument nicht gefunden
+status-message.500: Interner Server Fehler
+status-message.503: Service temporär nicht verfügbar

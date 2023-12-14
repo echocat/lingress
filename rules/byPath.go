@@ -3,7 +3,7 @@ package rules
 import "github.com/echocat/lingress/rules/tree"
 
 type ByPath struct {
-	values *tree.Tree
+	values *tree.Tree[Rule]
 
 	onAdded   OnAdded
 	onRemoved OnRemoved
@@ -11,28 +11,22 @@ type ByPath struct {
 
 func NewByPath(onAdded OnAdded, onRemoved OnRemoved) *ByPath {
 	result := &ByPath{
-		values:    tree.New(),
+		values:    tree.New[Rule](),
 		onAdded:   onAdded,
 		onRemoved: onRemoved,
 	}
 
-	result.values.OnAdded = func(path []string, element interface{}) {
-		if r, ok := element.(Rule); ok {
-			onAdded(path, r)
-		}
+	result.values.OnAdded = func(path []string, r Rule) {
+		onAdded(path, r)
 	}
-	result.values.OnRemoved = func(path []string, element interface{}) {
-		if r, ok := element.(Rule); ok {
-			onRemoved(path, r)
-		}
+	result.values.OnRemoved = func(path []string, r Rule) {
+		onRemoved(path, r)
 	}
 	return result
 }
 
 func (instance *ByPath) All(consumer func(Rule) error) error {
-	return instance.values.All(func(value interface{}) error {
-		return consumer(value.(Rule))
-	})
+	return instance.values.All(consumer)
 }
 
 func (instance *ByPath) Find(path []string) (Rules, error) {
@@ -48,12 +42,8 @@ func (instance *ByPath) Put(r Rule) error {
 }
 
 func (instance *ByPath) Remove(predicate Predicate) error {
-	return instance.values.Remove(func(path []string, element interface{}) bool {
-		if r, ok := element.(Rule); ok {
-			return predicate(path, r)
-		} else {
-			return false
-		}
+	return instance.values.Remove(func(path []string, r Rule) bool {
+		return predicate(path, r)
 	})
 }
 

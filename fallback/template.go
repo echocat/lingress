@@ -18,7 +18,7 @@ var (
 )
 
 func newTemplate(fp support.FileProvider, name string, funcMaps ...template.FuncMap) (*template.Template, error) {
-	if plain, err := fp.Find(name); err != nil {
+	if plain, err := fp.ReadFile(name); err != nil {
 		return nil, err
 	} else {
 		tmpl := template.New("resources/templates/" + name).Funcs(defaultFuncMap)

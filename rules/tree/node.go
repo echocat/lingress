@@ -1,19 +1,19 @@
 package tree
 
-type node struct {
-	children map[string]*node
-	elements map[string][]interface{}
+type node[T Type[T]] struct {
+	children map[string]*node[T]
+	elements map[string][]T
 }
 
-func newNode() *node {
-	return &node{}
+func newNode[T Type[T]]() *node[T] {
+	return &node[T]{}
 }
 
-type Cloneable interface {
-	Clone() interface{}
+type Cloneable[T any] interface {
+	Clone() T
 }
 
-func (instance *node) hasContent() bool {
+func (instance *node[T]) hasContent() bool {
 	if instance.children != nil && len(instance.children) > 0 {
 		return true
 	}
@@ -23,37 +23,33 @@ func (instance *node) hasContent() bool {
 	return false
 }
 
-func (instance *node) clone() *node {
-	var children map[string]*node
+func (instance *node[T]) clone() *node[T] {
+	var children map[string]*node[T]
 	if instance.children != nil {
-		children = make(map[string]*node)
+		children = make(map[string]*node[T])
 		for key, child := range instance.children {
 			children[key] = child.clone()
 		}
 	}
 
-	var elements map[string][]interface{}
+	var elements map[string][]T
 	if instance.elements != nil {
-		elements = make(map[string][]interface{})
+		elements = make(map[string][]T)
 		for key, sourceElements := range instance.elements {
 			elements[key] = cloneElements(sourceElements)
 		}
 	}
 
-	return &node{
+	return &node[T]{
 		children: children,
 		elements: elements,
 	}
 }
 
-func cloneElements(in []interface{}) (out []interface{}) {
-	out = make([]interface{}, len(in))
+func cloneElements[T Cloneable[T]](in []T) (out []T) {
+	out = make([]T, len(in))
 	for i, sourceElement := range in {
-		if cloneable, ok := sourceElement.(Cloneable); ok {
-			out[i] = cloneable.Clone()
-		} else {
-			out[i] = sourceElement
-		}
+		out[i] = sourceElement.Clone()
 	}
 	return out
 }

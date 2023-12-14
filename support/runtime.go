@@ -58,7 +58,6 @@ func Executable() string {
 //		-b $REVISION \
 //		-o out/app \
 //		./
-//
 type RuntimeT struct {
 	GroupId    string    `yaml:"groupId" json:"groupId"`
 	ArtifactId string    `yaml:"artifactId" json:"artifactId"`
@@ -79,7 +78,7 @@ func (instance RuntimeT) Name() string {
 	return g + "/" + a
 }
 
-func (instance RuntimeT) String() string {
+func (instance RuntimeT) LongString() string {
 	return fmt.Sprintf(`%s
  Branch:       %s
  Revision:     %s
@@ -89,13 +88,13 @@ func (instance RuntimeT) String() string {
 		instance.Name(), instance.Branch, instance.Revision, instance.Build, instance.GoVersion, instance.Os, instance.Arch)
 }
 
-func (instance RuntimeT) ShortString() string {
+func (instance RuntimeT) String() string {
 	return fmt.Sprintf(`%s:%s`,
 		instance.Branch, instance.Revision)
 }
 
 func (instance RuntimeT) MarshalText() (text []byte, err error) {
-	return []byte(instance.ShortString()), nil
+	return []byte(instance.String()), nil
 }
 
 func resolveRuntime() (result RuntimeT) {

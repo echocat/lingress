@@ -36,7 +36,7 @@ func (instance *Context) NewGenericResponse(statusCode int, message string) *Gen
 func (instance *GenericResponse) errorHandler(_ http.ResponseWriter, _ *http.Request, message string, err error, status int) {
 	instance.context.Log().
 		WithError(err).
-		WithField("statusCode", status).
+		With("statusCode", status).
 		Error(message)
 }
 
@@ -51,13 +51,13 @@ func (instance *GenericResponse) SetData(data interface{}) *GenericResponse {
 }
 
 func (instance *GenericResponse) StreamAsJson() {
-	instance.value.StreamJsonTo(instance.context.Client.Response, instance.context.Client.Request)
+	instance.value.StreamJsonTo(instance.context.Client.Response, instance.context.Client.Request, instance.context.Log)
 }
 
 func (instance *GenericResponse) StreamAsYaml() {
-	instance.value.StreamYamlTo(instance.context.Client.Response, instance.context.Client.Request)
+	instance.value.StreamYamlTo(instance.context.Client.Response, instance.context.Client.Request, instance.context.Log)
 }
 
 func (instance GenericResponse) StreamAsXml() {
-	instance.value.StreamXmlTo(instance.context.Client.Response, instance.context.Client.Request)
+	instance.value.StreamXmlTo(instance.context.Client.Response, instance.context.Client.Request, instance.context.Log)
 }

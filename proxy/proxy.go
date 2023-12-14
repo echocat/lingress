@@ -9,7 +9,7 @@ import (
 	"github.com/echocat/lingress/server"
 	"github.com/echocat/lingress/support"
 	"github.com/echocat/lingress/value"
-	log "github.com/sirupsen/logrus"
+	"github.com/echocat/slf4g"
 	"io"
 	"net"
 	"net/http"
@@ -24,6 +24,7 @@ type Proxy struct {
 	Dialer          *net.Dialer
 	Transport       *http.Transport
 	RulesRepository rules.Repository
+	Logger          log.Logger
 
 	OverrideHost   string
 	OverrideScheme string
@@ -39,7 +40,7 @@ type Proxy struct {
 
 type AccessLogger func(*lctx.Context)
 
-func New(rules rules.Repository) (*Proxy, error) {
+func New(rules rules.Repository, logger log.Logger) (*Proxy, error) {
 	dialer := &net.Dialer{
 		Timeout:   10 * time.Second,
 		KeepAlive: 30 * time.Second,
@@ -59,6 +60,7 @@ func New(rules rules.Repository) (*Proxy, error) {
 		Transport:       transport,
 		RulesRepository: rules,
 		Interceptors:    DefaultInterceptors.Clone(),
+		Logger:          logger,
 	}
 	result.bufferPool.New = result.createBuffer
 	return result, nil
@@ -121,7 +123,13 @@ func (instance *Proxy) Init(stop support.Channel) error {
 }
 
 func (instance *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseWriter, req *http.Request) {
-	ctx := lctx.AcquireContext(connector.GetId(), instance.BehindOtherReverseProxy, resp, req)
+	ctx, err := lctx.AcquireContext(connector.GetId(), instance.BehindOtherReverseProxy, resp, req, instance.Logger)
+	if err != nil {
+		instance.Logger.
+			WithError(err).
+			Error("cannot acquire context")
+		return
+	}
 	al := instance.AccessLogger
 	defer func() {
 		if al == nil {
@@ -139,7 +147,7 @@ func (instance *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseW
 			}
 
 			stack := string(debug.Stack())
-			log.WithField("stack", stack).
+			instance.Logger.With("stack", stack).
 				WithError(err).
 				Error("unhandled error inside of the finalization stack")
 		}
@@ -148,7 +156,7 @@ func (instance *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseW
 		if rh := instance.ResultHandler; rh != nil {
 			rh(ctx)
 		}
-		ctx.Client.Duration = time.Now().Sub(ctx.Client.Started)
+		ctx.Client.Duration = time.Now().Sub(ctx.Client.Started).Truncate(time.Millisecond)
 		if r := ctx.Rule; r != nil {
 			r.Statistics().MarkUsed(ctx.Client.Duration)
 		}
@@ -472,7 +480,8 @@ func (instance *Proxy) copyBuffered(dst io.Writer, src io.Reader) (int64, error)
 	for {
 		nr, rErr := src.Read(*buf)
 		if rErr != nil && rErr != io.EOF && rErr != context.Canceled {
-			log.WithError(rErr).
+			instance.Logger.
+				WithError(rErr).
 				Warn("read error during body copy")
 		}
 		if nr > 0 {

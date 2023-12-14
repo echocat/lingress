@@ -14,6 +14,7 @@ func newLocationContextForCtx(ctx *context.Context, bundle *i18n.Bundle) *suppor
 	return &support.LocalizationContext{
 		Bundle:         bundle,
 		AcceptLanguage: ctx.Client.Request.Header.Get("Accept-Language"),
+		Logger:         ctx.Logger,
 	}
 }
 

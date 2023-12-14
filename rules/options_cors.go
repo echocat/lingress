@@ -14,12 +14,6 @@ const (
 	annotationCorsAllowedHeaders      = "lingress.echocat.org/cors.allowed-headers"
 	annotationCorsAllowedCredentials  = "lingress.echocat.org/cors.credentials"
 	annotationCorsMaxAge              = "lingress.echocat.org/cors.max-age"
-
-	annotationNginxCorsEnable             = "nginx.ingress.kubernetes.io/enable-cors"
-	annotationNginxCorsAllowedMethods     = "nginx.ingress.kubernetes.io/cors-allow-methods"
-	annotationNginxCorsAllowedHeaders     = "nginx.ingress.kubernetes.io/cors-allow-headers"
-	annotationNginxCorsAllowedCredentials = "nginx.ingress.kubernetes.io/cors-allow-credentials"
-	annotationNginxCorsMaxAge             = "nginx.ingress.kubernetes.io/cors-max-age"
 )
 
 func OptionsCorsOf(rule Rule) *OptionsCors {
@@ -83,9 +77,6 @@ func evaluateOptionCorsEnable(annotations map[string]string) (value.ForcibleBool
 	if v, ok := annotations[annotationCorsEnabledAlternative]; ok {
 		return AnnotationIsForcibleBool(annotationCorsEnabledAlternative, v)
 	}
-	if v, ok := annotations[annotationNginxCorsEnable]; ok {
-		return AnnotationIsForcibleBool(annotationNginxCorsEnable, v)
-	}
 	return value.NewForcibleBool(value.UndefinedBool, false), nil
 }
 
@@ -100,17 +91,11 @@ func evaluateOptionCorsAllowedMethods(annotations map[string]string) (Methods, e
 	if v, ok := annotations[annotationCorsAllowedMethods]; ok {
 		return ParseMethods(v)
 	}
-	if v, ok := annotations[annotationNginxCorsAllowedMethods]; ok {
-		return ParseMethods(v)
-	}
 	return nil, nil
 }
 
 func evaluateOptionCorsAllowedHeaders(annotations map[string]string) (HeaderNames, error) {
 	if v, ok := annotations[annotationCorsAllowedHeaders]; ok {
-		return ParseHeaderNames(v)
-	}
-	if v, ok := annotations[annotationNginxCorsAllowedHeaders]; ok {
 		return ParseHeaderNames(v)
 	}
 	return nil, nil
@@ -120,17 +105,11 @@ func evaluateOptionCorsAllowedCredentials(annotations map[string]string) (value.
 	if v, ok := annotations[annotationCorsAllowedCredentials]; ok {
 		return AnnotationIsTrue(annotationCorsAllowedCredentials, v)
 	}
-	if v, ok := annotations[annotationNginxCorsAllowedCredentials]; ok {
-		return AnnotationIsTrue(annotationNginxCorsAllowedCredentials, v)
-	}
 	return value.UndefinedBool, nil
 }
 
 func evaluateOptionCorsMaxAge(annotations map[string]string) (value.Duration, error) {
 	if v, ok := annotations[annotationCorsMaxAge]; ok {
-		return value.ParseDuration(v)
-	}
-	if v, ok := annotations[annotationNginxCorsMaxAge]; ok {
 		return value.ParseDuration(v)
 	}
 	return 0, nil

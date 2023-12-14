@@ -4,8 +4,7 @@ import (
 	"encoding/json"
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/server"
-	"github.com/echocat/lingress/support"
-	log "github.com/sirupsen/logrus"
+	"github.com/echocat/slf4g"
 	"net/http"
 	"sync"
 	"time"
@@ -16,7 +15,6 @@ const (
 	FieldCorrelationId = "correlationId"
 	FieldClient        = "client"
 	FieldUpstream      = "upstream"
-	FieldRuntime       = "runtime"
 	FieldResult        = "result"
 	FieldError         = "error"
 )
@@ -37,6 +35,8 @@ type Context struct {
 	CorrelationId Id
 	Stage         Stage
 
+	Logger log.Logger
+
 	Rule   rules.Rule
 	Result Result
 	Error  error
@@ -44,7 +44,7 @@ type Context struct {
 	Properties map[string]interface{}
 }
 
-func AcquireContext(connector server.ConnectorId, fromOtherReverseProxy bool, resp http.ResponseWriter, req *http.Request) *Context {
+func AcquireContext(connector server.ConnectorId, fromOtherReverseProxy bool, resp http.ResponseWriter, req *http.Request, logger log.Logger) (*Context, error) {
 	success := false
 	result := contextPool.Get().(*Context)
 	defer func(created *Context) {
@@ -53,11 +53,20 @@ func AcquireContext(connector server.ConnectorId, fromOtherReverseProxy bool, re
 		}
 	}(result)
 
-	result.Id = NewId(fromOtherReverseProxy, req)
-	result.CorrelationId = NewCorrelationId(fromOtherReverseProxy, req)
+	id, err := NewId(fromOtherReverseProxy, req)
+	if err != nil {
+		return nil, err
+	}
+	result.Id = id
+	correlationId, err := NewCorrelationId(fromOtherReverseProxy, req)
+	if err != nil {
+		return nil, err
+	}
+	result.CorrelationId = correlationId
 	result.Stage = StageCreated
 	result.Client.configure(connector, fromOtherReverseProxy, resp, req)
 	result.Upstream.configure()
+	result.Logger = logger
 
 	result.Rule = nil
 	result.Result = ResultUnknown
@@ -66,7 +75,7 @@ func AcquireContext(connector server.ConnectorId, fromOtherReverseProxy bool, re
 	result.Properties = make(map[string]interface{})
 
 	success = true
-	return result
+	return result, nil
 }
 
 func (instance *Context) Done(result Result, err ...error) {
@@ -93,8 +102,12 @@ func (instance *Context) MarkUnknown() {
 	instance.Client.Status = http.StatusNotFound
 }
 
-func (instance *Context) Log() log.FieldLogger {
-	return log.WithFields(instance.AsMap(false))
+func (instance *Context) Log() log.Logger {
+	return instance.Logger.WithAll(instance.AsMap(false))
+}
+
+func (instance *Context) LogProvider() func() log.Logger {
+	return instance.Log
 }
 
 func (instance *Context) Release() {
@@ -103,6 +116,7 @@ func (instance *Context) Release() {
 	instance.Stage = StageUnknown
 	instance.Id = NilRequestId
 	instance.CorrelationId = NilRequestId
+	instance.Logger = nil
 
 	instance.Rule = nil
 	instance.Result = ResultUnknown
@@ -125,7 +139,6 @@ func (instance *Context) AsMap(inlineFields bool) map[string]interface{} {
 	buf := map[string]interface{}{
 		FieldRequestId:     instance.Id,
 		FieldCorrelationId: instance.CorrelationId,
-		FieldRuntime:       support.Runtime(),
 		FieldResult:        instance.Result.Name(),
 	}
 	if inlineFields {

@@ -89,7 +89,7 @@ func (instance HostPatterns) Matches(test string) bool {
 	return false
 }
 
-func (instance HostPatterns) Get() interface{} {
+func (instance HostPatterns) Get() any {
 	return instance
 }
 

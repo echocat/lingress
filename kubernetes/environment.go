@@ -3,7 +3,6 @@ package kubernetes
 import (
 	"fmt"
 	"github.com/echocat/lingress/support"
-	"io/ioutil"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	dynamicFake "k8s.io/client-go/dynamic/fake"
@@ -65,13 +64,13 @@ func (instance *Environment) RegisterFlag(fe support.FlagEnabled, appPrefix stri
 		Envar(support.FlagEnvName(appPrefix, "KUBECONFIG")).
 		SetValue(&instance.Kubeconfig)
 	fe.Flag("context", "Defines context which you try to access of the kubeconfig."+
-		" This value is ignored if kbueconfig 'incluster' is used.").
+		" This value is ignored if kubeconfig 'incluster' is used.").
 		PlaceHolder("<context>").
 		Short('c').
 		Envar(support.FlagEnvName(appPrefix, "CONTEXT")).
 		StringVar(&instance.Context)
 	fe.Flag("namespace", "Defines namespace where it service is bound to/running in."+
-		" This value is ignored if kbueconfig 'incluster' is used.").
+		" This value is ignored if kubeconfig 'incluster' is used.").
 		PlaceHolder("<namespace>").
 		Short('n').
 		Envar(support.FlagEnvName(appPrefix, "NAMESPACE")).
@@ -154,7 +153,7 @@ func (instance *Environment) loadForInCluster() (*environmentPayload, error) {
 		tlsClientConfig.CAFile = instance.rootCAFile
 	}
 
-	if nsb, err := ioutil.ReadFile(instance.namespaceFile); err != nil {
+	if nsb, err := os.ReadFile(instance.namespaceFile); err != nil {
 		return nil, fmt.Errorf("expected to load namespace from %s, but got err: %v", instance.rootCAFile, err)
 	} else {
 		instance.Namespace = string(nsb)

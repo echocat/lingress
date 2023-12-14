@@ -27,8 +27,8 @@ func NewByHost(onAdded OnAdded, onRemoved OnRemoved) *ByHost {
 }
 
 func (instance *ByHost) All(consumer func(Rule) error) error {
-	for _, value := range instance.hostFullMatch {
-		if err := value.All(consumer); err != nil {
+	for _, v := range instance.hostFullMatch {
+		if err := v.All(consumer); err != nil {
 			return err
 		}
 	}
@@ -48,10 +48,13 @@ func (instance *ByHost) Find(host value.Fqdn, path []string) (Rules, error) {
 		if candidate == nil {
 			continue
 		}
-		resultAny, candidateAny := result.Any(), candidate.Any()
+
+		candidateAny := candidate.AnyFilteredBy(path)
 		if candidateAny == nil {
 			continue
 		}
+
+		resultAny := result.AnyFilteredBy(path)
 		if resultAny == nil || len(candidateAny.Path()) > len(resultAny.Path()) {
 			result = candidate
 		}
@@ -130,9 +133,9 @@ func (instance *ByHost) Put(r Rule) error {
 		return existing.Put(r)
 	}
 
-	value := NewByPath(instance.onAdded, instance.onRemoved)
-	target[host] = value
-	return value.Put(r)
+	v := NewByPath(instance.onAdded, instance.onRemoved)
+	target[host] = v
+	return v.Put(r)
 }
 
 func (instance *ByHost) Remove(predicate Predicate) error {

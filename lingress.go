@@ -10,13 +10,13 @@ import (
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/server"
 	"github.com/echocat/lingress/support"
-	log "github.com/sirupsen/logrus"
+	"github.com/echocat/slf4g"
+	"github.com/echocat/slf4g/level"
 	"net"
 	"net/http"
 	"reflect"
 	"strings"
 	"sync/atomic"
-	"time"
 )
 
 type Lingress struct {
@@ -32,6 +32,10 @@ type Lingress struct {
 	accessLogQueue chan *accessLogEntry
 
 	unprocessableConnectionDocumented map[reflect.Type]bool
+
+	logger                 log.Logger
+	accessLogger           log.Logger
+	accessLoggerMessageKey string
 }
 
 type ConnectionStates struct {
@@ -41,18 +45,20 @@ type ConnectionStates struct {
 }
 
 func New(fps support.FileProviders) (*Lingress, error) {
+	logProvider := log.GetProvider()
+
 	connectorIds := []server.ConnectorId{server.DefaultConnectorIdHttp, server.DefaultConnectorIdHttps}
-	if r, err := rules.NewRepository(); err != nil {
+	if r, err := rules.NewRepository(logProvider.GetLogger("rules")); err != nil {
 		return nil, err
-	} else if p, err := proxy.New(r); err != nil {
+	} else if p, err := proxy.New(r, logProvider.GetLogger("proxy")); err != nil {
 		return nil, err
-	} else if f, err := fallback.New(fps); err != nil {
+	} else if f, err := fallback.New(fps, logProvider.GetLogger("fallback")); err != nil {
 		return nil, err
-	} else if m, err := management.New(connectorIds, r); err != nil {
+	} else if m, err := management.New(connectorIds, r, logProvider.GetLogger("management")); err != nil {
 		return nil, err
-	} else if hHttp, err := server.NewHttpConnector(server.DefaultConnectorIdHttp); err != nil {
+	} else if hHttp, err := server.NewHttpConnector(server.DefaultConnectorIdHttp, logProvider.GetLogger("http")); err != nil {
 		return nil, err
-	} else if hHttps, err := server.NewHttpConnector(server.DefaultConnectorIdHttps); err != nil {
+	} else if hHttps, err := server.NewHttpConnector(server.DefaultConnectorIdHttps, logProvider.GetLogger("https")); err != nil {
 		return nil, err
 	} else {
 		result := &Lingress{
@@ -63,8 +69,12 @@ func New(fps support.FileProviders) (*Lingress, error) {
 			Http:               hHttp,
 			Https:              hHttps,
 			AccessLogQueueSize: 5000,
+
+			accessLogger: logProvider.GetLogger("accessLog"),
+			logger:       logProvider.GetLogger("core"),
 		}
 
+		result.accessLoggerMessageKey = result.accessLogger.GetProvider().GetFieldKeysSpec().GetMessage()
 		result.Http.Handler = result
 		result.Http.MaxConnections = 256
 
@@ -121,7 +131,8 @@ func (instance *Lingress) OnConnState(connector server.Connector, conn net.Conn,
 		connType := reflect.TypeOf(conn)
 		if !instance.unprocessableConnectionDocumented[connType] {
 			instance.unprocessableConnectionDocumented[connType] = true
-			log.WithField("connType", connType.String()).
+			instance.logger.
+				With("connType", connType.String()).
 				Error("cannot inspect connection of provided connection type; for those kinds of connections there will be no statistics be available")
 		}
 		return
@@ -290,30 +301,9 @@ func (instance *Lingress) doAccessLog(entry *accessLogEntry) {
 		return
 	}
 
-	f := func(sub, field string) string {
-		if v := entry.getField(sub, instance.InlineAccessLog, field); v != nil {
-			if d, ok := v.(time.Duration); ok {
-				// Because beforehand we removed that value to be microsecond. Now, for the formatter,
-				// it needs to be nanosecond again.
-				v = d * time.Microsecond
-			}
-			return fmt.Sprint(v)
-		}
-		return "-"
-	}
-
 	lvl := instance.logLevelByStatus(status)
-	log.
-		WithFields(entry.data).
-		WithField("event", "accessLog").
-		Logf(lvl, "[%s] %s %s %s %s %q",
-			f(lctx.FieldClient, lctx.FieldClientStatus),
-			f(lctx.FieldClient, lctx.FieldClientMethod),
-			f(lctx.FieldClient, lctx.FieldClientUrl),
-			f(lctx.FieldClient, lctx.FieldClientDuration),
-			f(lctx.FieldClient, lctx.FieldClientAddress),
-			f(lctx.FieldClient, lctx.FieldClientUserAgent),
-		)
+	event := instance.accessLogger.NewEvent(lvl, entry.data)
+	instance.accessLogger.Log(event, 0)
 }
 
 func (instance *Lingress) shouldBeLogged(entry *accessLogEntry) bool {
@@ -361,22 +351,22 @@ func (instance *Lingress) hasPrivateNetworkIp(ips []net.IP) bool {
 	return false
 }
 
-func (instance *Lingress) logLevelByContext(ctx *lctx.Context) log.Level {
+func (instance *Lingress) logLevelByContext(ctx *lctx.Context) level.Level {
 	if err := ctx.Error; err != nil && ctx.Client.Status <= 0 {
 		ctx.Client.Status = 500
 	}
 	return instance.logLevelByStatus(ctx.Client.Status)
 }
 
-func (instance *Lingress) logLevelByStatus(status int) log.Level {
+func (instance *Lingress) logLevelByStatus(status int) level.Level {
 	if status < 500 {
-		return log.InfoLevel
+		return level.Info
 	} else if status == http.StatusBadGateway ||
 		status == http.StatusServiceUnavailable ||
 		status == http.StatusGatewayTimeout {
-		return log.WarnLevel
+		return level.Warn
 	} else {
-		return log.ErrorLevel
+		return level.Error
 	}
 }
 

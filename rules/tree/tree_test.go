@@ -8,7 +8,7 @@ import (
 func Test_New_works_as_expected(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	actual := New()
+	actual := New[testValue]()
 
 	g.Expect(actual).ToNot(BeNil())
 	g.Expect(actual.root).NotTo(BeNil())

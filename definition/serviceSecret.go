@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/echocat/lingress/support"
+	log "github.com/echocat/slf4g"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -18,8 +19,8 @@ type ServiceSecret struct {
 	namespace   string
 }
 
-func NewServiceSecrets(client kubernetes.Interface, resyncAfter time.Duration) (*ServiceSecret, error) {
-	if definition, err := newDefinition("service secrets", nil); err != nil {
+func NewServiceSecrets(client kubernetes.Interface, resyncAfter time.Duration, logger log.Logger) (*ServiceSecret, error) {
+	if definition, err := newDefinition("service-secrets", nil, logger); err != nil {
 		return nil, err
 	} else {
 		return &ServiceSecret{

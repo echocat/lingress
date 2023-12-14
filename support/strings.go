@@ -46,23 +46,3 @@ func QuoteAndJoin(in ...string) string {
 	}
 	return strings.Join(out, " ")
 }
-
-func ToLazyStringer(in StringerFunc) fmt.Stringer {
-	return lazyStringer{
-		StringerFunc: in,
-	}
-}
-
-type StringerFunc func() string
-
-type lazyStringer struct {
-	StringerFunc
-}
-
-func (instance lazyStringer) String() string {
-	return instance.StringerFunc()
-}
-
-func (instance lazyStringer) MarshalText() (text []byte, err error) {
-	return []byte(instance.String()), nil
-}

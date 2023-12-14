@@ -6,11 +6,10 @@ import (
 	"github.com/echocat/lingress/kubernetes"
 	"github.com/echocat/lingress/support"
 	"github.com/echocat/lingress/value"
-	log "github.com/sirupsen/logrus"
+	"github.com/echocat/slf4g"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/cache"
 	"net"
 	"strings"
@@ -44,24 +43,25 @@ type KubernetesBasedRepository struct {
 	ByHostRules  *ByHost
 	ResyncAfter  time.Duration
 	IngressClass []string
-	HostWildcard value.ForcibleString
+	Logger       log.Logger
 
-	CertificatesSecret string
-	CertificatesByHost CertificatesByHost
-	OptionsFactory     OptionsFactory
+	CertificatesSecrets []string
+	CertificatesByHost  CertificatesByHost
+	OptionsFactory      OptionsFactory
 }
 
-func NewRepository() (CombinedRepository, error) {
+func NewRepository(logger log.Logger) (CombinedRepository, error) {
 	if environment, err := kubernetes.NewEnvironment(); err != nil {
 		return nil, err
 	} else {
 		result := &KubernetesBasedRepository{
 			Environment:  environment,
 			IngressClass: []string{},
-			HostWildcard: value.NewForcibleString("", false),
 
-			CertificatesSecret: "certificates",
-			OptionsFactory:     DefaultOptionsFactory,
+			CertificatesSecrets: []string{"certificates"},
+			OptionsFactory:      DefaultOptionsFactory,
+
+			Logger: logger,
 		}
 		result.ByHostRules = NewByHost(result.onRuleAdded, result.onRuleRemoved)
 		return result, nil
@@ -78,18 +78,9 @@ func (instance *KubernetesBasedRepository) RegisterFlag(fe support.FlagEnabled, 
 		Envar(support.FlagEnvName(appPrefix, "INGRESS_CLASS")).
 		StringsVar(&instance.IngressClass)
 	fe.Flag("secret.certificates", "Name of the secret that contains the certificates.").
-		PlaceHolder(instance.CertificatesSecret).
+		PlaceHolder(strings.Join(instance.CertificatesSecrets, ",")).
 		Envar(support.FlagEnvName(appPrefix, "SECRET_CERTIFICATES")).
-		StringVar(&instance.CertificatesSecret)
-	fe.Flag("hosts.wildcard", "Default wildcard pattern for ingress configuration."+
-		" As Kubernetes ingress configuration does not support wildcards as '*' this argument specifies"+
-		" a specific domain segment to be a placeholder; like 'x--wildcard--x' instead of '*'."+
-		" If empty no wildcards are supported at all."+
-		" This can be overwritten by the 'lingress.echocat.org/hosts-wildcard' annotation."+
-		" If this parameter is prefixed with '!' the annotation cannot override this behavior.").
-		PlaceHolder(instance.HostWildcard.String()).
-		Envar(support.FlagEnvName(appPrefix, "HOSTS_WILDCARD")).
-		SetValue(&instance.HostWildcard)
+		StringsVar(&instance.CertificatesSecrets)
 
 	return instance.Environment.RegisterFlag(fe, appPrefix)
 }
@@ -104,7 +95,7 @@ func (instance *KubernetesBasedRepository) Init(stop support.Channel) error {
 	if err != nil {
 		return err
 	}
-	definitions, err := definition.New(client, instance.ResyncAfter)
+	definitions, err := definition.New(client, instance.ResyncAfter, instance.Logger)
 	if err != nil {
 		return err
 	}
@@ -136,11 +127,11 @@ func (instance *KubernetesBasedRepository) Init(stop support.Channel) error {
 }
 
 func (instance *KubernetesBasedRepository) onRuleAdded(_ []string, r Rule) {
-	log.WithField("rule", r).Debug("rule added")
+	instance.Logger.With("rule", r).Debug("rule added")
 }
 
 func (instance *KubernetesBasedRepository) onRuleRemoved(_ []string, r Rule) {
-	log.WithField("rule", r).Debug("rule removed")
+	instance.Logger.With("rule", r).Debug("rule removed")
 }
 
 type repositoryImplState struct {
@@ -158,23 +149,25 @@ func (instance *repositoryImplState) onSecretCertificatesChanged(key string, new
 
 	s := new.(*v1.Secret)
 
+	l := instance.Logger.
+		With("key", key)
+
 	cbh := CertificatesByHost{}
 
 	for file, candidate := range s.Data {
+		l := l.With("certificate", file)
 		base, ext := support.SplitExt(file)
 		if ext == ".crt" || ext == ".cer" {
 			privateKeyFile := base + ".key"
-			if pk, ok := s.Data[privateKeyFile]; !ok {
-				log.WithField("secret", key).
-					WithField("certificate", file).
-					WithField("privateKey", privateKeyFile).
-					Warn("cannot find expected privateKey in secret for provided certificate; ignoring...")
-			} else if err := cbh.AddBytes(candidate, pk); err != nil {
-				log.WithError(err).
-					WithField("secret", key).
-					WithField("certificate", file).
-					WithField("privateKey", privateKeyFile).
-					Warn("cannot parse certificate and privateKey pair from secret; ignoring...")
+			l := l.With("privateKey", privateKeyFile)
+			pk, ok := s.Data[privateKeyFile]
+			if !ok {
+				l.Warn("cannot find expected privateKey in secret for provided certificate; ignoring...")
+				continue
+			}
+			if err := cbh.AddBytes(candidate, pk); err != nil {
+				l.WithError(err).Warn("cannot parse certificate and privateKey pair from secret; ignoring...")
+				continue
 			}
 		}
 	}
@@ -184,26 +177,34 @@ func (instance *repositoryImplState) onSecretCertificatesChanged(key string, new
 	return nil
 }
 
-func (instance *repositoryImplState) expectedCertificatesKey() string {
-	return instance.Environment.Namespace + "/" + instance.CertificatesSecret
+func (instance *repositoryImplState) isExpectedCertificatesKey(what string) bool {
+	for _, candidate := range instance.CertificatesSecrets {
+		if strings.Contains(candidate, "/") {
+			candidate = instance.Environment.Namespace + "/" + candidate
+		}
+		if candidate == what {
+			return true
+		}
+	}
+	return false
 }
 
 func (instance *repositoryImplState) onServiceSecretsElementAdded(key string, new metav1.Object) error {
-	if key == instance.expectedCertificatesKey() {
+	if instance.isExpectedCertificatesKey(key) {
 		return instance.onSecretCertificatesChanged(key, new)
 	}
 	return nil
 }
 
 func (instance *repositoryImplState) onServiceSecretsElementUpdated(key string, _, new metav1.Object) error {
-	if key == instance.expectedCertificatesKey() {
+	if instance.isExpectedCertificatesKey(key) {
 		return instance.onSecretCertificatesChanged(key, new)
 	}
 	return nil
 }
 
 func (instance *repositoryImplState) onServiceSecretsElementRemoved(key string) error {
-	if key == instance.expectedCertificatesKey() {
+	if instance.isExpectedCertificatesKey(key) {
 		return instance.onSecretCertificatesChanged(key, nil)
 	}
 	return nil
@@ -216,19 +217,9 @@ func (instance *repositoryImplState) onIngressElementAdded(_ string, new metav1.
 		target = target.Clone()
 	}
 
-	candidate := new.(*v1beta1.Ingress)
+	candidate := new.(*networkingv1.Ingress)
 
-	annotations := candidate.GetAnnotations()
-	ic := annotations[annotationIngressClass]
-	ingressClassMatches := false
-	for _, candidate := range instance.IngressClass {
-		if ic == candidate {
-			ingressClassMatches = true
-			break
-		}
-	}
-
-	if !ingressClassMatches {
+	if !instance.matchesIngressClass(candidate) {
 		return nil
 	}
 
@@ -243,15 +234,12 @@ func (instance *repositoryImplState) onIngressElementAdded(_ string, new metav1.
 }
 
 func (instance *repositoryImplState) onIngressElementUpdated(key string, _, new metav1.Object) error {
-	candidate := new.(*v1beta1.Ingress)
+	candidate := new.(*networkingv1.Ingress)
 
-	annotations := candidate.GetAnnotations()
-	ic := annotations[annotationIngressClass]
-	for _, candidate := range instance.IngressClass {
-		if ic == candidate {
-			return instance.onIngressElementAdded(key, new)
-		}
+	if instance.matchesIngressClass(candidate) {
+		return instance.onIngressElementAdded(key, new)
 	}
+
 	return instance.onIngressElementRemoved(key)
 }
 
@@ -282,7 +270,25 @@ func (instance *repositoryImplState) onIngressElementRemoved(key string) error {
 	return nil
 }
 
-func (instance *repositoryImplState) visitIngress(ingress *v1beta1.Ingress, target *ByHost) error {
+func (instance *repositoryImplState) matchesIngressClass(what *networkingv1.Ingress) bool {
+	requested := what.Spec.IngressClassName
+	if requested == nil {
+		for _, candidate := range instance.IngressClass {
+			if candidate == "" || candidate == "*" {
+				return true
+			}
+		}
+		return false
+	}
+	for _, candidate := range instance.IngressClass {
+		if candidate == *requested || candidate == "*" {
+			return true
+		}
+	}
+	return false
+}
+
+func (instance *repositoryImplState) visitIngress(ingress *networkingv1.Ingress, target *ByHost) error {
 	source := &sourceReference{
 		namespace: ingress.Namespace,
 		name:      ingress.Name,
@@ -291,46 +297,94 @@ func (instance *repositoryImplState) visitIngress(ingress *v1beta1.Ingress, targ
 		return err
 	}
 
-	if v := ingress.Spec.Backend; v != nil {
-		if backend, err := instance.ingressToBackend(source, *v); err != nil {
+	l := instance.Logger.
+		With("type", "ingress").
+		Withf("key", "%s/%s", source.namespace, source.name)
+
+	if v := ingress.Spec.DefaultBackend; v != nil {
+		l := l.With("kind", "defaultBackend")
+		backend, err := instance.ingressToBackend(source, *v, l)
+		if err != nil {
 			return err
-		} else if options, err := instance.newOptionsBy(ingress); err != nil {
-			return err
-		} else if backend != nil {
-			r := NewRule("", []string{}, source, backend, options)
+		}
+		if backend != nil {
+			options, err := instance.newOptionsBy(ingress)
+			if err != nil {
+				return err
+			}
+			r := NewRule("", []string{}, PathTypePrefix, source, backend, options)
 			if err := target.Put(r); err != nil {
 				return err
 			}
+			l.Debug("element registered")
 		}
 	}
 
 	for _, forHost := range ingress.Spec.Rules {
 		if forHost.IngressRuleValue.HTTP != nil && forHost.IngressRuleValue.HTTP.Paths != nil {
 			for _, forPath := range forHost.IngressRuleValue.HTTP.Paths {
-				if path, err := ParsePath(forPath.Path, false); err != nil {
-					log.WithField("service", fmt.Sprintf("%s/%s", source.namespace, forPath.Backend.ServiceName)).
-						WithField("port", forPath.Backend.ServicePort).
-						WithField("source", source.String()).
-						WithField("path", forPath.Path).
-						WithError(err).
-						Warn("illegal path in ingress; ingress will not functioning")
-				} else if backend, err := instance.ingressToBackend(source, forPath.Backend); err != nil {
-					return err
-				} else if options, err := instance.newOptionsBy(ingress); err != nil {
-					return err
-				} else if host, err := instance.parseHost(&forHost, options); err != nil {
-					log.WithField("service", fmt.Sprintf("%s/%s", source.namespace, forPath.Backend.ServiceName)).
-						WithField("port", forPath.Backend.ServicePort).
-						WithField("source", source.String()).
-						WithField("path", forPath.Path).
-						WithError(err).
-						Warn("illegal host in ingress; ingress will not functioning")
-				} else if backend != nil {
-					r := NewRule(host, path, source, backend, options)
-					if err := target.Put(r); err != nil {
-						return err
-					}
+				l := l.
+					With("kind", "rule").
+					With("path", forPath.Path)
+
+				path, err := ParsePath(forPath.Path, false)
+				if err != nil {
+					l.WithError(err).Warn("illegal path configured; ingress will not functioning; ignoring")
+					continue
 				}
+				l = l.With("path", path)
+
+				forService := forPath.Backend.Service
+				if forService == nil {
+					l.Warn("there is no service configured for path; ignoring")
+					continue
+				}
+				if forService.Name == "" {
+					l.Warn("there is no service.name configured for path; ignoring")
+					continue
+				}
+				l = l.Withf("service", "%s/%s", source.namespace, forService.Name)
+
+				if forService.Port.Number != 0 {
+					l = l.With("port", forService.Port.Number)
+				} else if forService.Port.Name != "" {
+					l = l.With("port", forService.Port.Name)
+				} else {
+					l.Warn("there is neither a service.port.name nor service.port.number configured for path; ignoring")
+					continue
+				}
+
+				pathType, err := ParsePathType(forPath.PathType)
+				if err != nil {
+					l.WithError(err).Warn("illegal pathType configured; ingress will not functioning; ignoring")
+					continue
+				}
+				l = l.With("pathType", pathType)
+
+				backend, err := instance.ingressToBackend(source, forPath.Backend, l)
+				if err != nil {
+					return err
+				}
+				if backend == nil {
+					continue
+				}
+
+				options, err := instance.newOptionsBy(ingress)
+				if err != nil {
+					return err
+				}
+
+				host, err := instance.parseHost(&forHost, options)
+				if err != nil {
+					l.WithError(err).Warn("illegal host in ingress; ignoring")
+					continue
+				}
+
+				r := NewRule(host, path, pathType, source, backend, options)
+				if err := target.Put(r); err != nil {
+					return err
+				}
+				l.Debug("element registered")
 			}
 		}
 	}
@@ -338,26 +392,16 @@ func (instance *repositoryImplState) visitIngress(ingress *v1beta1.Ingress, targ
 	return nil
 }
 
-func (instance *repositoryImplState) parseHost(ingressRule *v1beta1.IngressRule, options Options) (value.WildcardSupportingFqdn, error) {
+func (instance *repositoryImplState) parseHost(ingressRule *networkingv1.IngressRule, options Options) (value.WildcardSupportingFqdn, error) {
 	plain := normalizeHostname(ingressRule.Host)
-	var hostWildcardFromOptions value.String
-	if v, ok := options[optionsMatchingKey].(*OptionsMatching); ok {
-		hostWildcardFromOptions = v.HostWildcard
-	}
-	hostWildcard := instance.HostWildcard.Evaluate(hostWildcardFromOptions, "")
-	if hostWildcard != "" {
-		if strings.HasPrefix(plain, hostWildcard.String()+".") {
-			plain = "*" + plain[len(hostWildcard):]
-		}
-	}
 	var result value.WildcardSupportingFqdn
 	if err := result.Set(plain); err != nil {
-		return "", err
+		return "", fmt.Errorf("illegal host %q: %w", plain, err)
 	}
 	return result, nil
 }
 
-func (instance *repositoryImplState) newOptionsBy(ingress *v1beta1.Ingress) (Options, error) {
+func (instance *repositoryImplState) newOptionsBy(ingress *networkingv1.Ingress) (Options, error) {
 	result := instance.OptionsFactory()
 	if err := result.Set(ingress.GetAnnotations()); err != nil {
 		return nil, err
@@ -366,57 +410,58 @@ func (instance *repositoryImplState) newOptionsBy(ingress *v1beta1.Ingress) (Opt
 	return result, nil
 }
 
-func (instance *repositoryImplState) ingressToBackend(source *sourceReference, ib v1beta1.IngressBackend) (net.Addr, error) {
-	l := log.WithField("service", ib.ServiceName).
-		WithField("port", ib.ServicePort).
-		WithField("source", source.String())
-
+func (instance *repositoryImplState) ingressToBackend(source *sourceReference, ib networkingv1.IngressBackend, usingLogger log.Logger) (net.Addr, error) {
 	service, err := instance.ingressToService(source, ib)
 	if err != nil {
 		return nil, err
-	} else if service == nil {
-		l.Warn("service not found; maybe orphan ingress?; ingress will not functioning")
+	}
+	if service == nil {
+		usingLogger.Warn("service not found; maybe orphan ingress?; ignoring")
 		return nil, nil
 	}
+
 	if service.Spec.Type != v1.ServiceTypeClusterIP {
-		l.WithField("serviceType", service.Spec.Type).
-			Warn("unsupported serviceType; ingress will not functioning")
+		usingLogger.
+			With("serviceType", service.Spec.Type).
+			Warn("unsupported serviceType; ignoring")
 		return nil, nil
 	}
+
 	if strings.TrimSpace(service.Spec.ClusterIP) == "" {
-		l.Warnf("serviceType is '%s' but clusterIP of service is not set; ingress will not functioning", v1.ServiceTypeClusterIP)
+		usingLogger.
+			Warnf("serviceType is '%s' but clusterIP of service is not set; ignoring", v1.ServiceTypeClusterIP)
 		return nil, nil
 	}
-	port, err := instance.evaluateServicePort(ib.ServicePort, service)
+
+	port, err := instance.evaluateServicePort(ib.Service.Port, service)
 	if err != nil {
-		l.WithError(err).
-			Warn("cannot resolve backend port; ingress will not functioning")
+		usingLogger.
+			WithError(err).
+			Warn("cannot resolve backend port; ignoring")
 		return nil, nil
 	}
+
 	addr, err := instance.clusterIpBasedServiceToAddr(service.Spec.ClusterIP, port)
 	if err != nil {
-		l.WithError(err).
-			Warn("cannot resolve backend address; ingress will not functioning")
+		usingLogger.
+			WithError(err).
+			Warn("cannot resolve backend address; ignoring")
 		return nil, nil
 	}
 
 	return addr, nil
 }
 
-func (instance *repositoryImplState) evaluateServicePort(in intstr.IntOrString, service *v1.Service) (int32, error) {
-	switch in.Type {
-	case intstr.Int:
-		return in.IntVal, nil
-	case intstr.String:
+func (instance *repositoryImplState) evaluateServicePort(in networkingv1.ServiceBackendPort, service *v1.Service) (int32, error) {
+	if v := in.Name; v != "" {
 		for _, candidate := range service.Spec.Ports {
-			if candidate.Name == in.StrVal {
+			if candidate.Name == v {
 				return candidate.Port, nil
 			}
 		}
-		return 0, fmt.Errorf("unknown service reference %s:%s", service.Name, in.StrVal)
-	default:
-		return 0, fmt.Errorf("only port type String or Int is currently supported; but got: %d", in.Type)
+		return 0, fmt.Errorf("unknown service reference %s:%s", service.Name, v)
 	}
+	return in.Number, nil
 }
 
 func (instance *repositoryImplState) clusterIpBasedServiceToAddr(ipStr string, port int32) (net.Addr, error) {
@@ -432,8 +477,8 @@ func (instance *repositoryImplState) clusterIpBasedServiceToAddr(ipStr string, p
 	}
 }
 
-func (instance *repositoryImplState) ingressToService(source *sourceReference, ib v1beta1.IngressBackend) (*v1.Service, error) {
-	serviceKey := fmt.Sprintf("%s/%s", source.namespace, ib.ServiceName)
+func (instance *repositoryImplState) ingressToService(source *sourceReference, ib networkingv1.IngressBackend) (*v1.Service, error) {
+	serviceKey := fmt.Sprintf("%s/%s", source.namespace, ib.Service.Name)
 
 	return instance.definitions.Service.Get(serviceKey)
 }

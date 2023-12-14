@@ -2,6 +2,7 @@ package definition
 
 import (
 	"fmt"
+	log "github.com/echocat/slf4g"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -12,10 +13,10 @@ type Service struct {
 	*Definition
 }
 
-func NewService(client kubernetes.Interface, resyncAfter time.Duration) (*Service, error) {
+func NewService(client kubernetes.Interface, resyncAfter time.Duration, logger log.Logger) (*Service, error) {
 	informerFactory := informers.NewSharedInformerFactory(client, resyncAfter)
 	informer := informerFactory.Core().V1().Services().Informer()
-	if definition, err := newDefinition("service", informer); err != nil {
+	if definition, err := newDefinition("service", informer, logger); err != nil {
 		return nil, err
 	} else {
 		return &Service{

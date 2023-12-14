@@ -19,17 +19,23 @@ func LoadBundle(provider FileProvider) (bundle *i18n.Bundle, err error) {
 	bundle.RegisterUnmarshalFunc("yml", yaml.Unmarshal)
 
 	var atLeastOneLanguageAvailable bool
-	for _, fn := range provider.List() {
-		ext := path.Ext(fn)
-		dir := path.Dir(fn)
-		if (ext == ".yaml" || ext == ".yml") && dir == "." {
-			if content, err := provider.Find(fn); err != nil {
-				return nil, fmt.Errorf("file '%s' could not be loaded but should exists: %v", fn, err)
-			} else if _, err := bundle.ParseMessageFileBytes(content, fn); err != nil {
-				return nil, fmt.Errorf("cannot load localization file '%s': %v", fn, err)
-			} else {
-				atLeastOneLanguageAvailable = true
-			}
+	entries, err := provider.ReadDir(".")
+	if err != nil {
+		return nil, fmt.Errorf("cannot load contents of localization file provider: %w", err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if ext := path.Ext(entry.Name()); ext != ".yaml" && ext != ".yml" {
+			continue
+		}
+		if content, err := provider.ReadFile(entry.Name()); err != nil {
+			return nil, fmt.Errorf("file '%s' could not be loaded but should exists: %v", entry, err)
+		} else if _, err := bundle.ParseMessageFileBytes(content, entry.Name()); err != nil {
+			return nil, fmt.Errorf("cannot load localization file '%s': %v", entry, err)
+		} else {
+			atLeastOneLanguageAvailable = true
 		}
 	}
 	if !atLeastOneLanguageAvailable {

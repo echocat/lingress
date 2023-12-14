@@ -112,7 +112,7 @@ func (instance Methods) Matches(test Method) bool {
 	return false
 }
 
-func (instance Methods) Get() interface{} {
+func (instance Methods) Get() any {
 	return instance
 }
 

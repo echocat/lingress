@@ -69,7 +69,7 @@ func (instance HeaderNames) Matches(test HeaderName) bool {
 	return false
 }
 
-func (instance HeaderNames) Get() interface{} {
+func (instance HeaderNames) Get() any {
 	return instance
 }
 

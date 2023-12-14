@@ -1,14 +1,9 @@
-title: lingress
-imprint: Imprint
-privacyPolicy: Privacy Policy
-allRightReserved: All rights reserved.
-
 content-moved.message: This content has moved
 content-moved.link: please click here to follow
 
-explaination.clientSideIssue: Sorry, but this does not work. Please verify your request and try again.
-explaination.serverSideIssue: Sorry, that's probably our mistake. We're trying to fix this issue as soon as possible.
-explaination.temporaryIssue: This page will reload automatically when the service is available again. Please stand by...
+explanation.clientSideIssue: Sorry, but this does not work. Please verify your request and try again.
+explanation.serverSideIssue: Sorry, that's probably our mistake. We're trying to fix this issue as soon as possible.
+explanation.temporaryIssue: This page will reload automatically when the service is available again. Please stand by...
 
 status-message.default: Error
 
