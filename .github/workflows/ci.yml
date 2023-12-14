@@ -13,6 +13,16 @@ jobs:
         with:
           go-version: 1.21.x
 
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker login
+        env:
+          REGISTRY_USER: ${{ github.actor }}
+          REGISTRY_PASSWORD: ${{ github.token }}
+        run: |
+          echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USER" --password-stdin ghcr.io
+
       - name: Cache
         uses: actions/cache@v2
         with:

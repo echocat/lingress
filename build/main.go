@@ -31,7 +31,7 @@ type cmd struct {
 
 func (this *cmd) registerFlags(app *kingpin.Application) {
 	app.Flag("branch", "").
-		Envar("GITHUB_REF").
+		Envar("GITHUB_REF_NAME").
 		Short('c').
 		Required().
 		StringVar(&this.branch)
