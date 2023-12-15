@@ -111,14 +111,12 @@ func (this *Management) handleStatus(resp http.ResponseWriter, req *http.Request
 
 	data := map[string]interface{}{
 		"runtime": map[string]interface{}{
-			"groupId":    runtime.GroupId,
-			"artifactId": runtime.ArtifactId,
-			"revision":   runtime.Revision,
-			"branch":     runtime.Branch,
-			"build":      runtime.Build,
-			"goVersion":  runtime.GoVersion,
-			"os":         runtime.Os,
-			"arch":       runtime.Arch,
+			"revision":  runtime.Revision,
+			"branch":    runtime.Branch,
+			"build":     runtime.Build,
+			"goVersion": runtime.GoVersion,
+			"os":        runtime.Os,
+			"arch":      runtime.Arch,
 		},
 		"statistics": map[string]interface{}{
 			"numberOfRules":    numberOfRules,

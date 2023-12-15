@@ -2,8 +2,6 @@ package support
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	rt "runtime"
 	"time"
 )
@@ -13,11 +11,9 @@ const (
 )
 
 var (
-	groupId    = ""
-	artifactId = ""
-	revision   = "latest"
-	branch     = "development"
-	build      = ""
+	revision = "latest"
+	branch   = "development"
+	build    = ""
 
 	runtime = resolveRuntime()
 )
@@ -36,8 +32,6 @@ func Runtime() RuntimeT {
 // escapes everything in the right order:
 //
 //	go run github.com/echocat/lingress/build \
-//		[-g <groupId>] \    # Default: ""
-//		-a <artifactId> \
 //		-b <branch> \
 //		-b <revision> \
 //		-o <output> \
@@ -53,33 +47,22 @@ func Runtime() RuntimeT {
 //		-o out/app \
 //		./
 type RuntimeT struct {
-	GroupId    string    `yaml:"groupId" json:"groupId"`
-	ArtifactId string    `yaml:"artifactId" json:"artifactId"`
-	Revision   string    `yaml:"revision" json:"revision"`
-	Branch     string    `yaml:"branch" json:"branch"`
-	Build      time.Time `yaml:"build" json:"build"`
-	GoVersion  string    `yaml:"goVersion" json:"goVersion"`
-	Os         string    `yaml:"os" json:"os"`
-	Arch       string    `yaml:"arch" json:"arch"`
-}
-
-func (this RuntimeT) Name() string {
-	g := this.GroupId
-	a := this.ArtifactId
-	if g == "" {
-		return a
-	}
-	return g + "/" + a
+	Revision  string    `yaml:"revision" json:"revision"`
+	Branch    string    `yaml:"branch" json:"branch"`
+	Build     time.Time `yaml:"build" json:"build"`
+	GoVersion string    `yaml:"goVersion" json:"goVersion"`
+	Os        string    `yaml:"os" json:"os"`
+	Arch      string    `yaml:"arch" json:"arch"`
 }
 
 func (this RuntimeT) LongString() string {
-	return fmt.Sprintf(`%s
+	return fmt.Sprintf(`lingress
  Branch:       %s
  Revision:     %s
  Built:        %s
  Go version:   %s
  OS/Arch:      %s/%s`,
-		this.Name(), this.Branch, this.Revision, this.Build, this.GoVersion, this.Os, this.Arch)
+		this.Branch, this.Revision, this.Build, this.GoVersion, this.Os, this.Arch)
 }
 
 func (this RuntimeT) String() string {
@@ -92,16 +75,6 @@ func (this RuntimeT) MarshalText() (text []byte, err error) {
 }
 
 func resolveRuntime() (result RuntimeT) {
-	result.GroupId = groupId
-	result.ArtifactId = artifactId
-	if result.ArtifactId == "" {
-		if fallback, err := os.Executable(); err != nil {
-			result.ArtifactId = filepath.Base(os.Args[0])
-		} else {
-			result.ArtifactId = filepath.Base(fallback)
-		}
-	}
-
 	result.Revision = revision
 	result.Branch = branch
 
