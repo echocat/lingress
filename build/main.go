@@ -5,6 +5,11 @@ import (
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/echocat/lingress/support"
 	_ "github.com/echocat/lingress/support/slf4g_native"
+	"regexp"
+)
+
+var (
+	sanitizeBranchNameRegex = regexp.MustCompile(`[^a-zA-Z0-9-]+`)
 )
 
 func newCmd() cmd {
@@ -76,6 +81,7 @@ func (this *cmd) registerFlags(app *kingpin.Application) {
 }
 
 func (this *cmd) mustExecute() {
+	this.branch = sanitizeBranchNameRegex.ReplaceAllString(this.branch, "-")
 	if this.withTests {
 		this.mustTest()
 	}
