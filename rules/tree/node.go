@@ -13,29 +13,29 @@ type Cloneable[T any] interface {
 	Clone() T
 }
 
-func (instance *node[T]) hasContent() bool {
-	if instance.children != nil && len(instance.children) > 0 {
+func (this *node[T]) hasContent() bool {
+	if this.children != nil && len(this.children) > 0 {
 		return true
 	}
-	if instance.elements != nil && len(instance.elements) > 0 {
+	if this.elements != nil && len(this.elements) > 0 {
 		return true
 	}
 	return false
 }
 
-func (instance *node[T]) clone() *node[T] {
+func (this *node[T]) clone() *node[T] {
 	var children map[string]*node[T]
-	if instance.children != nil {
+	if this.children != nil {
 		children = make(map[string]*node[T])
-		for key, child := range instance.children {
+		for key, child := range this.children {
 			children[key] = child.clone()
 		}
 	}
 
 	var elements map[string][]T
-	if instance.elements != nil {
+	if this.elements != nil {
 		elements = make(map[string][]T)
-		for key, sourceElements := range instance.elements {
+		for key, sourceElements := range this.elements {
 			elements[key] = cloneElements(sourceElements)
 		}
 	}

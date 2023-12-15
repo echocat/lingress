@@ -4,31 +4,47 @@ import (
 	"time"
 )
 
-type Duration time.Duration
+type Duration struct {
+	value *time.Duration
+}
+
+func NewDuration(value time.Duration) Duration {
+	return Duration{&value}
+}
 
 func ParseDuration(plain string) (result Duration, err error) {
 	err = result.Set(plain)
 	return
 }
 
-func (instance Duration) Get() interface{} {
-	return instance
+func (this Duration) Get() time.Duration {
+	if v := this.value; v != nil {
+		return *v
+	}
+	return 0
 }
 
-func (instance Duration) AsSeconds() int {
-	return int(time.Duration(instance) / time.Second)
+func (this Duration) GetOr(def time.Duration) time.Duration {
+	if v := this.value; v != nil {
+		return *v
+	}
+	return def
 }
 
-func (instance Duration) String() string {
-	if instance > 0 {
-		return time.Duration(instance).String()
+func (this Duration) AsSeconds() int {
+	return int(this.Get() / time.Second)
+}
+
+func (this Duration) String() string {
+	if v := this.value; v != nil {
+		return v.String()
 	}
 	return ""
 }
 
-func (instance *Duration) Set(plain string) error {
+func (this *Duration) Set(plain string) error {
 	if plain == "" {
-		*instance = 0
+		*this = Duration{}
 		return nil
 	}
 
@@ -37,25 +53,22 @@ func (instance *Duration) Set(plain string) error {
 		return err
 	}
 
-	*instance = Duration(val)
+	*this = Duration{&val}
 	return nil
 }
 
-func (instance Duration) IsPresent() bool {
-	return instance > 0
+func (this Duration) IsPresent() bool {
+	return this.value != nil
 }
 
 type ForcibleDuration struct {
-	Forcible
+	Forcible[Duration, time.Duration, *Duration]
 }
 
 func NewForcibleDuration(init Duration, forced bool) ForcibleDuration {
-	val := init
-	return ForcibleDuration{
-		Forcible: NewForcible(&val, forced),
-	}
+	return ForcibleDuration{NewForcible[Duration, time.Duration, *Duration](init, forced)}
 }
 
-func (instance ForcibleDuration) Evaluate(other Duration, def Duration) Duration {
-	return instance.Forcible.Evaluate(other, def).(Duration)
+func (this ForcibleDuration) Select(target ForcibleDuration) ForcibleDuration {
+	return ForcibleDuration{this.Forcible.Select(target.Forcible)}
 }

@@ -25,8 +25,8 @@ func NewService(client kubernetes.Interface, resyncAfter time.Duration, logger l
 	}
 }
 
-func (instance *Service) Get(key string) (*v1.Service, error) {
-	if item, exists, err := instance.informer.GetStore().GetByKey(key); err != nil {
+func (this *Service) Get(key string) (*v1.Service, error) {
+	if item, exists, err := this.informer.GetStore().GetByKey(key); err != nil {
 		return nil, fmt.Errorf("cannot get service %s from cache: %v", key, err)
 	} else if !exists {
 		return nil, nil

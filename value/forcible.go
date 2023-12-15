@@ -1,72 +1,82 @@
 package value
 
-type Forcible struct {
-	value  MutableValue
+type Forcible[V Value[T], T any, MV Mutable[V]] struct {
+	value  V
 	forced bool
 }
 
-func NewForcible(value MutableValue, forced bool) Forcible {
-	return Forcible{
+func NewForcible[V Value[T], T any, MV Mutable[V]](value V, forced bool) Forcible[V, T, MV] {
+	return Forcible[V, T, MV]{
 		value:  value,
 		forced: forced,
 	}
 }
 
-func (instance Forcible) Get() interface{} {
-	return instance.value.Get()
+func (this Forcible[V, T, MV]) Get() T {
+	return this.value.Get()
 }
 
-func (instance Forcible) Evaluate(other Value, def Value) interface{} {
-	if instance.forced {
-		if instance.IsPresent() {
-			return instance.Get()
+func (this Forcible[V, T, MV]) GetOr(def T) T {
+	return this.value.GetOr(def)
+}
+
+func (this Forcible[V, T, MV]) Evaluate(other V) V {
+	var empty V
+	return this.EvaluateOr(other, empty)
+}
+
+func (this Forcible[V, T, MV]) EvaluateOr(other V, def V) V {
+	if this.forced {
+		if this.value.IsPresent() {
+			return this.value
 		}
-		return def.Get()
+		return def
 	}
 	if other.IsPresent() {
-		return other.Get()
+		return other
 	}
-	return def.Get()
+	return def
 }
 
-func (instance Forcible) Select(target Forcible) Forcible {
-	if instance.forced {
-		return instance
+func (this Forcible[V, T, MV]) Select(target Forcible[V, T, MV]) Forcible[V, T, MV] {
+	if this.forced {
+		return this
 	}
-	if target.IsPresent() {
+	if target.value.IsPresent() {
 		return target
 	}
-	return instance
+	return this
 }
 
-func (instance *Forcible) Set(plain string) error {
+func (this *Forcible[V, T, MV]) Set(plain string) error {
 	forced := false
 	if len(plain) > 0 && plain[0] == '!' {
 		forced = true
 		plain = plain[1:]
 	}
-	if err := instance.value.Set(plain); err != nil {
+	pv := MV(&this.value)
+	if err := pv.Set(plain); err != nil {
 		return err
 	}
-	instance.forced = forced
+	this.forced = forced
 	return nil
 }
 
-func (instance Forcible) String() string {
+func (this Forcible[V, T, MV]) String() string {
 	result := ""
-	if instance.forced {
+	if this.forced {
 		result += "!"
 	}
-	if v := instance.value; v != nil && v.IsPresent() {
+	if v := this.value; v.IsPresent() {
 		result += v.String()
 	}
 	return result
 }
 
-func (instance Forcible) IsPresent() bool {
-	return instance.value != nil && instance.value.IsPresent()
+func (this Forcible[V, T, MV]) IsForced() bool {
+	return this.forced
 }
 
-func (instance Forcible) IsForced() bool {
-	return instance.forced
+func (this Forcible[V, T, MV]) IsPresent() bool {
+	return this.forced
 }

@@ -7,7 +7,9 @@ import (
 	lctx "github.com/echocat/lingress/context"
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/server"
+	"github.com/echocat/lingress/settings"
 	"github.com/echocat/lingress/support"
+	ltls "github.com/echocat/lingress/tls"
 	"github.com/echocat/lingress/value"
 	"github.com/echocat/slf4g"
 	"io"
@@ -21,116 +23,60 @@ import (
 )
 
 type Proxy struct {
-	Dialer          *net.Dialer
-	Transport       *http.Transport
+	settings *settings.Settings
+
+	Dialer          net.Dialer
+	Transport       http.Transport
 	RulesRepository rules.Repository
 	Logger          log.Logger
 
-	OverrideHost   string
-	OverrideScheme string
-
-	BehindOtherReverseProxy bool
-	ResultHandler           lctx.ResultHandler
-	AccessLogger            AccessLogger
-	Interceptors            Interceptors
-	MetricsCollector        lctx.MetricsCollector
+	ResultHandler    lctx.ResultHandler
+	AccessLogger     AccessLogger
+	Interceptors     Interceptors
+	MetricsCollector lctx.MetricsCollector
 
 	bufferPool sync.Pool
 }
 
 type AccessLogger func(*lctx.Context)
 
-func New(rules rules.Repository, logger log.Logger) (*Proxy, error) {
-	dialer := &net.Dialer{
-		Timeout:   10 * time.Second,
-		KeepAlive: 30 * time.Second,
-	}
-	transport := &http.Transport{
-		MaxIdleConnsPerHost:    20,
-		MaxConnsPerHost:        250,
-		IdleConnTimeout:        1 * time.Minute,
-		MaxResponseHeaderBytes: 10 << 20,
-		DialContext:            dialer.DialContext,
-		TLSClientConfig: &tls.Config{
-			RootCAs: support.Pool,
-		},
-	}
+func New(s *settings.Settings, rules rules.Repository, logger log.Logger) (*Proxy, error) {
 	result := &Proxy{
-		Dialer:          dialer,
-		Transport:       transport,
+		settings: s,
+		Dialer:   net.Dialer{},
+		Transport: http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: ltls.Pool,
+			},
+		},
 		RulesRepository: rules,
 		Interceptors:    DefaultInterceptors.Clone(),
 		Logger:          logger,
 	}
+	result.Transport.DialContext = result.Dialer.DialContext
 	result.bufferPool.New = result.createBuffer
 	return result, nil
 }
 
-func (instance *Proxy) RegisterFlag(fe support.FlagEnabled, appPrefix string) error {
-	fe.Flag("behindOtherReverseProxy", "If true also X-Forwarded headers are evaluated before send to upstream.").
-		PlaceHolder(fmt.Sprint(instance.BehindOtherReverseProxy)).
-		Envar(support.FlagEnvName(appPrefix, "BEHIND_OTHER_REVERSE_PROXY")).
-		BoolVar(&instance.BehindOtherReverseProxy)
-	fe.Flag("upstream.maxIdleConnectionsPerHost", "Controls the maximum idle (keep-alive) connections to keep per-host.").
-		PlaceHolder(fmt.Sprint(instance.Transport.MaxIdleConnsPerHost)).
-		Envar(support.FlagEnvName(appPrefix, "UPSTREAM_MAX_IDLE_CONNECTIONS_PER_HOST")).
-		IntVar(&instance.Transport.MaxIdleConnsPerHost)
-	fe.Flag("upstream.maxConnectionsPerHost", "Limits the total number of connections per host, including connections in the dialing, active, and idle states. On limit violation, dials will block.").
-		PlaceHolder(fmt.Sprint(instance.Transport.MaxConnsPerHost)).
-		Envar(support.FlagEnvName(appPrefix, "UPSTREAM_MAX_CONNECTIONS_PER_HOST")).
-		IntVar(&instance.Transport.MaxConnsPerHost)
-	fe.Flag("upstream.idleConnectionTimeout", "Maximum amount of time an idle (keep-alive) connection will remain idle before closing itself. Zero means no limit.").
-		PlaceHolder(fmt.Sprint(instance.Transport.IdleConnTimeout)).
-		Envar(support.FlagEnvName(appPrefix, "UPSTREAM_IDLE_CONNECTION_TIMEOUT")).
-		DurationVar(&instance.Transport.IdleConnTimeout)
-	fe.Flag("upstream.maxResponseHeaderSize", "Limit on how many response bytes are allowed in the server's response header.").
-		PlaceHolder(fmt.Sprint(instance.Transport.MaxResponseHeaderBytes)).
-		Envar(support.FlagEnvName(appPrefix, "UPSTREAM_MAX_RESPONSE_HEADER_SIZE")).
-		Int64Var(&instance.Transport.MaxResponseHeaderBytes)
-	fe.Flag("upstream.dialTimeout", "Maximum amount of time a dial will wait for a connect to complete. If Deadline is also set, it may fail earlier.").
-		PlaceHolder(fmt.Sprint(instance.Dialer.Timeout)).
-		Envar(support.FlagEnvName(appPrefix, "UPSTREAM_DIAL_TIMEOUT")).
-		DurationVar(&instance.Dialer.Timeout)
-	fe.Flag("upstream.keepAlive", "Keep-alive period for an active network connection. If zero, keep-alives are enabled if supported by the protocol and operating system. Network protocols or operating systems that do not support keep-alives ignore this field. If negative, keep-alives are disabled.").
-		PlaceHolder(fmt.Sprint(instance.Dialer.KeepAlive)).
-		Envar(support.FlagEnvName(appPrefix, "UPSTREAM_KEEP_ALIVE")).
-		DurationVar(&instance.Dialer.KeepAlive)
-	fe.Flag("upstream.override.host", "Overrides the target host always with this value.").
-		PlaceHolder(instance.OverrideHost).
-		Envar(support.FlagEnvName(appPrefix, "UPSTREAM_OVERRIDE_HOST")).
-		StringVar(&instance.OverrideHost)
-	fe.Flag("upstream.override.scheme", "Overrides the target scheme always with this value.").
-		PlaceHolder(instance.OverrideScheme).
-		Envar(support.FlagEnvName(appPrefix, "UPSTREAM_OVERRIDE_SCHEME")).
-		StringVar(&instance.OverrideScheme)
-
-	if i := instance.Interceptors; i != nil {
-		if err := i.RegisterFlag(fe, appPrefix); err != nil {
-			return err
-		}
+func (this *Proxy) Init(support.Channel) error {
+	if err := this.settings.Upstream.ApplyToNetDialer(&this.Dialer); err != nil {
+		return err
 	}
-
-	return nil
-}
-
-func (instance *Proxy) Init(stop support.Channel) error {
-	if i := instance.Interceptors; i != nil {
-		if err := i.Init(stop); err != nil {
-			return err
-		}
+	if err := this.settings.Upstream.ApplyToHttpTransport(&this.Transport); err != nil {
+		return err
 	}
 	return nil
 }
 
-func (instance *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseWriter, req *http.Request) {
-	ctx, err := lctx.AcquireContext(connector.GetId(), instance.BehindOtherReverseProxy, resp, req, instance.Logger)
+func (this *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseWriter, req *http.Request) {
+	ctx, err := lctx.AcquireContext(this.settings, connector.GetId(), this.settings.Server.BehindReverseProxy, resp, req, this.Logger)
 	if err != nil {
-		instance.Logger.
+		this.Logger.
 			WithError(err).
 			Error("cannot acquire context")
 		return
 	}
-	al := instance.AccessLogger
+	al := this.AccessLogger
 	defer func() {
 		if al == nil {
 			ctx.Release()
@@ -147,23 +93,23 @@ func (instance *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseW
 			}
 
 			stack := string(debug.Stack())
-			instance.Logger.With("stack", stack).
+			this.Logger.With("stack", stack).
 				WithError(err).
 				Error("unhandled error inside of the finalization stack")
 		}
 	}()
 	defer func() {
-		if rh := instance.ResultHandler; rh != nil {
+		if rh := this.ResultHandler; rh != nil {
 			rh(ctx)
 		}
 		ctx.Client.Duration = time.Now().Sub(ctx.Client.Started).Truncate(time.Millisecond)
 		if r := ctx.Rule; r != nil {
 			r.Statistics().MarkUsed(ctx.Client.Duration)
 		}
-		if mc := instance.MetricsCollector; mc != nil {
+		if mc := this.MetricsCollector; mc != nil {
 			mc.CollectContext(ctx)
 		}
-		_, _ = instance.switchStageAndCallInterceptors(lctx.StageDone, ctx)
+		_, _ = this.switchStageAndCallInterceptors(lctx.StageDone, ctx)
 		if al != nil {
 			al(ctx)
 		}
@@ -172,7 +118,7 @@ func (instance *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseW
 	ctx.Stage = lctx.StageEvaluateClientRequest
 	var host value.Fqdn
 	if err := host.Set(ctx.Client.Host()); err != nil {
-		instance.markDone(lctx.ResultFailedWithIllegalHost, ctx, err)
+		this.markDone(lctx.ResultFailedWithIllegalHost, ctx, err)
 		return
 	}
 
@@ -184,25 +130,25 @@ func (instance *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseW
 		query.Path = u.Path
 	}
 
-	rs, err := instance.RulesRepository.FindBy(query)
+	rs, err := this.RulesRepository.FindBy(query)
 	if err != nil {
-		instance.markDone(lctx.ResultFailedWithUnexpectedError, ctx, err)
+		this.markDone(lctx.ResultFailedWithUnexpectedError, ctx, err)
 		return
 	} else if rs == nil || rs.Len() == 0 {
-		instance.markDone(lctx.ResultFailedWithRuleNotFound, ctx, err)
+		this.markDone(lctx.ResultFailedWithRuleNotFound, ctx, err)
 		return
 	}
 
-	r, err := instance.selectRule(rs)
+	r, err := this.selectRule(rs)
 	if err != nil {
-		instance.markDone(lctx.ResultFailedWithUnexpectedError, ctx, err)
+		this.markDone(lctx.ResultFailedWithUnexpectedError, ctx, err)
 		return
 	}
 
 	ctx.Rule = r
 
-	if proceed, err := instance.callInterceptors(ctx); err != nil {
-		instance.markDone(lctx.ResultFailedWithUnexpectedError, ctx, err)
+	if proceed, err := this.callInterceptors(ctx); err != nil {
+		this.markDone(lctx.ResultFailedWithUnexpectedError, ctx, err)
 		return
 	} else if !proceed {
 		return
@@ -210,8 +156,8 @@ func (instance *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseW
 
 	ctx.Upstream.Address = r.Backend()
 
-	if proceed, err := instance.createBackendRequestFor(ctx, r); err != nil {
-		instance.markDone(lctx.ResultFailedWithUnexpectedError, ctx, err)
+	if proceed, err := this.createBackendRequestFor(ctx, r); err != nil {
+		this.markDone(lctx.ResultFailedWithUnexpectedError, ctx, err)
 		return
 	} else if !proceed {
 		return
@@ -220,11 +166,11 @@ func (instance *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseW
 		defer cancel()
 	}
 
-	if err := instance.execute(ctx); isDialError(err) {
-		instance.markDone(lctx.ResultFailedWithUpstreamUnavailable, ctx, err)
+	if err := this.execute(ctx); isDialError(err) {
+		this.markDone(lctx.ResultFailedWithUpstreamUnavailable, ctx, err)
 		return
 	} else if isClientGoneError(err) {
-		instance.markDone(lctx.ResultFailedWithClientGone, ctx, err)
+		this.markDone(lctx.ResultFailedWithClientGone, ctx, err)
 		return
 	} else if err != nil {
 		if ctx.Client.Status > 0 {
@@ -232,36 +178,36 @@ func (instance *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseW
 			// wrote content to the frontend
 			ctx.Error = err
 		} else {
-			instance.markDone(lctx.ResultFailedWithUnexpectedError, ctx, err)
+			this.markDone(lctx.ResultFailedWithUnexpectedError, ctx, err)
 		}
 		return
 	}
 
-	instance.markDone(lctx.ResultSuccess, ctx)
+	this.markDone(lctx.ResultSuccess, ctx)
 }
 
-func (instance *Proxy) switchStageAndCallInterceptors(stage lctx.Stage, ctx *lctx.Context) (bool, error) {
+func (this *Proxy) switchStageAndCallInterceptors(stage lctx.Stage, ctx *lctx.Context) (bool, error) {
 	ctx.Stage = stage
-	return instance.callInterceptors(ctx)
+	return this.callInterceptors(ctx)
 }
 
-func (instance *Proxy) callInterceptors(ctx *lctx.Context) (bool, error) {
-	if i := instance.Interceptors; i == nil {
+func (this *Proxy) callInterceptors(ctx *lctx.Context) (bool, error) {
+	if i := this.Interceptors; i == nil {
 		return true, nil
 	} else {
 		return i.Handle(ctx)
 	}
 }
 
-func (instance *Proxy) markDone(result lctx.Result, ctx *lctx.Context, err ...error) {
+func (this *Proxy) markDone(result lctx.Result, ctx *lctx.Context, err ...error) {
 	ctx.Done(result, err...)
 }
 
-func (instance *Proxy) selectRule(in rules.Rules) (out rules.Rule, err error) {
+func (this *Proxy) selectRule(in rules.Rules) (out rules.Rule, err error) {
 	return in.Any(), nil
 }
 
-func (instance *Proxy) createBackendRequestFor(ctx *lctx.Context, r rules.Rule) (proceed bool, err error) {
+func (this *Proxy) createBackendRequestFor(ctx *lctx.Context, r rules.Rule) (proceed bool, err error) {
 	ctx.Stage = lctx.StagePrepareUpstreamRequest
 	fReq := ctx.Client.Request
 	u, err := url.Parse(fReq.URL.String())
@@ -269,13 +215,13 @@ func (instance *Proxy) createBackendRequestFor(ctx *lctx.Context, r rules.Rule) 
 		return false, err
 	}
 
-	if instance.OverrideHost != "" {
-		u.Host = instance.OverrideHost
+	if v := this.settings.Upstream.OverrideHost; v != "" {
+		u.Host = v
 	} else {
 		u.Host = r.Backend().String()
 	}
-	if instance.OverrideScheme != "" {
-		u.Scheme = instance.OverrideScheme
+	if v := this.settings.Upstream.OverrideScheme; v != "" {
+		u.Scheme = v
 	} else {
 		u.Scheme = "http"
 	}
@@ -326,11 +272,11 @@ func (instance *Proxy) createBackendRequestFor(ctx *lctx.Context, r rules.Rule) 
 
 	ctx.Upstream.Request = bReq
 
-	return instance.callInterceptors(ctx)
+	return this.callInterceptors(ctx)
 }
 
-func (instance *Proxy) execute(ctx *lctx.Context) error {
-	if mc := instance.MetricsCollector; mc != nil {
+func (this *Proxy) execute(ctx *lctx.Context) error {
+	if mc := this.MetricsCollector; mc != nil {
 		finalize := mc.CollectUpstreamStarted()
 		defer finalize()
 	}
@@ -338,12 +284,12 @@ func (instance *Proxy) execute(ctx *lctx.Context) error {
 	ctx.Client.Status = 0
 	ctx.Upstream.Status = 0
 	ctx.Upstream.Started = time.Now()
-	if proceed, err := instance.switchStageAndCallInterceptors(lctx.StageSendRequestToUpstream, ctx); err != nil {
+	if proceed, err := this.switchStageAndCallInterceptors(lctx.StageSendRequestToUpstream, ctx); err != nil {
 		return err
 	} else if !proceed {
 		return nil
 	}
-	bResp, err := instance.Transport.RoundTrip(ctx.Upstream.Request)
+	bResp, err := this.Transport.RoundTrip(ctx.Upstream.Request)
 	ctx.Upstream.Duration = time.Now().Sub(ctx.Upstream.Started)
 	if err != nil {
 		return err
@@ -354,14 +300,14 @@ func (instance *Proxy) execute(ctx *lctx.Context) error {
 
 	// Deal with 101 Switching Protocols responses: (WebSocket, h2c, etc)
 	if bResp.StatusCode == http.StatusSwitchingProtocols {
-		if proceed, err := instance.switchStageAndCallInterceptors(lctx.StageSendResponseToClient, ctx); err != nil {
+		if proceed, err := this.switchStageAndCallInterceptors(lctx.StageSendResponseToClient, ctx); err != nil {
 			_ = bResp.Body.Close()
 			return err
 		} else if !proceed {
 			_ = bResp.Body.Close()
 			return nil
 		}
-		return instance.handleUpgradeResponse(ctx.Client.Response, ctx.Upstream.Request, ctx.Upstream.Response)
+		return this.handleUpgradeResponse(ctx.Client.Response, ctx.Upstream.Request, ctx.Upstream.Response)
 	}
 
 	copyHeader(ctx.Client.Response.Header(), ctx.Upstream.Response.Header)
@@ -379,7 +325,7 @@ func (instance *Proxy) execute(ctx *lctx.Context) error {
 		ctx.Client.Response.Header().Add("Trailer", strings.Join(trailerKeys, ", "))
 	}
 
-	if proceed, err := instance.callInterceptors(ctx); err != nil {
+	if proceed, err := this.callInterceptors(ctx); err != nil {
 		_ = bResp.Body.Close()
 		return err
 	} else if !proceed {
@@ -389,7 +335,7 @@ func (instance *Proxy) execute(ctx *lctx.Context) error {
 
 	ctx.Client.Response.WriteHeader(ctx.Upstream.Status)
 	ctx.Client.Status = ctx.Upstream.Status
-	if proceed, err := instance.switchStageAndCallInterceptors(lctx.StageSendResponseToClient, ctx); err != nil {
+	if proceed, err := this.switchStageAndCallInterceptors(lctx.StageSendResponseToClient, ctx); err != nil {
 		_ = bResp.Body.Close()
 		return err
 	} else if !proceed {
@@ -397,7 +343,7 @@ func (instance *Proxy) execute(ctx *lctx.Context) error {
 		return nil
 	}
 
-	_, err = instance.copyBuffered(ctx.Client.Response, ctx.Upstream.Response.Body)
+	_, err = this.copyBuffered(ctx.Client.Response, ctx.Upstream.Response.Body)
 	if err != nil {
 		//noinspection GoUnhandledErrorResult
 		defer ctx.Upstream.Response.Body.Close()
@@ -430,7 +376,7 @@ func (instance *Proxy) execute(ctx *lctx.Context) error {
 	return nil
 }
 
-func (instance *Proxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.Request, res *http.Response) error {
+func (this *Proxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.Request, res *http.Response) error {
 	reqUpType := retrieveUpgradeType(req.Header)
 	resUpType := retrieveUpgradeType(res.Header)
 	if reqUpType != resUpType {
@@ -473,14 +419,14 @@ func (instance *Proxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 
 // copyBuffered returns any write errors or non-EOF read errors, and the amount
 // of bytes written.
-func (instance *Proxy) copyBuffered(dst io.Writer, src io.Reader) (int64, error) {
-	buf := instance.acquireBuffer()
-	defer instance.releaseBuffer(buf)
+func (this *Proxy) copyBuffered(dst io.Writer, src io.Reader) (int64, error) {
+	buf := this.acquireBuffer()
+	defer this.releaseBuffer(buf)
 	var written int64
 	for {
 		nr, rErr := src.Read(*buf)
 		if rErr != nil && rErr != io.EOF && rErr != context.Canceled {
-			instance.Logger.
+			this.Logger.
 				WithError(rErr).
 				Warn("read error during body copy")
 		}
@@ -505,15 +451,15 @@ func (instance *Proxy) copyBuffered(dst io.Writer, src io.Reader) (int64, error)
 	}
 }
 
-func (instance *Proxy) createBuffer() interface{} {
+func (this *Proxy) createBuffer() interface{} {
 	result := make([]byte, 32*1024)
 	return &result
 }
 
-func (instance *Proxy) acquireBuffer() *[]byte {
-	return instance.bufferPool.Get().(*[]byte)
+func (this *Proxy) acquireBuffer() *[]byte {
+	return this.bufferPool.Get().(*[]byte)
 }
 
-func (instance *Proxy) releaseBuffer(buf *[]byte) {
-	instance.bufferPool.Put(buf)
+func (this *Proxy) releaseBuffer(buf *[]byte) {
+	this.bufferPool.Put(buf)
 }

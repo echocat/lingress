@@ -1,50 +1,31 @@
 package proxy
 
 import (
-	"fmt"
 	"github.com/echocat/lingress/context"
 	"github.com/echocat/lingress/rules"
-	"github.com/echocat/lingress/support"
-	"github.com/echocat/lingress/value"
 	"net"
 	"net/http"
 )
 
 func init() {
-	DefaultInterceptors.Add(NewForceSecureInterceptor())
+	DefaultInterceptors.Add(&ForceSecureInterceptor{})
 	DefaultInterceptors.AddFunc("whitelistedRemotes", WhitelistedRemotesInterceptor, context.StageEvaluateClientRequest)
 	DefaultInterceptors.AddFunc("removeServerHeader", RemoveServerHeader, context.StagePrepareClientResponse)
 }
 
-type ForceSecureInterceptor struct {
-	Enabled value.ForcibleBool
-}
+type ForceSecureInterceptor struct{}
 
-func NewForceSecureInterceptor() *ForceSecureInterceptor {
-	return &ForceSecureInterceptor{
-		Enabled: value.NewForcibleBool(value.False, false),
-	}
-}
-
-func (instance *ForceSecureInterceptor) Name() string {
+func (this *ForceSecureInterceptor) Name() string {
 	return "forceSecure"
 }
 
-func (instance *ForceSecureInterceptor) HandlesStages() []context.Stage {
+func (this *ForceSecureInterceptor) HandlesStages() []context.Stage {
 	return []context.Stage{context.StageEvaluateClientRequest}
 }
 
-func (instance *ForceSecureInterceptor) RegisterFlag(fe support.FlagEnabled, appPrefix string) error {
-	fe.Flag("forceSecure.enabled", "If set if will be used if annotation lingress.echocat.org/force-secure is absent. If this value is prefix with ! it overrides everything regardless what was set in the annotation.").
-		PlaceHolder(fmt.Sprint(instance.Enabled)).
-		Envar(support.FlagEnvName(appPrefix, "FORCE_SECURE_ENABLED")).
-		SetValue(&instance.Enabled)
-	return nil
-}
-
-func (instance *ForceSecureInterceptor) Handle(ctx *context.Context) (proceed bool, err error) {
+func (this *ForceSecureInterceptor) Handle(ctx *context.Context) (proceed bool, err error) {
 	opts := rules.OptionsSecureOf(ctx.Rule)
-	if !instance.Enabled.Evaluate(opts.ForceSecure, true) {
+	if !ctx.Settings.Tls.Forced.Evaluate(opts.ForceSecure).GetOr(true) {
 		return true, nil
 	}
 

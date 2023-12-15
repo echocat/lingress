@@ -13,28 +13,28 @@ type sourceReference struct {
 	name      string
 }
 
-func (instance sourceReference) Namespace() string {
-	return instance.namespace
+func (this sourceReference) Namespace() string {
+	return this.namespace
 }
 
-func (instance sourceReference) Name() string {
-	return instance.name
+func (this sourceReference) Name() string {
+	return this.name
 }
 
-func (instance sourceReference) Type() string {
+func (this sourceReference) Type() string {
 	return "ingress"
 }
 
-func (instance sourceReference) String() string {
-	return instance.Type() + ":" + instance.Namespace() + "/" + instance.Name()
+func (this sourceReference) String() string {
+	return this.Type() + ":" + this.Namespace() + "/" + this.Name()
 }
 
-func (instance sourceReference) Equals(o SourceReference) bool {
+func (this sourceReference) Equals(o SourceReference) bool {
 	if o == nil {
 		return false
 	} else {
-		return o.Type() == instance.Type() &&
-			o.Namespace() == instance.Namespace() &&
-			o.Name() == instance.Name()
+		return o.Type() == this.Type() &&
+			o.Namespace() == this.Namespace() &&
+			o.Name() == this.Name()
 	}
 }

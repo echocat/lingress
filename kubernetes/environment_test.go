@@ -1,9 +1,9 @@
 package kubernetes
 
 import (
+	"github.com/echocat/lingress/settings"
 	"github.com/echocat/lingress/support"
 	. "github.com/onsi/gomega"
-	"io/ioutil"
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"testing"
@@ -13,13 +13,14 @@ func Test_NewEnvironment_succeeds(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	defer unsetEnvVarTemporary(EnvVarKubeconfig)()
-	instance, err := NewEnvironment()
+	s := settings.MustNew()
+	instance, err := NewEnvironment(&s)
 
 	g.Expect(err).To(BeNil())
 	g.Expect(instance).NotTo(BeNil())
 
-	g.Expect(instance.Kubeconfig.IsEmpty()).To(BeTrue())
-	g.Expect(instance.Context).To(Equal(""))
+	g.Expect(instance.settings.Kubernetes.Config.IsEmpty()).To(BeTrue())
+	g.Expect(instance.settings.Kubernetes.Context).To(Equal(""))
 	g.Expect(instance.payload).To(BeNil())
 }
 
@@ -27,8 +28,9 @@ func Test_Environment_get_with_default_values_succeeds(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	defer unsetEnvVarTemporary(EnvVarKubeconfig)()
-	env := MustNewEnvironment()
-	env.Kubeconfig.ResolveDefaultLocation = func() string { return "resources/kubeconfig_two_contexts.yml" }
+	s := settings.MustNew()
+	env := MustNewEnvironment(&s)
+	env.settings.Kubernetes.Config.ResolveDefaultLocation = func() string { return "resources/kubeconfig_two_contexts.yml" }
 
 	instance, err := env.get()
 
@@ -43,9 +45,10 @@ func Test_Environment_get_with_explicit_context_succeeds(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	defer unsetEnvVarTemporary(EnvVarKubeconfig)()
-	env := MustNewEnvironment()
-	env.Kubeconfig.ResolveDefaultLocation = func() string { return "resources/kubeconfig_two_contexts.yml" }
-	env.Context = "context2"
+	s := settings.MustNew()
+	env := MustNewEnvironment(&s)
+	env.settings.Kubernetes.Config.ResolveDefaultLocation = func() string { return "resources/kubeconfig_two_contexts.yml" }
+	env.settings.Kubernetes.Context = "context2"
 
 	instance, err := env.get()
 
@@ -56,13 +59,14 @@ func Test_Environment_get_with_explicit_context_succeeds(t *testing.T) {
 	g.Expect(instance.contextName).To(Equal("context2"))
 }
 
-//noinspection GoUnhandledErrorResult
+// noinspection GoUnhandledErrorResult
 func Test_Environment_get_from_envVar_succeeds(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	defer setEnvVarTemporaryToFileContent(EnvVarKubeconfig, "resources/kubeconfig_alternative.yml")()
-	env := MustNewEnvironment()
-	env.Kubeconfig.ResolveDefaultLocation = func() string { return "resources/kubeconfig_two_contexts.yml" }
+	s := settings.MustNew()
+	env := MustNewEnvironment(&s)
+	env.settings.Kubernetes.Config.ResolveDefaultLocation = func() string { return "resources/kubeconfig_two_contexts.yml" }
 
 	instance, err := env.get()
 
@@ -77,9 +81,10 @@ func Test_Environment_get_without_current_context_fails(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	defer unsetEnvVarTemporary(EnvVarKubeconfig)()
-	env := MustNewEnvironment()
-	env.Kubeconfig.ResolveDefaultLocation = func() string { return "resources/kubeconfig_without_current_context.yml" }
-	env.Context = ""
+	s := settings.MustNew()
+	env := MustNewEnvironment(&s)
+	env.settings.Kubernetes.Config.ResolveDefaultLocation = func() string { return "resources/kubeconfig_without_current_context.yml" }
+	env.settings.Kubernetes.Context = ""
 
 	_, err := env.get()
 
@@ -90,9 +95,10 @@ func Test_Environment_get_with_nonExisting_context_fails(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	defer unsetEnvVarTemporary(EnvVarKubeconfig)()
-	env := MustNewEnvironment()
-	env.Kubeconfig.ResolveDefaultLocation = func() string { return "resources/kubeconfig_two_contexts.yml" }
-	env.Context = "foobar"
+	s := settings.MustNew()
+	env := MustNewEnvironment(&s)
+	env.settings.Kubernetes.Config.ResolveDefaultLocation = func() string { return "resources/kubeconfig_two_contexts.yml" }
+	env.settings.Kubernetes.Context = "foobar"
 
 	_, err := env.get()
 
@@ -103,8 +109,9 @@ func Test_Environment_get_with_nonExisting_kubeconfigFile_fails(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	defer unsetEnvVarTemporary(EnvVarKubeconfig)()
-	env := MustNewEnvironment()
-	env.Kubeconfig.value = "nonExisting.yml"
+	s := settings.MustNew()
+	env := MustNewEnvironment(&s)
+	env.settings.Kubernetes.Config.Value = "nonExisting.yml"
 
 	_, err := env.get()
 
@@ -115,8 +122,9 @@ func Test_Environment_get_with_nonExisting_defaultConfig_and_envVar_fails(t *tes
 	g := NewGomegaWithT(t)
 
 	defer unsetEnvVarTemporary(EnvVarKubeconfig)()
-	env := MustNewEnvironment()
-	env.Kubeconfig.ResolveDefaultLocation = func() string { return "nonExisting.yml" }
+	s := settings.MustNew()
+	env := MustNewEnvironment(&s)
+	env.settings.Kubernetes.Config.ResolveDefaultLocation = func() string { return "nonExisting.yml" }
 
 	_, err := env.get()
 
@@ -127,9 +135,10 @@ func Test_Environment_get_with_mock_with_set_context_succeeds(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	defer unsetEnvVarTemporary(EnvVarKubeconfig)()
-	env := MustNewEnvironment()
-	env.Context = "foobar"
-	err := env.Kubeconfig.Set(KubeconfigMock)
+	s := settings.MustNew()
+	env := MustNewEnvironment(&s)
+	env.settings.Kubernetes.Context = "foobar"
+	err := env.settings.Kubernetes.Config.Set(KubeconfigMock)
 	g.Expect(err).To(BeNil())
 
 	instance, err := env.get()
@@ -144,8 +153,9 @@ func Test_Environment_get_with_mock_with_empty_context_succeeds(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	defer unsetEnvVarTemporary(EnvVarKubeconfig)()
-	env := MustNewEnvironment()
-	err := env.Kubeconfig.Set(KubeconfigMock)
+	s := settings.MustNew()
+	env := MustNewEnvironment(&s)
+	err := env.settings.Kubernetes.Config.Set(KubeconfigMock)
 	g.Expect(err).To(BeNil())
 
 	instance, err := env.get()
@@ -162,11 +172,12 @@ func Test_Environment_get_with_incluster_succeeds(t *testing.T) {
 	defer unsetEnvVarTemporary(EnvVarKubeconfig)()
 	defer setEnvVarTemporaryTo("KUBERNETES_SERVICE_HOST", "127.0.0.66")()
 	defer setEnvVarTemporaryTo("KUBERNETES_SERVICE_PORT", "8080")()
-	env := MustNewEnvironment()
+	s := settings.MustNew()
+	env := MustNewEnvironment(&s)
 	env.tokenFile = "resources/serviceaccount_token"
 	env.rootCAFile = "resources/serviceaccount_ca.crt"
 	env.namespaceFile = "resources/serviceaccount_namespace"
-	err := env.Kubeconfig.Set(KubeconfigInCluster)
+	err := env.settings.Kubernetes.Config.Set(settings.KubeconfigInCluster)
 	g.Expect(err).To(BeNil())
 
 	instance, err := env.get()
@@ -175,7 +186,7 @@ func Test_Environment_get_with_incluster_succeeds(t *testing.T) {
 	g.Expect(instance).ToNot(BeNil())
 	g.Expect(instance.restConfig).NotTo(BeNil())
 	g.Expect(instance.contextName).To(Equal("incluster"))
-	g.Expect(env.Namespace).To(Equal("aNamespace"))
+	g.Expect(env.settings.Kubernetes.Namespace).To(Equal("aNamespace"))
 }
 
 func Test_Environment_get_with_incluster_without_envVarServicePort_fails(t *testing.T) {
@@ -184,10 +195,11 @@ func Test_Environment_get_with_incluster_without_envVarServicePort_fails(t *test
 	defer unsetEnvVarTemporary(EnvVarKubeconfig)()
 	defer setEnvVarTemporaryTo("KUBERNETES_SERVICE_HOST", "127.0.0.66")()
 	defer unsetEnvVarTemporary("KUBERNETES_SERVICE_PORT")()
-	env := MustNewEnvironment()
+	s := settings.MustNew()
+	env := MustNewEnvironment(&s)
 	env.tokenFile = "resources/serviceaccount_token"
 	env.rootCAFile = "resources/serviceaccount_ca.crt"
-	err := env.Kubeconfig.Set(KubeconfigInCluster)
+	err := env.settings.Kubernetes.Config.Set(settings.KubeconfigInCluster)
 	g.Expect(err).To(BeNil())
 
 	_, err = env.get()
@@ -201,10 +213,11 @@ func Test_Environment_get_with_incluster_without_envVarServiceHost_fails(t *test
 	defer unsetEnvVarTemporary(EnvVarKubeconfig)()
 	defer unsetEnvVarTemporary("KUBERNETES_SERVICE_HOST")()
 	defer setEnvVarTemporaryTo("KUBERNETES_SERVICE_PORT", "8080")()
-	env := MustNewEnvironment()
+	s := settings.MustNew()
+	env := MustNewEnvironment(&s)
 	env.tokenFile = "resources/serviceaccount_token"
 	env.rootCAFile = "resources/serviceaccount_ca.crt"
-	err := env.Kubeconfig.Set(KubeconfigInCluster)
+	err := env.settings.Kubernetes.Config.Set(settings.KubeconfigInCluster)
 	g.Expect(err).To(BeNil())
 
 	_, err = env.get()
@@ -218,10 +231,11 @@ func Test_Environment_get_with_incluster_without_token_fails(t *testing.T) {
 	defer unsetEnvVarTemporary(EnvVarKubeconfig)()
 	defer setEnvVarTemporaryTo("KUBERNETES_SERVICE_HOST", "127.0.0.66")()
 	defer setEnvVarTemporaryTo("KUBERNETES_SERVICE_PORT", "8080")()
-	env := MustNewEnvironment()
+	s := settings.MustNew()
+	env := MustNewEnvironment(&s)
 	env.tokenFile = "nonExisting"
 	env.rootCAFile = "resources/serviceaccount_ca.crt"
-	err := env.Kubeconfig.Set(KubeconfigInCluster)
+	err := env.settings.Kubernetes.Config.Set(settings.KubeconfigInCluster)
 	g.Expect(err).To(BeNil())
 
 	_, err = env.get()
@@ -235,10 +249,11 @@ func Test_Environment_get_with_incluster_without_rootCa_fails(t *testing.T) {
 	defer unsetEnvVarTemporary(EnvVarKubeconfig)()
 	defer setEnvVarTemporaryTo("KUBERNETES_SERVICE_HOST", "127.0.0.66")()
 	defer setEnvVarTemporaryTo("KUBERNETES_SERVICE_PORT", "8080")()
-	env := MustNewEnvironment()
+	s := settings.MustNew()
+	env := MustNewEnvironment(&s)
 	env.tokenFile = "resources/serviceaccount_token"
 	env.rootCAFile = "nonExisting"
-	err := env.Kubeconfig.Set(KubeconfigInCluster)
+	err := env.settings.Kubernetes.Config.Set(settings.KubeconfigInCluster)
 	g.Expect(err).To(BeNil())
 
 	_, err = env.get()
@@ -275,7 +290,7 @@ func unsetEnvVarTemporary(key string) (rollback envVarRollback) {
 }
 
 func setEnvVarTemporaryToFileContent(key, filename string) (rollback envVarRollback) {
-	value, err := ioutil.ReadFile(filename)
+	value, err := os.ReadFile(filename)
 	support.Must(err)
 	return setEnvVarTemporaryTo(key, string(value))
 }

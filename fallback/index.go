@@ -18,7 +18,7 @@ func init() {
 	_ = mime.AddExtensionType(".txt", "text/plain; charset=utf-8")
 }
 
-func (instance *Fallback) Unknown(ctx *context.Context) {
+func (this *Fallback) Unknown(ctx *context.Context) {
 	u, err := ctx.Client.RequestedUrl()
 	if err != nil {
 		ctx.Log().WithError(err).Error("cannot resolve requestedUrl for handling fallback")
@@ -31,19 +31,19 @@ func (instance *Fallback) Unknown(ctx *context.Context) {
 		return
 	}
 
-	instance.fallback(ctx)
+	this.fallback(ctx)
 }
 
-func (instance *Fallback) fallback(ctx *context.Context) {
+func (this *Fallback) fallback(ctx *context.Context) {
 	if p := ctx.Client.Request.RequestURI; !path.IsAbs(p) || path.Clean(p) != p {
-		instance.Status(ctx, http.StatusNotFound, p, false)
-	} else if fp, err := instance.FileProviders.GetStatic().Open(p); err != nil {
-		instance.Status(ctx, http.StatusNotFound, p, false)
+		this.Status(ctx, http.StatusNotFound, p, false)
+	} else if fp, err := this.FileProviders.GetStatic().Open(p); err != nil {
+		this.Status(ctx, http.StatusNotFound, p, false)
 	} else {
 		//noinspection GoUnhandledErrorResult
 		defer fp.Close()
 		if fi, err := fp.Stat(); err != nil || fi.IsDir() {
-			instance.Status(ctx, http.StatusNotFound, p, false)
+			this.Status(ctx, http.StatusNotFound, p, false)
 			return
 		}
 		ext := path.Ext(p)

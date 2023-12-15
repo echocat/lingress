@@ -25,8 +25,8 @@ func NewIngress(client kubernetes.Interface, resyncAfter time.Duration, logger l
 	}
 }
 
-func (instance *Ingress) Get(key string) (*networkingv1.Ingress, error) {
-	if item, exists, err := instance.informer.GetStore().GetByKey(key); err != nil {
+func (this *Ingress) Get(key string) (*networkingv1.Ingress, error) {
+	if item, exists, err := this.informer.GetStore().GetByKey(key); err != nil {
 		return nil, fmt.Errorf("cannot get ingress %s from cache: %v", key, err)
 	} else if !exists {
 		return nil, nil

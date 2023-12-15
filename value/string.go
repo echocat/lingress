@@ -1,35 +1,44 @@
 package value
 
-type String string
-
-func (instance String) Get() interface{} {
-	return instance
+type String struct {
+	value *string
 }
 
-func (instance String) String() string {
-	return string(instance)
+func (this String) Get() string {
+	return this.GetOr("")
 }
 
-func (instance *String) Set(plain string) error {
-	*instance = String(plain)
+func (this String) GetOr(def string) string {
+	if v := this.value; v != nil {
+		return *v
+	}
+	return def
+}
+
+func (this String) String() string {
+	return this.Get()
+}
+
+func (this *String) Set(plain string) error {
+	if plain == "" {
+		*this = String{}
+	}
+	*this = String{&plain}
 	return nil
 }
 
-func (instance String) IsPresent() bool {
-	return instance != ""
+func (this String) IsPresent() bool {
+	return this.value != nil
 }
 
 type ForcibleString struct {
-	Forcible
+	Forcible[String, string, *String]
 }
 
 func NewForcibleString(init String, forced bool) ForcibleString {
-	val := init
-	return ForcibleString{
-		Forcible: NewForcible(&val, forced),
-	}
+	return ForcibleString{NewForcible[String, string, *String](init, forced)}
 }
 
-func (instance ForcibleString) Evaluate(other String, def String) String {
-	return instance.Forcible.Evaluate(other, def).(String)
+func (this ForcibleString) Select(target ForcibleString) ForcibleString {
+	return ForcibleString{this.Forcible.Select(target.Forcible)}
 }

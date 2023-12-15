@@ -3,8 +3,9 @@ package main
 import (
 	"fmt"
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/echocat/lingress/support"
 	_ "github.com/echocat/lingress/support/slf4g_native"
+	"github.com/echocat/slf4g/native"
+	"github.com/echocat/slf4g/native/facade/value"
 	"regexp"
 )
 
@@ -77,7 +78,6 @@ func (this *cmd) registerFlags(app *kingpin.Application) {
 		PlaceHolder(fmt.Sprint(this.withDeploy)).
 		Short('d').
 		BoolVar(&this.withDeploy)
-	support.MustRegisterGlobalFalgs(app, "BUILDER_")
 }
 
 func (this *cmd) mustExecute() {
@@ -94,6 +94,19 @@ func (this *cmd) mustExecute() {
 }
 
 func main() {
+	vp := value.NewProvider(native.DefaultProvider)
+	kingpin.Flag("log.level", "").
+		Envar("BUILDER_LOG_LEVEL").
+		SetValue(&vp.Level)
+	kingpin.Flag("log.format", "").
+		Default("text").
+		Envar("BUILDER_LOG_FORMAT").
+		SetValue(&vp.Consumer.Formatter)
+	kingpin.Flag("log.color", "").
+		Default("auto").
+		Envar("BUILDER_LOG_COLOR").
+		SetValue(vp.Consumer.Formatter.ColorMode)
+
 	cmd := newCmd()
 	cmd.registerFlags(kingpin.CommandLine)
 

@@ -19,18 +19,12 @@ var (
 	branch     = "development"
 	build      = ""
 
-	runtime    = resolveRuntime()
-	executable = resolveExecutable()
+	runtime = resolveRuntime()
 )
 
 // Runtime returns an instance of RuntimeT
 func Runtime() RuntimeT {
 	return runtime
-}
-
-// Executable returns the actual name of the executable
-func Executable() string {
-	return executable
 }
 
 // RuntimeT hold the runtime information about this application. To provide the correct information
@@ -69,32 +63,32 @@ type RuntimeT struct {
 	Arch       string    `yaml:"arch" json:"arch"`
 }
 
-func (instance RuntimeT) Name() string {
-	g := instance.GroupId
-	a := instance.ArtifactId
+func (this RuntimeT) Name() string {
+	g := this.GroupId
+	a := this.ArtifactId
 	if g == "" {
 		return a
 	}
 	return g + "/" + a
 }
 
-func (instance RuntimeT) LongString() string {
+func (this RuntimeT) LongString() string {
 	return fmt.Sprintf(`%s
  Branch:       %s
  Revision:     %s
  Built:        %s
  Go version:   %s
  OS/Arch:      %s/%s`,
-		instance.Name(), instance.Branch, instance.Revision, instance.Build, instance.GoVersion, instance.Os, instance.Arch)
+		this.Name(), this.Branch, this.Revision, this.Build, this.GoVersion, this.Os, this.Arch)
 }
 
-func (instance RuntimeT) String() string {
+func (this RuntimeT) String() string {
 	return fmt.Sprintf(`%s:%s`,
-		instance.Branch, instance.Revision)
+		this.Branch, this.Revision)
 }
 
-func (instance RuntimeT) MarshalText() (text []byte, err error) {
-	return []byte(instance.String()), nil
+func (this RuntimeT) MarshalText() (text []byte, err error) {
+	return []byte(this.String()), nil
 }
 
 func resolveRuntime() (result RuntimeT) {
@@ -125,12 +119,4 @@ func resolveRuntime() (result RuntimeT) {
 	result.Arch = rt.GOARCH
 
 	return
-}
-
-func resolveExecutable() string {
-	if result, err := os.Executable(); err != nil {
-		return os.Args[0]
-	} else {
-		return result
-	}
 }

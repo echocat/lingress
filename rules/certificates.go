@@ -22,8 +22,8 @@ type CertificatesByHost struct {
 	values map[string]certificatesByHostValue
 }
 
-func (instance CertificatesByHost) Find(host string) Certificates {
-	values := instance.values
+func (this CertificatesByHost) Find(host string) Certificates {
+	values := this.values
 	if values == nil {
 		return nil
 	}
@@ -40,7 +40,7 @@ func (instance CertificatesByHost) Find(host string) Certificates {
 	return values[shortHost].wildcard
 }
 
-func (instance *CertificatesByHost) Add(certificate tls.Certificate) error {
+func (this *CertificatesByHost) Add(certificate tls.Certificate) error {
 	if len(certificate.Certificate) <= 0 {
 		return errors.New("empty certificate")
 	}
@@ -56,37 +56,37 @@ func (instance *CertificatesByHost) Add(certificate tls.Certificate) error {
 	}
 
 	if len(certificate.Leaf.Subject.CommonName) > 0 {
-		instance.add(certificate.Leaf.Subject.CommonName, &certificate)
+		this.add(certificate.Leaf.Subject.CommonName, &certificate)
 	}
 	for _, dns := range certificate.Leaf.DNSNames {
-		instance.add(dns, &certificate)
+		this.add(dns, &certificate)
 	}
 
 	return nil
 }
 
-func (instance *CertificatesByHost) add(host string, certificate *tls.Certificate) {
+func (this *CertificatesByHost) add(host string, certificate *tls.Certificate) {
 	wildcarded := false
 	if strings.HasPrefix(host, "*.") {
 		host = host[2:]
 		wildcarded = true
 	}
-	if instance.values == nil {
-		instance.values = map[string]certificatesByHostValue{}
+	if this.values == nil {
+		this.values = map[string]certificatesByHostValue{}
 	}
-	existing := instance.values[host]
+	existing := this.values[host]
 	if wildcarded {
 		existing.wildcard = append(existing.wildcard, certificate)
 	} else {
 		existing.direct = append(existing.direct, certificate)
 	}
-	instance.values[host] = existing
+	this.values[host] = existing
 }
 
-func (instance *CertificatesByHost) AddBytes(certificate, privateKey []byte) error {
+func (this *CertificatesByHost) AddBytes(certificate, privateKey []byte) error {
 	cert, err := tls.X509KeyPair(certificate, privateKey)
 	if err != nil {
 		return err
 	}
-	return instance.Add(cert)
+	return this.Add(cert)
 }

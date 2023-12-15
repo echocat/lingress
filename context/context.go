@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/server"
+	"github.com/echocat/lingress/settings"
 	"github.com/echocat/slf4g"
 	"net/http"
 	"sync"
@@ -29,6 +30,7 @@ var (
 )
 
 type Context struct {
+	Settings      *settings.Settings
 	Client        Client
 	Upstream      Upstream
 	Id            Id
@@ -44,7 +46,14 @@ type Context struct {
 	Properties map[string]interface{}
 }
 
-func AcquireContext(connector server.ConnectorId, fromOtherReverseProxy bool, resp http.ResponseWriter, req *http.Request, logger log.Logger) (*Context, error) {
+func AcquireContext(
+	s *settings.Settings,
+	connector server.ConnectorId,
+	fromOtherReverseProxy bool,
+	resp http.ResponseWriter,
+	req *http.Request,
+	logger log.Logger,
+) (*Context, error) {
 	success := false
 	result := contextPool.Get().(*Context)
 	defer func(created *Context) {
@@ -53,12 +62,13 @@ func AcquireContext(connector server.ConnectorId, fromOtherReverseProxy bool, re
 		}
 	}(result)
 
+	result.Settings = s
 	id, err := NewId(fromOtherReverseProxy, req)
 	if err != nil {
 		return nil, err
 	}
 	result.Id = id
-	correlationId, err := NewCorrelationId(fromOtherReverseProxy, req)
+	correlationId, err := NewCorrelationId(req)
 	if err != nil {
 		return nil, err
 	}
@@ -78,79 +88,79 @@ func AcquireContext(connector server.ConnectorId, fromOtherReverseProxy bool, re
 	return result, nil
 }
 
-func (instance *Context) Done(result Result, err ...error) {
+func (this *Context) Done(result Result, err ...error) {
 	if len(err) > 1 {
 		panic("there are only 0 or 1 errors allowed to be provided with this method")
 	}
 	if len(err) == 1 {
-		instance.Error = err[0]
+		this.Error = err[0]
 	}
-	instance.Result = result
+	this.Result = result
 }
 
-func (instance *Context) MarkError(err error) {
-	instance.Error = err
-	instance.Client.Status = http.StatusInternalServerError
+func (this *Context) MarkError(err error) {
+	this.Error = err
+	this.Client.Status = http.StatusInternalServerError
 }
 
-func (instance *Context) MarkUnavailable(err error) {
-	instance.Error = err
-	instance.Client.Status = http.StatusServiceUnavailable
+func (this *Context) MarkUnavailable(err error) {
+	this.Error = err
+	this.Client.Status = http.StatusServiceUnavailable
 }
 
-func (instance *Context) MarkUnknown() {
-	instance.Client.Status = http.StatusNotFound
+func (this *Context) MarkUnknown() {
+	this.Client.Status = http.StatusNotFound
 }
 
-func (instance *Context) Log() log.Logger {
-	return instance.Logger.WithAll(instance.AsMap(false))
+func (this *Context) Log() log.Logger {
+	return this.Logger.WithAll(this.AsMap(false))
 }
 
-func (instance *Context) LogProvider() func() log.Logger {
-	return instance.Log
+func (this *Context) LogProvider() func() log.Logger {
+	return this.Log
 }
 
-func (instance *Context) Release() {
-	instance.Client.clean()
-	instance.Upstream.clean()
-	instance.Stage = StageUnknown
-	instance.Id = NilRequestId
-	instance.CorrelationId = NilRequestId
-	instance.Logger = nil
+func (this *Context) Release() {
+	this.Client.clean()
+	this.Upstream.clean()
+	this.Stage = StageUnknown
+	this.Id = NilRequestId
+	this.CorrelationId = NilRequestId
+	this.Logger = nil
 
-	instance.Rule = nil
-	instance.Result = ResultUnknown
-	instance.Error = nil
+	this.Rule = nil
+	this.Result = ResultUnknown
+	this.Error = nil
 
-	instance.Properties = nil
+	this.Properties = nil
 
-	contextPool.Put(instance)
+	contextPool.Put(this)
 }
 
-func (instance *Context) MarshalJSON() ([]byte, error) {
-	return json.Marshal(instance.AsMap(false))
+func (this *Context) MarshalJSON() ([]byte, error) {
+	return json.Marshal(this.AsMap(false))
 }
 
-func (instance *Context) AsMap(inlineFields bool) map[string]interface{} {
+func (this *Context) AsMap(inlineFields bool) map[string]interface{} {
 	const (
 		clientSubPrefix   = FieldClient + "."
 		upstreamSubPrefix = FieldUpstream + "."
 	)
 	buf := map[string]interface{}{
-		FieldRequestId:     instance.Id,
-		FieldCorrelationId: instance.CorrelationId,
-		FieldResult:        instance.Result.Name(),
+		FieldRequestId:     this.Id,
+		FieldCorrelationId: this.CorrelationId,
+		FieldResult:        this.Result.Name(),
 	}
 	if inlineFields {
-		instance.Client.ApplyToMap(clientSubPrefix, &buf)
-		instance.Upstream.ApplyToMap(instance.Rule, upstreamSubPrefix, &buf)
+		this.Client.ApplyToMap(clientSubPrefix, &buf)
+		this.Upstream.ApplyToMap(this.Rule, upstreamSubPrefix, &buf)
 	} else {
-		buf[FieldClient] = instance.Client.AsMap()
-		if b := instance.Upstream.AsMap(instance.Rule); len(b) > 0 {
+		buf[FieldClient] = this.Client.AsMap()
+		if b := this.Upstream.AsMap(this.Rule); len(b) > 0 {
 			buf[FieldUpstream] = b
 		}
 	}
-	if err := instance.Error; err != nil {
+	if err := this.Error; err != nil {
 		buf[FieldError] = err
 	}
 	return buf

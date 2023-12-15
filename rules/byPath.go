@@ -25,34 +25,34 @@ func NewByPath(onAdded OnAdded, onRemoved OnRemoved) *ByPath {
 	return result
 }
 
-func (instance *ByPath) All(consumer func(Rule) error) error {
-	return instance.values.All(consumer)
+func (this *ByPath) All(consumer func(Rule) error) error {
+	return this.values.All(consumer)
 }
 
-func (instance *ByPath) Find(path []string) (Rules, error) {
-	if plain, err := instance.values.Find(path); err != nil {
+func (this *ByPath) Find(path []string) (Rules, error) {
+	if plain, err := this.values.Find(path); err != nil {
 		return nil, err
 	} else {
 		return rules(plain), err
 	}
 }
 
-func (instance *ByPath) Put(r Rule) error {
-	return instance.values.Put(r.Path(), r)
+func (this *ByPath) Put(r Rule) error {
+	return this.values.Put(r.Path(), r)
 }
 
-func (instance *ByPath) Remove(predicate Predicate) error {
-	return instance.values.Remove(func(path []string, r Rule) bool {
+func (this *ByPath) Remove(predicate Predicate) error {
+	return this.values.Remove(func(path []string, r Rule) bool {
 		return predicate(path, r)
 	})
 }
 
-func (instance *ByPath) HasContent() bool {
-	return instance.values.HasContent()
+func (this *ByPath) HasContent() bool {
+	return this.values.HasContent()
 }
 
-func (instance *ByPath) Clone() *ByPath {
-	result := NewByPath(instance.onAdded, instance.onRemoved)
-	result.values = instance.values.Clone()
+func (this *ByPath) Clone() *ByPath {
+	result := NewByPath(this.onAdded, this.onRemoved)
+	result.values = this.values.Clone()
 	return result
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/echocat/lingress/definition"
 	"github.com/echocat/lingress/kubernetes"
+	"github.com/echocat/lingress/settings"
 	"github.com/echocat/lingress/support"
 	"github.com/echocat/lingress/value"
 	"github.com/echocat/slf4g"
@@ -14,7 +15,6 @@ import (
 	"net"
 	"strings"
 	"sync/atomic"
-	"time"
 )
 
 type Query struct {
@@ -27,7 +27,6 @@ type CertificateQuery struct {
 }
 
 type Repository interface {
-	support.FlagRegistrar
 	Init(stop support.Channel) error
 	All(consumer func(Rule) error) error
 	FindBy(Query) (Rules, error)
@@ -39,70 +38,48 @@ type CombinedRepository interface {
 }
 
 type KubernetesBasedRepository struct {
-	Environment  *kubernetes.Environment
-	ByHostRules  *ByHost
-	ResyncAfter  time.Duration
-	IngressClass []string
-	Logger       log.Logger
+	settings *settings.Settings
 
-	CertificatesSecrets []string
-	CertificatesByHost  CertificatesByHost
-	OptionsFactory      OptionsFactory
+	Environment *kubernetes.Environment
+	ByHostRules *ByHost
+	Logger      log.Logger
+
+	CertificatesByHost CertificatesByHost
+	OptionsFactory     OptionsFactory
 }
 
-func NewRepository(logger log.Logger) (CombinedRepository, error) {
-	if environment, err := kubernetes.NewEnvironment(); err != nil {
+func NewRepository(s *settings.Settings, logger log.Logger) (CombinedRepository, error) {
+	environment, err := kubernetes.NewEnvironment(s)
+	if err != nil {
 		return nil, err
-	} else {
-		result := &KubernetesBasedRepository{
-			Environment:  environment,
-			IngressClass: []string{},
-
-			CertificatesSecrets: []string{"certificates"},
-			OptionsFactory:      DefaultOptionsFactory,
-
-			Logger: logger,
-		}
-		result.ByHostRules = NewByHost(result.onRuleAdded, result.onRuleRemoved)
-		return result, nil
 	}
+	result := &KubernetesBasedRepository{
+		settings:    s,
+		Environment: environment,
+
+		OptionsFactory: DefaultOptionsFactory,
+
+		Logger: logger,
+	}
+	result.ByHostRules = NewByHost(result.onRuleAdded, result.onRuleRemoved)
+	return result, nil
 }
 
-func (instance *KubernetesBasedRepository) RegisterFlag(fe support.FlagEnabled, appPrefix string) error {
-	fe.Flag("resyncAfter", "Time after which the configuration should be resynced to be ensure to be not out of date.").
-		PlaceHolder(instance.ResyncAfter.String()).
-		Envar(support.FlagEnvName(appPrefix, "RESYNC_AFTER")).
-		DurationVar(&instance.ResyncAfter)
-	fe.Flag("ingressClass", "Ingress classes which this application should respect.").
-		PlaceHolder(ingressClass).
-		Envar(support.FlagEnvName(appPrefix, "INGRESS_CLASS")).
-		StringsVar(&instance.IngressClass)
-	fe.Flag("secret.certificates", "Name of the secret that contains the certificates.").
-		PlaceHolder(strings.Join(instance.CertificatesSecrets, ",")).
-		Envar(support.FlagEnvName(appPrefix, "SECRET_CERTIFICATES")).
-		StringsVar(&instance.CertificatesSecrets)
-
-	return instance.Environment.RegisterFlag(fe, appPrefix)
-}
-
-func (instance *KubernetesBasedRepository) Init(stop support.Channel) error {
-	if len(instance.IngressClass) == 0 {
-		instance.IngressClass = []string{ingressClass, ""}
-	}
+func (this *KubernetesBasedRepository) Init(stop support.Channel) error {
 	log.Info("initial sync of definitions...")
 
-	client, err := instance.Environment.NewClient()
+	client, err := this.Environment.NewClient()
 	if err != nil {
 		return err
 	}
-	definitions, err := definition.New(client, instance.ResyncAfter, instance.Logger)
+	definitions, err := definition.New(client, this.settings.Discovery.ResyncAfter, this.Logger)
 	if err != nil {
 		return err
 	}
-	definitions.SetNamespace(instance.Environment.Namespace)
+	definitions.SetNamespace(this.settings.Kubernetes.Namespace)
 
 	state := &repositoryImplState{
-		KubernetesBasedRepository: instance,
+		KubernetesBasedRepository: this,
 		definitions:               definitions,
 	}
 
@@ -126,12 +103,12 @@ func (instance *KubernetesBasedRepository) Init(stop support.Channel) error {
 	return nil
 }
 
-func (instance *KubernetesBasedRepository) onRuleAdded(_ []string, r Rule) {
-	instance.Logger.With("rule", r).Debug("rule added")
+func (this *KubernetesBasedRepository) onRuleAdded(_ []string, r Rule) {
+	this.Logger.With("rule", r).Debug("rule added")
 }
 
-func (instance *KubernetesBasedRepository) onRuleRemoved(_ []string, r Rule) {
-	instance.Logger.With("rule", r).Debug("rule removed")
+func (this *KubernetesBasedRepository) onRuleRemoved(_ []string, r Rule) {
+	this.Logger.With("rule", r).Debug("rule removed")
 }
 
 type repositoryImplState struct {
@@ -141,15 +118,15 @@ type repositoryImplState struct {
 	initiated   atomic.Value
 }
 
-func (instance *repositoryImplState) onSecretCertificatesChanged(key string, new metav1.Object) error {
+func (this *repositoryImplState) onSecretCertificatesChanged(key string, new metav1.Object) error {
 	if new == nil {
-		instance.CertificatesByHost = CertificatesByHost{}
+		this.CertificatesByHost = CertificatesByHost{}
 		return nil
 	}
 
 	s := new.(*v1.Secret)
 
-	l := instance.Logger.
+	l := this.Logger.
 		With("key", key)
 
 	cbh := CertificatesByHost{}
@@ -172,15 +149,15 @@ func (instance *repositoryImplState) onSecretCertificatesChanged(key string, new
 		}
 	}
 
-	instance.CertificatesByHost = cbh
+	this.CertificatesByHost = cbh
 
 	return nil
 }
 
-func (instance *repositoryImplState) isExpectedCertificatesKey(what string) bool {
-	for _, candidate := range instance.CertificatesSecrets {
+func (this *repositoryImplState) isExpectedCertificatesKey(what string) bool {
+	for _, candidate := range this.settings.Tls.SecretNames {
 		if strings.Contains(candidate, "/") {
-			candidate = instance.Environment.Namespace + "/" + candidate
+			candidate = this.settings.Kubernetes.Namespace + "/" + candidate
 		}
 		if candidate == what {
 			return true
@@ -189,63 +166,63 @@ func (instance *repositoryImplState) isExpectedCertificatesKey(what string) bool
 	return false
 }
 
-func (instance *repositoryImplState) onServiceSecretsElementAdded(key string, new metav1.Object) error {
-	if instance.isExpectedCertificatesKey(key) {
-		return instance.onSecretCertificatesChanged(key, new)
+func (this *repositoryImplState) onServiceSecretsElementAdded(key string, new metav1.Object) error {
+	if this.isExpectedCertificatesKey(key) {
+		return this.onSecretCertificatesChanged(key, new)
 	}
 	return nil
 }
 
-func (instance *repositoryImplState) onServiceSecretsElementUpdated(key string, _, new metav1.Object) error {
-	if instance.isExpectedCertificatesKey(key) {
-		return instance.onSecretCertificatesChanged(key, new)
+func (this *repositoryImplState) onServiceSecretsElementUpdated(key string, _, new metav1.Object) error {
+	if this.isExpectedCertificatesKey(key) {
+		return this.onSecretCertificatesChanged(key, new)
 	}
 	return nil
 }
 
-func (instance *repositoryImplState) onServiceSecretsElementRemoved(key string) error {
-	if instance.isExpectedCertificatesKey(key) {
-		return instance.onSecretCertificatesChanged(key, nil)
+func (this *repositoryImplState) onServiceSecretsElementRemoved(key string) error {
+	if this.isExpectedCertificatesKey(key) {
+		return this.onSecretCertificatesChanged(key, nil)
 	}
 	return nil
 }
 
-func (instance *repositoryImplState) onIngressElementAdded(_ string, new metav1.Object) error {
-	target := instance.ByHostRules
-	clonedUpdate := instance.initiated.Load() == true
+func (this *repositoryImplState) onIngressElementAdded(_ string, new metav1.Object) error {
+	target := this.ByHostRules
+	clonedUpdate := this.initiated.Load() == true
 	if clonedUpdate {
 		target = target.Clone()
 	}
 
 	candidate := new.(*networkingv1.Ingress)
 
-	if !instance.matchesIngressClass(candidate) {
+	if !this.matchesIngressClass(candidate) {
 		return nil
 	}
 
-	if err := instance.visitIngress(candidate, target); err != nil {
+	if err := this.visitIngress(candidate, target); err != nil {
 		return err
 	}
 
 	if clonedUpdate {
-		instance.ByHostRules = target
+		this.ByHostRules = target
 	}
 	return nil
 }
 
-func (instance *repositoryImplState) onIngressElementUpdated(key string, _, new metav1.Object) error {
+func (this *repositoryImplState) onIngressElementUpdated(key string, _, new metav1.Object) error {
 	candidate := new.(*networkingv1.Ingress)
 
-	if instance.matchesIngressClass(candidate) {
-		return instance.onIngressElementAdded(key, new)
+	if this.matchesIngressClass(candidate) {
+		return this.onIngressElementAdded(key, new)
 	}
 
-	return instance.onIngressElementRemoved(key)
+	return this.onIngressElementRemoved(key)
 }
 
-func (instance *repositoryImplState) onIngressElementRemoved(key string) error {
-	target := instance.ByHostRules
-	clonedUpdate := instance.initiated.Load() != true
+func (this *repositoryImplState) onIngressElementRemoved(key string) error {
+	target := this.ByHostRules
+	clonedUpdate := this.initiated.Load() != true
 	if clonedUpdate {
 		target = target.Clone()
 	}
@@ -265,22 +242,23 @@ func (instance *repositoryImplState) onIngressElementRemoved(key string) error {
 	}
 
 	if clonedUpdate {
-		instance.ByHostRules = target
+		this.ByHostRules = target
 	}
 	return nil
 }
 
-func (instance *repositoryImplState) matchesIngressClass(what *networkingv1.Ingress) bool {
+func (this *repositoryImplState) matchesIngressClass(what *networkingv1.Ingress) bool {
 	requested := what.Spec.IngressClassName
+	classes := this.settings.Ingress.GetClasses()
 	if requested == nil {
-		for _, candidate := range instance.IngressClass {
+		for _, candidate := range classes {
 			if candidate == "" || candidate == "*" {
 				return true
 			}
 		}
 		return false
 	}
-	for _, candidate := range instance.IngressClass {
+	for _, candidate := range classes {
 		if candidate == *requested || candidate == "*" {
 			return true
 		}
@@ -288,7 +266,7 @@ func (instance *repositoryImplState) matchesIngressClass(what *networkingv1.Ingr
 	return false
 }
 
-func (instance *repositoryImplState) visitIngress(ingress *networkingv1.Ingress, target *ByHost) error {
+func (this *repositoryImplState) visitIngress(ingress *networkingv1.Ingress, target *ByHost) error {
 	source := &sourceReference{
 		namespace: ingress.Namespace,
 		name:      ingress.Name,
@@ -297,18 +275,18 @@ func (instance *repositoryImplState) visitIngress(ingress *networkingv1.Ingress,
 		return err
 	}
 
-	l := instance.Logger.
+	l := this.Logger.
 		With("type", "ingress").
 		Withf("key", "%s/%s", source.namespace, source.name)
 
 	if v := ingress.Spec.DefaultBackend; v != nil {
 		l := l.With("kind", "defaultBackend")
-		backend, err := instance.ingressToBackend(source, *v, l)
+		backend, err := this.ingressToBackend(source, *v, l)
 		if err != nil {
 			return err
 		}
 		if backend != nil {
-			options, err := instance.newOptionsBy(ingress)
+			options, err := this.newOptionsBy(ingress)
 			if err != nil {
 				return err
 			}
@@ -361,7 +339,7 @@ func (instance *repositoryImplState) visitIngress(ingress *networkingv1.Ingress,
 				}
 				l = l.With("pathType", pathType)
 
-				backend, err := instance.ingressToBackend(source, forPath.Backend, l)
+				backend, err := this.ingressToBackend(source, forPath.Backend, l)
 				if err != nil {
 					return err
 				}
@@ -369,12 +347,12 @@ func (instance *repositoryImplState) visitIngress(ingress *networkingv1.Ingress,
 					continue
 				}
 
-				options, err := instance.newOptionsBy(ingress)
+				options, err := this.newOptionsBy(ingress)
 				if err != nil {
 					return err
 				}
 
-				host, err := instance.parseHost(&forHost, options)
+				host, err := this.parseHost(&forHost, options)
 				if err != nil {
 					l.WithError(err).Warn("illegal host in ingress; ignoring")
 					continue
@@ -392,7 +370,7 @@ func (instance *repositoryImplState) visitIngress(ingress *networkingv1.Ingress,
 	return nil
 }
 
-func (instance *repositoryImplState) parseHost(ingressRule *networkingv1.IngressRule, options Options) (value.WildcardSupportingFqdn, error) {
+func (this *repositoryImplState) parseHost(ingressRule *networkingv1.IngressRule, _ Options) (value.WildcardSupportingFqdn, error) {
 	plain := normalizeHostname(ingressRule.Host)
 	var result value.WildcardSupportingFqdn
 	if err := result.Set(plain); err != nil {
@@ -401,8 +379,8 @@ func (instance *repositoryImplState) parseHost(ingressRule *networkingv1.Ingress
 	return result, nil
 }
 
-func (instance *repositoryImplState) newOptionsBy(ingress *networkingv1.Ingress) (Options, error) {
-	result := instance.OptionsFactory()
+func (this *repositoryImplState) newOptionsBy(ingress *networkingv1.Ingress) (Options, error) {
+	result := this.OptionsFactory()
 	if err := result.Set(ingress.GetAnnotations()); err != nil {
 		return nil, err
 	}
@@ -410,8 +388,8 @@ func (instance *repositoryImplState) newOptionsBy(ingress *networkingv1.Ingress)
 	return result, nil
 }
 
-func (instance *repositoryImplState) ingressToBackend(source *sourceReference, ib networkingv1.IngressBackend, usingLogger log.Logger) (net.Addr, error) {
-	service, err := instance.ingressToService(source, ib)
+func (this *repositoryImplState) ingressToBackend(source *sourceReference, ib networkingv1.IngressBackend, usingLogger log.Logger) (net.Addr, error) {
+	service, err := this.ingressToService(source, ib)
 	if err != nil {
 		return nil, err
 	}
@@ -433,7 +411,7 @@ func (instance *repositoryImplState) ingressToBackend(source *sourceReference, i
 		return nil, nil
 	}
 
-	port, err := instance.evaluateServicePort(ib.Service.Port, service)
+	port, err := this.evaluateServicePort(ib.Service.Port, service)
 	if err != nil {
 		usingLogger.
 			WithError(err).
@@ -441,7 +419,7 @@ func (instance *repositoryImplState) ingressToBackend(source *sourceReference, i
 		return nil, nil
 	}
 
-	addr, err := instance.clusterIpBasedServiceToAddr(service.Spec.ClusterIP, port)
+	addr, err := this.clusterIpBasedServiceToAddr(service.Spec.ClusterIP, port)
 	if err != nil {
 		usingLogger.
 			WithError(err).
@@ -452,7 +430,7 @@ func (instance *repositoryImplState) ingressToBackend(source *sourceReference, i
 	return addr, nil
 }
 
-func (instance *repositoryImplState) evaluateServicePort(in networkingv1.ServiceBackendPort, service *v1.Service) (int32, error) {
+func (this *repositoryImplState) evaluateServicePort(in networkingv1.ServiceBackendPort, service *v1.Service) (int32, error) {
 	if v := in.Name; v != "" {
 		for _, candidate := range service.Spec.Ports {
 			if candidate.Name == v {
@@ -464,7 +442,7 @@ func (instance *repositoryImplState) evaluateServicePort(in networkingv1.Service
 	return in.Number, nil
 }
 
-func (instance *repositoryImplState) clusterIpBasedServiceToAddr(ipStr string, port int32) (net.Addr, error) {
+func (this *repositoryImplState) clusterIpBasedServiceToAddr(ipStr string, port int32) (net.Addr, error) {
 	if ips, err := net.LookupIP(ipStr); err != nil {
 		return nil, err
 	} else if len(ips) <= 0 {
@@ -477,25 +455,25 @@ func (instance *repositoryImplState) clusterIpBasedServiceToAddr(ipStr string, p
 	}
 }
 
-func (instance *repositoryImplState) ingressToService(source *sourceReference, ib networkingv1.IngressBackend) (*v1.Service, error) {
+func (this *repositoryImplState) ingressToService(source *sourceReference, ib networkingv1.IngressBackend) (*v1.Service, error) {
 	serviceKey := fmt.Sprintf("%s/%s", source.namespace, ib.Service.Name)
 
-	return instance.definitions.Service.Get(serviceKey)
+	return this.definitions.Service.Get(serviceKey)
 }
 
-func (instance *KubernetesBasedRepository) All(consumer func(Rule) error) error {
-	return instance.ByHostRules.All(consumer)
+func (this *KubernetesBasedRepository) All(consumer func(Rule) error) error {
+	return this.ByHostRules.All(consumer)
 }
 
-func (instance *KubernetesBasedRepository) FindBy(q Query) (Rules, error) {
+func (this *KubernetesBasedRepository) FindBy(q Query) (Rules, error) {
 	host := q.Host
 	path, err := ParsePath(q.Path, true)
 	if err != nil {
 		return nil, err
 	}
-	return instance.ByHostRules.Find(host, path)
+	return this.ByHostRules.Find(host, path)
 }
 
-func (instance *KubernetesBasedRepository) FindCertificatesBy(q CertificateQuery) (Certificates, error) {
-	return instance.CertificatesByHost.Find(q.Host), nil
+func (this *KubernetesBasedRepository) FindCertificatesBy(q CertificateQuery) (Certificates, error) {
+	return this.CertificatesByHost.Find(q.Host), nil
 }

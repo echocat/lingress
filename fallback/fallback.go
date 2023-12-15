@@ -1,28 +1,28 @@
 package fallback
 
 import (
-	"github.com/echocat/lingress/support"
+	"github.com/echocat/lingress/file/providers"
+	"github.com/echocat/lingress/settings"
 	log "github.com/echocat/slf4g"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"html/template"
-	"time"
 )
 
 type Fallback struct {
-	FileProviders    support.FileProviders
+	settings *settings.Settings
+
+	FileProviders    providers.FileProviders
 	RedirectTemplate *template.Template
 	StatusTemplate   *template.Template
 	Bundle           *i18n.Bundle
 	Logger           log.Logger
-
-	ReloadTimeoutOnTemporaryIssues time.Duration
 }
 
-func New(fps support.FileProviders, logger log.Logger) (*Fallback, error) {
+func New(s *settings.Settings, fps providers.FileProviders, logger log.Logger) (*Fallback, error) {
 	result := Fallback{
-		FileProviders:                  fps,
-		ReloadTimeoutOnTemporaryIssues: time.Second * 15,
-		Logger:                         logger,
+		settings:      s,
+		FileProviders: fps,
+		Logger:        logger,
 	}
 
 	sTmpl, err := newTemplate(fps.GetTemplates(), "status.html", template.FuncMap{
@@ -49,13 +49,4 @@ func New(fps support.FileProviders, logger log.Logger) (*Fallback, error) {
 	result.Bundle = bundle
 
 	return &result, nil
-}
-
-func (instance *Fallback) RegisterFlag(fe support.FlagEnabled, appPrefix string) error {
-	fe.Flag("reloadTimeoutOnTemporaryIssues", "Timeout after which we try the reload the page on temporary issues.").
-		Default(instance.ReloadTimeoutOnTemporaryIssues.String()).
-		Envar(support.FlagEnvName(appPrefix, "RELOAD_TIMEOUT_ON_TEMPORARY_ISSUES")).
-		DurationVar(&instance.ReloadTimeoutOnTemporaryIssues)
-
-	return nil
 }

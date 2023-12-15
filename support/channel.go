@@ -20,16 +20,16 @@ func NewChannel() Channel {
 	return &result
 }
 
-func (instance *channel) Wait() {
-	instance.mutex.Lock()
-	defer instance.mutex.Unlock()
-	instance.cond.Wait()
+func (this *channel) Wait() {
+	this.mutex.Lock()
+	defer this.mutex.Unlock()
+	this.cond.Wait()
 }
 
-func (instance *channel) Broadcast() {
-	instance.mutex.Lock()
-	defer instance.mutex.Unlock()
-	instance.cond.Broadcast()
+func (this *channel) Broadcast() {
+	this.mutex.Lock()
+	defer this.mutex.Unlock()
+	this.cond.Broadcast()
 }
 
 func ToChan(channel Channel) chan struct{} {

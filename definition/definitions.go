@@ -30,28 +30,28 @@ func New(client kubernetes.Interface, resyncAfter time.Duration, logger log.Logg
 	}
 }
 
-func (instance *Definitions) SetNamespace(namespace string) {
-	instance.ServiceSecrets.SetNamespace(namespace)
+func (this *Definitions) SetNamespace(namespace string) {
+	this.ServiceSecrets.SetNamespace(namespace)
 }
 
-func (instance *Definitions) Init(stop support.Channel) error {
-	if err := instance.ServiceSecrets.Init(stop); err != nil {
+func (this *Definitions) Init(stop support.Channel) error {
+	if err := this.ServiceSecrets.Init(stop); err != nil {
 		return err
 	}
 
-	if err := instance.Service.Init(stop); err != nil {
+	if err := this.Service.Init(stop); err != nil {
 		return err
 	}
 
-	if err := instance.Ingress.Init(stop); err != nil {
+	if err := this.Ingress.Init(stop); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (instance *Definitions) HasSynced() bool {
-	return instance.Ingress.HasSynced() &&
-		instance.Service.HasSynced() &&
-		instance.ServiceSecrets.HasSynced()
+func (this *Definitions) HasSynced() bool {
+	return this.Ingress.HasSynced() &&
+		this.Service.HasSynced() &&
+		this.ServiceSecrets.HasSynced()
 }

@@ -11,28 +11,28 @@ type Address interface {
 
 type ipAddress net.IP
 
-func (instance ipAddress) Matches(candidate net.IP) bool {
+func (this ipAddress) Matches(candidate net.IP) bool {
 	if candidate == nil {
 		return false
 	}
-	return net.IP(instance).Equal(candidate)
+	return net.IP(this).Equal(candidate)
 }
 
-func (instance ipAddress) MarshalJSON() ([]byte, error) {
-	return json.Marshal(net.IP(instance).String())
+func (this ipAddress) MarshalJSON() ([]byte, error) {
+	return json.Marshal(net.IP(this).String())
 }
 
 type networkAddress struct {
 	*net.IPNet
 }
 
-func (instance *networkAddress) Matches(candidate net.IP) bool {
+func (this *networkAddress) Matches(candidate net.IP) bool {
 	if candidate == nil {
 		return false
 	}
-	return instance.Contains(candidate)
+	return this.Contains(candidate)
 }
 
-func (instance *networkAddress) MarshalJSON() ([]byte, error) {
-	return json.Marshal(instance.IPNet.String())
+func (this *networkAddress) MarshalJSON() ([]byte, error) {
+	return json.Marshal(this.IPNet.String())
 }

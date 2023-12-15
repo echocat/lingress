@@ -28,14 +28,14 @@ const (
 	PathTypePrefix
 )
 
-func (instance PathType) String() string {
-	switch instance {
+func (this PathType) String() string {
+	switch this {
 	case PathTypeExact:
 		return "Exact"
 	case PathTypePrefix:
 		return "Prefix"
 	default:
-		return fmt.Sprintf("Unknown-%d", instance)
+		return fmt.Sprintf("Unknown-%d", this)
 	}
 }
 
@@ -72,52 +72,52 @@ func NewRule(host value.WildcardSupportingFqdn, path []string, pathType PathType
 	}
 }
 
-func (instance *rule) clone() *rule {
-	r := *instance
+func (this *rule) clone() *rule {
+	r := *this
 	return &r
 }
 
-func (instance *rule) Clone() Rule {
-	return instance.clone()
+func (this *rule) Clone() Rule {
+	return this.clone()
 }
 
-func (instance *rule) Host() value.WildcardSupportingFqdn {
-	return instance.host
+func (this *rule) Host() value.WildcardSupportingFqdn {
+	return this.host
 }
 
-func (instance *rule) Path() []string {
-	return instance.path
+func (this *rule) Path() []string {
+	return this.path
 }
 
-func (instance *rule) PathType() PathType {
-	return instance.pathType
+func (this *rule) PathType() PathType {
+	return this.pathType
 }
 
-func (instance *rule) Source() SourceReference {
-	return instance.source
+func (this *rule) Source() SourceReference {
+	return this.source
 }
 
-func (instance *rule) Backend() net.Addr {
-	return instance.backend
+func (this *rule) Backend() net.Addr {
+	return this.backend
 }
 
-func (instance *rule) Options() Options {
-	return instance.options
+func (this *rule) Options() Options {
+	return this.options
 }
 
-func (instance *rule) Statistics() *Statistics {
-	return instance.statistics
+func (this *rule) Statistics() *Statistics {
+	return this.statistics
 }
 
-func (instance *rule) String() string {
-	return fmt.Sprintf("(%v) %s/%s -> %v", instance.Source(), instance.Host(), strings.Join(instance.Path(), "/"), instance.Backend())
+func (this *rule) String() string {
+	return fmt.Sprintf("(%v) %s/%s -> %v", this.Source(), this.Host(), strings.Join(this.Path(), "/"), this.Backend())
 }
 
-func (instance *rule) MarshalJSON() ([]byte, error) {
+func (this *rule) MarshalJSON() ([]byte, error) {
 	buf := make(map[string]string)
-	buf["host"] = instance.host.String()
-	buf["path"] = "/" + strings.Join(instance.Path(), "/")
-	buf["source"] = instance.Source().String()
-	buf["backend"] = instance.Backend().String()
+	buf["host"] = this.host.String()
+	buf["path"] = "/" + strings.Join(this.Path(), "/")
+	buf["source"] = this.Source().String()
+	buf["backend"] = this.Backend().String()
 	return json.Marshal(buf)
 }

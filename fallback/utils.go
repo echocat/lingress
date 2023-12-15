@@ -2,11 +2,11 @@ package fallback
 
 import (
 	"fmt"
-	"github.com/echocat/lingress/support"
+	"github.com/echocat/lingress/i18n"
 	"net/http"
 )
 
-func localizeStatus(statusCode int, lc *support.LocalizationContext) string {
+func localizeStatus(statusCode int, lc *i18n.LocalizationContext) string {
 	return lc.MessageOrDefault("status-message.default", fmt.Sprintf("status-message.%d", statusCode))
 }
 
