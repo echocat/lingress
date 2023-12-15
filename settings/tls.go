@@ -4,12 +4,16 @@ import (
 	"fmt"
 	"github.com/echocat/lingress/support"
 	"github.com/echocat/lingress/value"
+	"regexp"
 	"strings"
 )
 
 func NewTls() (Tls, error) {
 	return Tls{
-		SecretNames:         []string{"certificates"},
+		SecretNames:         []string{},
+		SecretNamePattern:   nil,
+		SecretLabelSelector: []string{},
+		SecretFieldSelector: []string{},
 		Forced:              value.NewForcibleBool(value.False(), false),
 		FallbackCertificate: false,
 	}, nil
@@ -17,15 +21,30 @@ func NewTls() (Tls, error) {
 
 type Tls struct {
 	SecretNames         []string           `yaml:"secretNames,omitempty" json:"secretNames,omitempty"`
+	SecretNamePattern   *regexp.Regexp     `yaml:"secretNamePattern,omitempty" json:"secretNamePattern,omitempty"`
+	SecretLabelSelector []string           `yaml:"secretLabelSelector,omitempty" json:"secretLabelSelector,omitempty"`
+	SecretFieldSelector []string           `yaml:"secretFieldSelector,omitempty" json:"secretFieldSelector,omitempty"`
 	Forced              value.ForcibleBool `yaml:"forced,omitempty" json:"forced,omitempty"`
 	FallbackCertificate bool               `yaml:"fallbackCertificate,omitempty" json:"fallbackCertificate,omitempty"`
 }
 
 func (this *Tls) RegisterFlags(fe support.FlagEnabled, appPrefix string) {
-	fe.Flag("tls.secretNames", "Name of the secret that contains the tls keys and certificates.").
+	fe.Flag("tls.secretNames", "Name of the secrets that contains the tls keys and certificates.").
 		PlaceHolder(strings.Join(this.SecretNames, ",")).
 		Envar(support.FlagEnvName(appPrefix, "TLS_SECRET_NAMES")).
 		StringsVar(&this.SecretNames)
+	fe.Flag("tls.secretNamePatterns", "Patterns for name of the secrets that contains the tls keys and certificates.").
+		PlaceHolder("<regex_pattern>").
+		Envar(support.FlagEnvName(appPrefix, "TLS_SECRET_NAME_PATTERNS")).
+		RegexpVar(&this.SecretNamePattern)
+	fe.Flag("tls.secretLabelSelector", "Label selector to filter the secrets that contains the tls keys and certificates by.").
+		PlaceHolder("<label>=<value>[,..]").
+		Envar(support.FlagEnvName(appPrefix, "TLS_SECRET_LABEL_SELECTOR")).
+		StringsVar(&this.SecretLabelSelector)
+	fe.Flag("tls.secretFieldSelector", "Field selector to filter the secrets that contains the tls keys and certificates by.").
+		PlaceHolder("<field>=<value>[,..]").
+		Envar(support.FlagEnvName(appPrefix, "TLS_SECRET_FIELD_SELECTOR")).
+		StringsVar(&this.SecretFieldSelector)
 	fe.Flag("tls.forced", "If set if will be used if annotation lingress.echocat.org/force-secure is absent. If this value is prefix with ! it overrides everything regardless what was set in the annotation.").
 		PlaceHolder(fmt.Sprint(this.Forced)).
 		Envar(support.FlagEnvName(appPrefix, "TLS_FORCED")).

@@ -2,6 +2,7 @@ package definition
 
 import (
 	"fmt"
+	"github.com/echocat/lingress/settings"
 	"github.com/echocat/lingress/support"
 	log "github.com/echocat/slf4g"
 	"k8s.io/client-go/kubernetes"
@@ -14,8 +15,8 @@ type Definitions struct {
 	Service        *Service
 }
 
-func New(client kubernetes.Interface, resyncAfter time.Duration, logger log.Logger) (*Definitions, error) {
-	if serviceSecrets, err := NewServiceSecrets(client, resyncAfter, logger); err != nil {
+func New(s *settings.Settings, client kubernetes.Interface, resyncAfter time.Duration, logger log.Logger) (*Definitions, error) {
+	if serviceSecrets, err := NewServiceSecrets(s, client, resyncAfter, logger); err != nil {
 		return nil, fmt.Errorf("cannot create service secrets definition store: %v", err)
 	} else if ingress, err := NewIngress(client, resyncAfter, logger); err != nil {
 		return nil, fmt.Errorf("cannot create ingress definition store: %v", err)

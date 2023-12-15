@@ -88,7 +88,7 @@ func (this *Fallback) RedirectHtml(ctx *context.Context, statusCode int, target 
 			ctx.Log().
 				WithError(err).
 				With("statusCode", statusCode).
-				Error("could not render status page.")
+				Error("Could not render status page.")
 		}
 	}
 }

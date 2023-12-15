@@ -64,9 +64,9 @@ func main() {
 			return err
 		}
 		<-intSig
-		log.Info("shutting down...")
+		log.Info("Shutting down...")
 		stop.Broadcast()
-		log.Info("bye!")
+		log.Info("Bye!")
 		return nil
 	})
 

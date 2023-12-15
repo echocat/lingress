@@ -75,12 +75,12 @@ func (this *Definition) HasSynced() bool {
 
 func (this *Definition) Run(stop support.Channel) {
 	defer runtime.HandleCrash()
-	this.Logger.Info("definition store started")
+	this.Logger.Info("Definition store started.")
 
 	go this.informer.Run(support.ToChan(stop))
 	stop.Wait()
 
-	this.Logger.Info("definition store stopped")
+	this.Logger.Info("Definition store stopped.")
 }
 
 func (this *Definition) onClusterElementAdded(new interface{}) {
@@ -90,7 +90,7 @@ func (this *Definition) onClusterElementAdded(new interface{}) {
 	if err != nil {
 		l.WithError(err).
 			With("objectType", reflect.TypeOf(new).String()).
-			Error("cannot determine key of an object of type")
+			Error("Cannot determine key of an object of type.")
 	}
 
 	if this.OnElementAdded == nil {
@@ -104,10 +104,10 @@ func (this *Definition) onClusterElementAdded(new interface{}) {
 			this.OnError(key, "elementRemoved", err)
 		} else {
 			l.WithError(err).
-				Error("cannot handle element")
+				Error("Cannot handle element.")
 		}
 	} else {
-		l.Debug("element added")
+		l.Debug("Element added.")
 	}
 }
 
@@ -118,7 +118,7 @@ func (this *Definition) onClusterElementUpdated(old interface{}, new interface{}
 	if err != nil {
 		l.WithError(err).
 			With("objectType", reflect.TypeOf(new).String()).
-			Error("cannot determine key of an object of type")
+			Error("Cannot determine key of an object of type.")
 	}
 
 	if this.OnElementUpdated == nil {
@@ -132,10 +132,10 @@ func (this *Definition) onClusterElementUpdated(old interface{}, new interface{}
 			this.OnError(key, "elementRemoved", err)
 		} else {
 			l.WithError(err).
-				Error("cannot handle element")
+				Error("Cannot handle element.")
 		}
 	} else {
-		l.Debug("element updated")
+		l.Debug("Element updated.")
 	}
 }
 
@@ -146,7 +146,7 @@ func (this *Definition) onClusterElementRemoved(old interface{}) {
 	if err != nil {
 		l.WithError(err).
 			With("objectType", reflect.TypeOf(old).String()).
-			Error("cannot determine key of an object of type")
+			Error("Cannot determine key of an object of type.")
 	}
 
 	if this.OnElementRemoved == nil {
@@ -160,10 +160,10 @@ func (this *Definition) onClusterElementRemoved(old interface{}) {
 			this.OnError(key, "elementRemoved", err)
 		} else {
 			l.WithError(err).
-				Error("cannot handle element")
+				Error("Cannot handle element.")
 		}
 	} else {
-		l.Debug("element removed")
+		l.Debug("Element removed.")
 	}
 }
 

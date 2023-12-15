@@ -166,7 +166,7 @@ func (this *Management) handleRules(resp http.ResponseWriter, req *http.Request,
 	}); err != nil {
 		this.Logger.
 			WithError(err).
-			Error("unable to read rules")
+			Error("Unable to read rules.")
 		support.NewGenericResponse(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), req).
 			StreamJsonTo(resp, req, this.getLogger)
 		return
@@ -214,13 +214,13 @@ func (this *Management) Init(stop support.Channel) error {
 			this.Logger.
 				WithError(err).
 				With("addr", this.server.Addr).
-				Error("server is unable to serve management interface")
+				Error("Server is unable to serve management interface.")
 			stop.Broadcast()
 		}
 	}()
 	this.Logger.
 		With("addr", this.server.Addr).
-		Info("serve management interface")
+		Info("Serve management interface...")
 
 	return nil
 }
@@ -233,6 +233,6 @@ func (this *Management) shutdownListener(stop support.Channel) {
 		this.Logger.
 			WithError(err).
 			With("addr", this.server.Addr).
-			Warn("cannot graceful shutdown management interface")
+			Warn("Cannot graceful shutdown management interface.")
 	}
 }

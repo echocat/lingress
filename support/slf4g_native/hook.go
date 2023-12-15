@@ -11,6 +11,6 @@ func init() {
 	kl := log.GetLogger("kubernetes")
 	bridge.ConfigureWith(kl)
 	runtime.ErrorHandlers = []func(err error){func(err error) {
-		kl.WithError(err).Error("unhandled kubernetes internal error.")
+		kl.WithError(err).Error("Unhandled kubernetes internal error.")
 	}}
 }

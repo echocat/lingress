@@ -73,7 +73,7 @@ func (this *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseWrite
 	if err != nil {
 		this.Logger.
 			WithError(err).
-			Error("cannot acquire context")
+			Error("Cannot acquire context.")
 		return
 	}
 	al := this.AccessLogger
@@ -95,7 +95,7 @@ func (this *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseWrite
 			stack := string(debug.Stack())
 			this.Logger.With("stack", stack).
 				WithError(err).
-				Error("unhandled error inside of the finalization stack")
+				Error("Unhandled error inside of the finalization stack.")
 		}
 	}()
 	defer func() {
@@ -428,7 +428,7 @@ func (this *Proxy) copyBuffered(dst io.Writer, src io.Reader) (int64, error) {
 		if rErr != nil && rErr != io.EOF && rErr != context.Canceled {
 			this.Logger.
 				WithError(rErr).
-				Warn("read error during body copy")
+				Warn("Read error during body copy.")
 		}
 		if nr > 0 {
 			nw, wErr := dst.Write((*buf)[:nr])

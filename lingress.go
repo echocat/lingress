@@ -115,7 +115,7 @@ func (this *Lingress) OnConnState(connector server.Connector, conn net.Conn, sta
 			this.unprocessableConnectionDocumented[connType] = true
 			this.logger.
 				With("connType", connType.String()).
-				Error("cannot inspect connection of provided connection type; for those kinds of connections there will be no statistics be available")
+				Error("Cannot inspect connection of provided connection type; for those kinds of connections there will be no statistics be available.")
 		}
 		return
 	}
@@ -224,9 +224,12 @@ func (this *Lingress) createTlsConfig() (*tls.Config, error) {
 }
 
 func (this *Lingress) resolveCertificate(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
-	certificates, err := this.RulesRepository.FindCertificatesBy(rules.CertificateQuery{
-		Host: info.ServerName,
-	})
+	var query rules.CertificateQuery
+	if err := query.Host.Set(info.ServerName); err != nil {
+		return nil, nil
+	}
+
+	certificates, err := this.RulesRepository.FindCertificatesBy(query)
 	if err != nil {
 		return nil, err
 	}
@@ -363,7 +366,7 @@ func (this *Lingress) onResult(ctx *lctx.Context) {
 
 	ctx.Stage = lctx.StagePrepareClientResponse
 	if proceed, err := this.Proxy.Interceptors.Handle(ctx); err != nil {
-		ctx.Log().WithError(err).Error("cannot prepare error response")
+		ctx.Log().WithError(err).Error("Cannot prepare error response.")
 		return
 	} else if !proceed {
 		return

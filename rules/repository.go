@@ -23,7 +23,7 @@ type Query struct {
 }
 
 type CertificateQuery struct {
-	Host string
+	Host value.WildcardSupportingFqdn
 }
 
 type Repository interface {
@@ -57,7 +57,8 @@ func NewRepository(s *settings.Settings, logger log.Logger) (CombinedRepository,
 		settings:    s,
 		Environment: environment,
 
-		OptionsFactory: DefaultOptionsFactory,
+		OptionsFactory:     DefaultOptionsFactory,
+		CertificatesByHost: CertificatesByHost{},
 
 		Logger: logger,
 	}
@@ -66,13 +67,13 @@ func NewRepository(s *settings.Settings, logger log.Logger) (CombinedRepository,
 }
 
 func (this *KubernetesBasedRepository) Init(stop support.Channel) error {
-	log.Info("initial sync of definitions...")
+	log.Info("Initial sync of definitions...")
 
 	client, err := this.Environment.NewClient()
 	if err != nil {
 		return err
 	}
-	definitions, err := definition.New(client, this.settings.Discovery.ResyncAfter, this.Logger)
+	definitions, err := definition.New(this.settings, client, this.settings.Discovery.ResyncAfter, this.Logger)
 	if err != nil {
 		return err
 	}
@@ -99,16 +100,16 @@ func (this *KubernetesBasedRepository) Init(stop support.Channel) error {
 
 	state.initiated.Store(true)
 
-	log.Info("initial sync of definitions... done!")
+	log.Info("Initial sync of definitions... done!")
 	return nil
 }
 
 func (this *KubernetesBasedRepository) onRuleAdded(_ []string, r Rule) {
-	this.Logger.With("rule", r).Debug("rule added")
+	this.Logger.With("rule", r).Debug("Rule added.")
 }
 
 func (this *KubernetesBasedRepository) onRuleRemoved(_ []string, r Rule) {
-	this.Logger.With("rule", r).Debug("rule removed")
+	this.Logger.With("rule", r).Debug("Rule removed.")
 }
 
 type repositoryImplState struct {
@@ -119,17 +120,20 @@ type repositoryImplState struct {
 }
 
 func (this *repositoryImplState) onSecretCertificatesChanged(key string, new metav1.Object) error {
+	l := this.Logger.
+		With("key", key)
+
+	if removed, err := this.CertificatesByHost.RemoveBySource(key); err != nil {
+		return err
+	} else if len(removed) > 0 {
+		l.With("fqdns", removed).Info("Certificates for FQNDs removed.")
+	}
+
 	if new == nil {
-		this.CertificatesByHost = CertificatesByHost{}
 		return nil
 	}
 
 	s := new.(*v1.Secret)
-
-	l := this.Logger.
-		With("key", key)
-
-	cbh := CertificatesByHost{}
 
 	for file, candidate := range s.Data {
 		l := l.With("certificate", file)
@@ -139,31 +143,46 @@ func (this *repositoryImplState) onSecretCertificatesChanged(key string, new met
 			l := l.With("privateKey", privateKeyFile)
 			pk, ok := s.Data[privateKeyFile]
 			if !ok {
-				l.Warn("cannot find expected privateKey in secret for provided certificate; ignoring...")
+				l.Debug("Cannot find expected privateKey in secret for provided certificate; ignoring...")
 				continue
 			}
-			if err := cbh.AddBytes(candidate, pk); err != nil {
-				l.WithError(err).Warn("cannot parse certificate and privateKey pair from secret; ignoring...")
+			if base == "tls" {
+				ca, ok := s.Data["ca.cert"]
+				if ok {
+					candidate = append(ca, '\n')
+					candidate = append(ca, ca...)
+				}
+			}
+			if added, err := this.CertificatesByHost.AddBytes(key, candidate, pk); err != nil {
+				l.WithError(err).Warn("Cannot parse certificate and privateKey pair from secret; ignoring...")
 				continue
+			} else if len(added) > 0 {
+				l.With("fqdns", added).Info("Certificates for FQNDs added.")
 			}
 		}
 	}
-
-	this.CertificatesByHost = cbh
 
 	return nil
 }
 
 func (this *repositoryImplState) isExpectedCertificatesKey(what string) bool {
-	for _, candidate := range this.settings.Tls.SecretNames {
-		if strings.Contains(candidate, "/") {
-			candidate = this.settings.Kubernetes.Namespace + "/" + candidate
-		}
-		if candidate == what {
-			return true
-		}
+	if this.settings.Tls.SecretNamePattern != nil && !this.settings.Tls.SecretNamePattern.MatchString(what) {
+		return false
 	}
-	return false
+
+	if len(this.settings.Tls.SecretNames) > 0 {
+		for _, candidate := range this.settings.Tls.SecretNames {
+			if !strings.Contains(candidate, "/") {
+				candidate = this.settings.Kubernetes.Namespace + "/" + candidate
+			}
+			if candidate == what {
+				return true
+			}
+		}
+		return false
+	}
+
+	return true
 }
 
 func (this *repositoryImplState) onServiceSecretsElementAdded(key string, new metav1.Object) error {
@@ -294,7 +313,7 @@ func (this *repositoryImplState) visitIngress(ingress *networkingv1.Ingress, tar
 			if err := target.Put(r); err != nil {
 				return err
 			}
-			l.Debug("element registered")
+			l.Debug("Element registered.")
 		}
 	}
 
@@ -307,18 +326,18 @@ func (this *repositoryImplState) visitIngress(ingress *networkingv1.Ingress, tar
 
 				path, err := ParsePath(forPath.Path, false)
 				if err != nil {
-					l.WithError(err).Warn("illegal path configured; ingress will not functioning; ignoring")
+					l.WithError(err).Warn("Illegal path configured; ingress will not functioning; ignoring...")
 					continue
 				}
 				l = l.With("path", path)
 
 				forService := forPath.Backend.Service
 				if forService == nil {
-					l.Warn("there is no service configured for path; ignoring")
+					l.Warn("There is no service configured for path; ignoring...")
 					continue
 				}
 				if forService.Name == "" {
-					l.Warn("there is no service.name configured for path; ignoring")
+					l.Warn("There is no service.name configured for path; ignoring...")
 					continue
 				}
 				l = l.Withf("service", "%s/%s", source.namespace, forService.Name)
@@ -328,13 +347,13 @@ func (this *repositoryImplState) visitIngress(ingress *networkingv1.Ingress, tar
 				} else if forService.Port.Name != "" {
 					l = l.With("port", forService.Port.Name)
 				} else {
-					l.Warn("there is neither a service.port.name nor service.port.number configured for path; ignoring")
+					l.Warn("There is neither a service.port.name nor service.port.number configured for path; ignoring...")
 					continue
 				}
 
 				pathType, err := ParsePathType(forPath.PathType)
 				if err != nil {
-					l.WithError(err).Warn("illegal pathType configured; ingress will not functioning; ignoring")
+					l.WithError(err).Warn("Illegal pathType configured; ingress will not functioning; ignoring...")
 					continue
 				}
 				l = l.With("pathType", pathType)
@@ -354,7 +373,7 @@ func (this *repositoryImplState) visitIngress(ingress *networkingv1.Ingress, tar
 
 				host, err := this.parseHost(&forHost, options)
 				if err != nil {
-					l.WithError(err).Warn("illegal host in ingress; ignoring")
+					l.WithError(err).Warn("Illegal host in ingress; ignoring...")
 					continue
 				}
 
@@ -362,7 +381,7 @@ func (this *repositoryImplState) visitIngress(ingress *networkingv1.Ingress, tar
 				if err := target.Put(r); err != nil {
 					return err
 				}
-				l.Debug("element registered")
+				l.Debug("Element registered.")
 			}
 		}
 	}
@@ -394,20 +413,20 @@ func (this *repositoryImplState) ingressToBackend(source *sourceReference, ib ne
 		return nil, err
 	}
 	if service == nil {
-		usingLogger.Warn("service not found; maybe orphan ingress?; ignoring")
+		usingLogger.Warn("Service not found; maybe orphan ingress?; ignoring...")
 		return nil, nil
 	}
 
 	if service.Spec.Type != v1.ServiceTypeClusterIP {
 		usingLogger.
 			With("serviceType", service.Spec.Type).
-			Warn("unsupported serviceType; ignoring")
+			Warn("Unsupported serviceType; ignoring...")
 		return nil, nil
 	}
 
 	if strings.TrimSpace(service.Spec.ClusterIP) == "" {
 		usingLogger.
-			Warnf("serviceType is '%s' but clusterIP of service is not set; ignoring", v1.ServiceTypeClusterIP)
+			Warnf("serviceType is '%s' but clusterIP of service is not set; ignoring.", v1.ServiceTypeClusterIP)
 		return nil, nil
 	}
 
@@ -415,7 +434,7 @@ func (this *repositoryImplState) ingressToBackend(source *sourceReference, ib ne
 	if err != nil {
 		usingLogger.
 			WithError(err).
-			Warn("cannot resolve backend port; ignoring")
+			Warn("Cannot resolve backend port; ignoring...")
 		return nil, nil
 	}
 
@@ -423,7 +442,7 @@ func (this *repositoryImplState) ingressToBackend(source *sourceReference, ib ne
 	if err != nil {
 		usingLogger.
 			WithError(err).
-			Warn("cannot resolve backend address; ignoring")
+			Warn("Cannot resolve backend address; ignoring...")
 		return nil, nil
 	}
 

@@ -93,13 +93,13 @@ func (this *HttpConnector) Serve(stop support.Channel) error {
 			this.Logger.
 				WithError(err).
 				With("address", this.Server.Addr).
-				Error("server is unable to serve proxy interface")
+				Error("Server is unable to serve proxy interface.")
 			stop.Broadcast()
 		}
 	}()
 	this.Logger.
 		With("address", this.Server.Addr).
-		Info("serve proxy interface")
+		Info("Serve proxy interface...")
 
 	return nil
 }
@@ -109,7 +109,7 @@ func (this *HttpConnector) Shutdown() {
 	if err := this.Server.Shutdown(ctx); err != nil {
 		this.Logger.
 			WithError(err).
-			Warnf("cannot graceful shutdown %s proxy interface %s", this.Id, this.Server.Addr)
+			Warnf("Cannot graceful shutdown %s proxy interface %s.", this.Id, this.Server.Addr)
 	}
 	cancel()
 }

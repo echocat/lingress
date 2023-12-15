@@ -74,7 +74,7 @@ func (this *Fallback) StatusAsHtml(ctx *context.Context, statusCode int, path st
 			ctx.Log().
 				WithError(err).
 				With("statusCode", statusCode).
-				Error("could not render status page.")
+				Error("Could not render status page.")
 		}
 	}
 }
