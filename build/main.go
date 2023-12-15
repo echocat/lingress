@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	sanitizeBranchNameRegex = regexp.MustCompile(`[^a-zA-Z0-9-]+`)
+	sanitizeBranchNameRegex = regexp.MustCompile(`[^a-zA-Z0-9-.]+`)
 )
 
 func newCmd() cmd {
