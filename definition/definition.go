@@ -13,6 +13,7 @@ import (
 
 type Definition struct {
 	MaxTries int
+	Logger   log.Logger
 
 	typeDescription string
 	informer        cache.SharedInformer
@@ -24,156 +25,163 @@ type Definition struct {
 	OnError          OnErrorFunc
 }
 
-type OnElementChangedFunc func(key string, new metav1.Object) error
-type OnElementUpdatedFunc func(key string, old, new metav1.Object) error
-type OnElementRemovedFunc func(key string) error
-type OnErrorFunc func(key string, event string, err error)
+type OnElementChangedFunc func(ref support.ObjectReference, new metav1.Object) error
+type OnElementUpdatedFunc func(ref support.ObjectReference, old, new metav1.Object) error
+type OnElementRemovedFunc func(ref support.ObjectReference) error
+type OnErrorFunc func(ref support.ObjectReference, event string, err error)
 
-func newDefinition(typeDescription string, informer cache.SharedInformer) (*Definition, error) {
+func newDefinition(typeDescription string, informer cache.SharedInformer, logger log.Logger) (*Definition, error) {
 	return &Definition{
 		typeDescription: typeDescription,
 		informer:        informer,
+		Logger:          logger.With("type", typeDescription),
 	}, nil
 }
 
-func (instance *Definition) SetInformer(informer cache.SharedInformer) {
-	instance.informer = informer
+func (this *Definition) SetInformer(informer cache.SharedInformer) {
+	this.informer = informer
 }
 
-func (instance *Definition) Init(stop support.Channel) error {
-	if instance.informer == nil {
-		panic(fmt.Sprintf("definition %s has no informer", instance.typeDescription))
+func (this *Definition) Init(stop support.Channel) error {
+	if this.informer == nil {
+		panic(fmt.Sprintf("definition %s has no informer", this.typeDescription))
 	}
 
-	_, err := instance.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    instance.onClusterElementAdded,
-		UpdateFunc: instance.onClusterElementUpdated,
-		DeleteFunc: instance.onClusterElementRemoved,
+	_, err := this.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    this.onClusterElementAdded,
+		UpdateFunc: this.onClusterElementUpdated,
+		DeleteFunc: this.onClusterElementRemoved,
 	})
 	if err != nil {
-		return fmt.Errorf("initial %s synchronization failed: %w", instance.typeDescription, err)
+		return fmt.Errorf("creation of event handler for %s failed: %w", this.typeDescription, err)
 	}
 
-	go instance.Run(stop)
+	go this.Run(stop)
 
-	if !cache.WaitForCacheSync(support.ToChan(stop), instance.HasSynced) {
+	if !cache.WaitForCacheSync(support.ToChan(stop), this.HasSynced) {
 		stop.Broadcast()
-		return fmt.Errorf("initial %s synchronization failed", instance.typeDescription)
+		return fmt.Errorf("initial %s synchronization failed", this.typeDescription)
 	}
-	if err := instance.lastError.Load(); err != nil {
+	if err := this.lastError.Load(); err != nil {
 		stop.Broadcast()
-		return fmt.Errorf("initial %s synchronization failed: %w", instance.typeDescription, err.(error))
+		return fmt.Errorf("initial %s synchronization failed: %w", this.typeDescription, err.(error))
 	}
 	return nil
 }
 
-func (instance *Definition) HasSynced() bool {
-	return instance.informer.HasSynced()
+func (this *Definition) HasSynced() bool {
+	return this.informer.HasSynced()
 }
 
-func (instance *Definition) Run(stop support.Channel) {
-	l := instance.log()
+func (this *Definition) Run(stop support.Channel) {
 	defer runtime.HandleCrash()
-	l.Info("definition store started")
+	this.Logger.Info("Definition store started.")
 
-	go instance.informer.Run(support.ToChan(stop))
+	go this.informer.Run(support.ToChan(stop))
 	stop.Wait()
 
-	l.Info("definition store stopped")
+	this.Logger.Info("Definition store stopped.")
 }
 
-func (instance *Definition) onClusterElementAdded(new interface{}) {
-	l := instance.logEvent("elementAdded")
+func (this *Definition) onClusterElementAdded(new interface{}) {
+	l := this.logEvent("elementAdded")
 
-	key, err := cache.MetaNamespaceKeyFunc(new)
+	objSource, ok := new.(support.ObjectReferenceSource)
+	if !ok {
+		l.With("objectType", reflect.TypeOf(new)).
+			Error("Cannot determine reference of an object of type.")
+	}
+	ref, err := support.NewObjectReferenceOf(objSource)
 	if err != nil {
 		l.WithError(err).
-			With("objectType", reflect.TypeOf(new).String()).
-			Error("cannot determine key of an object of type")
+			With("objectType", reflect.TypeOf(new)).
+			Error("Cannot determine reference of an object of type.")
 	}
 
-	if instance.OnElementAdded == nil {
+	if this.OnElementAdded == nil {
 		return
 	}
 
-	l = l.With("key", key)
-	if err := instance.OnElementAdded(key, new.(metav1.Object)); err != nil {
-		instance.lastError.Store(err)
-		if instance.OnError != nil {
-			instance.OnError(key, "elementRemoved", err)
+	l = l.With("ref", ref)
+	if err := this.OnElementAdded(ref, objSource); err != nil {
+		this.lastError.Store(err)
+		if this.OnError != nil {
+			this.OnError(ref, "elementRemoved", err)
 		} else {
 			l.WithError(err).
-				Error("cannot handle element")
+				Error("Cannot handle element.")
 		}
 	} else {
-		l.Debug("element added")
+		l.Debug("Element added.")
 	}
 }
 
-func (instance *Definition) onClusterElementUpdated(old interface{}, new interface{}) {
-	l := instance.logEvent("elementUpdated")
+func (this *Definition) onClusterElementUpdated(old interface{}, new interface{}) {
+	l := this.logEvent("elementUpdated")
 
-	key, err := cache.MetaNamespaceKeyFunc(new)
+	objSource, ok := new.(support.ObjectReferenceSource)
+	if !ok {
+		l.With("objectType", reflect.TypeOf(new)).
+			Error("Cannot determine reference of an object of type.")
+	}
+	ref, err := support.NewObjectReferenceOf(objSource)
 	if err != nil {
 		l.WithError(err).
-			With("objectType", reflect.TypeOf(new).String()).
-			Error("cannot determine key of an object of type")
+			With("objectType", reflect.TypeOf(new)).
+			Error("Cannot determine reference of an object of type.")
 	}
 
-	if instance.OnElementUpdated == nil {
+	if this.OnElementUpdated == nil {
 		return
 	}
 
-	l = l.With("key", key)
-	if err := instance.OnElementUpdated(key, old.(metav1.Object), new.(metav1.Object)); err != nil {
-		instance.lastError.Store(err)
-		if instance.OnError != nil {
-			instance.OnError(key, "elementRemoved", err)
+	l = l.With("ref", ref)
+	if err := this.OnElementUpdated(ref, old.(metav1.Object), objSource); err != nil {
+		this.lastError.Store(err)
+		if this.OnError != nil {
+			this.OnError(ref, "elementRemoved", err)
 		} else {
 			l.WithError(err).
-				Error("cannot handle element")
+				Error("Cannot handle element.")
 		}
 	} else {
-		l.Debug("element updated")
+		l.Debug("Element updated.")
 	}
 }
 
-func (instance *Definition) onClusterElementRemoved(old interface{}) {
-	l := instance.logEvent("elementRemoved")
+func (this *Definition) onClusterElementRemoved(old interface{}) {
+	l := this.logEvent("elementRemoved")
 
-	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(old)
+	objSource, ok := old.(support.ObjectReferenceSource)
+	if !ok {
+		l.With("objectType", reflect.TypeOf(old)).
+			Error("Cannot determine key of an object of type.")
+	}
+	ref, err := support.NewObjectReferenceOf(objSource)
 	if err != nil {
 		l.WithError(err).
-			With("objectType", reflect.TypeOf(old).String()).
-			Error("cannot determine key of an object of type")
+			With("objectType", reflect.TypeOf(old)).
+			Error("Cannot determine reference of an object of type.")
 	}
 
-	if instance.OnElementRemoved == nil {
+	if this.OnElementRemoved == nil {
 		return
 	}
 
-	l = l.With("key", key)
-	if err := instance.OnElementRemoved(key); err != nil {
-		instance.lastError.Store(err)
-		if instance.OnError != nil {
-			instance.OnError(key, "elementRemoved", err)
+	l = l.With("ref", ref)
+	if err := this.OnElementRemoved(ref); err != nil {
+		this.lastError.Store(err)
+		if this.OnError != nil {
+			this.OnError(ref, "elementRemoved", err)
 		} else {
 			l.WithError(err).
-				Error("cannot handle element")
+				Error("Cannot handle element.")
 		}
 	} else {
-		l.Debug("element removed")
+		l.Debug("Element removed.")
 	}
 }
 
-func (instance *Definition) log() log.Logger {
-	return log.With("type", instance.typeDescription)
-}
-
-func (instance *Definition) logEvent(event string) log.Logger {
-	return instance.log().With("event", event)
-}
-
-func (instance *Definition) logKey(event string, key string) log.Logger {
-	return instance.logEvent(event).With("key", key)
+func (this *Definition) logEvent(event string) log.Logger {
+	return this.Logger.With("event", event)
 }

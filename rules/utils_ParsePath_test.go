@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"errors"
 	"fmt"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/format"
@@ -50,7 +51,7 @@ func beParsablePath(faultTolerant bool, expected ...string) *shouldParsePathMatc
 	}
 }
 
-func beNotParsablePath(faultTolerant bool, expectedError interface{}) *shouldFailParsePathMatcher {
+func beNotParsablePath(faultTolerant bool, expectedError any) *shouldFailParsePathMatcher {
 	return &shouldFailParsePathMatcher{
 		faultTolerant: faultTolerant,
 		expectedError: expectedError,
@@ -63,45 +64,45 @@ type shouldParsePathMatcher struct {
 	lastResult    []string
 }
 
-func (instance *shouldParsePathMatcher) Match(actual interface{}) (success bool, err error) {
-	path, err := ParsePath(fmt.Sprint(actual), instance.faultTolerant)
-	instance.lastResult = path
+func (this *shouldParsePathMatcher) Match(actual any) (success bool, err error) {
+	path, err := ParsePath(fmt.Sprint(actual), this.faultTolerant)
+	this.lastResult = path
 	if err != nil {
 		return false, fmt.Errorf("'%v' should be parseable, but it's not; Got: %v", actual, err)
 	}
-	return reflect.DeepEqual(path, instance.expected), nil
+	return reflect.DeepEqual(path, this.expected), nil
 }
 
-func (instance *shouldParsePathMatcher) FailureMessage(actual interface{}) (message string) {
-	return fmt.Sprintf("%s\nBut got\n%s", format.Message(actual, "ParsePath should be equal with with", instance.expected), format.Object(instance.lastResult, 1))
+func (this *shouldParsePathMatcher) FailureMessage(actual any) (message string) {
+	return fmt.Sprintf("%s\nBut got\n%s", format.Message(actual, "ParsePath should be equal with with", this.expected), format.Object(this.lastResult, 1))
 }
 
-func (instance *shouldParsePathMatcher) NegatedFailureMessage(actual interface{}) (message string) {
-	return fmt.Sprintf("%s\nBut got\n%s", format.Message(actual, "ParsePath should be not equal with with", instance.expected), format.Object(instance.lastResult, 1))
+func (this *shouldParsePathMatcher) NegatedFailureMessage(actual any) (message string) {
+	return fmt.Sprintf("%s\nBut got\n%s", format.Message(actual, "ParsePath should be not equal with with", this.expected), format.Object(this.lastResult, 1))
 }
 
 type shouldFailParsePathMatcher struct {
 	faultTolerant bool
-	expectedError interface{}
+	expectedError any
 	lastError     error
 }
 
-func (instance *shouldFailParsePathMatcher) Match(actual interface{}) (success bool, err error) {
-	_, err = ParsePath(fmt.Sprint(actual), instance.faultTolerant)
+func (this *shouldFailParsePathMatcher) Match(actual any) (success bool, err error) {
+	_, err = ParsePath(fmt.Sprint(actual), this.faultTolerant)
 	if err != nil {
-		if ee, ok := instance.expectedError.(string); ok {
+		if ee, ok := this.expectedError.(string); ok {
 			return err.Error() == ee, nil
 		} else {
-			return err == instance.expectedError, nil
+			return errors.Is(err, this.expectedError.(error)), nil
 		}
 	}
 	return false, nil
 }
 
-func (instance *shouldFailParsePathMatcher) FailureMessage(actual interface{}) (message string) {
-	return fmt.Sprintf("%s\nBut got\n%s", format.Message(actual, "ParsePath should fail with", instance.expectedError), format.Object(instance.lastError, 1))
+func (this *shouldFailParsePathMatcher) FailureMessage(actual any) (message string) {
+	return fmt.Sprintf("%s\nBut got\n%s", format.Message(actual, "ParsePath should fail with", this.expectedError), format.Object(this.lastError, 1))
 }
 
-func (instance *shouldFailParsePathMatcher) NegatedFailureMessage(actual interface{}) (message string) {
-	return fmt.Sprintf("%s\nBut got\n%s", format.Message(actual, "ParsePath should not fail with", instance.expectedError), format.Object(instance.lastError, 1))
+func (this *shouldFailParsePathMatcher) NegatedFailureMessage(actual any) (message string) {
+	return fmt.Sprintf("%s\nBut got\n%s", format.Message(actual, "ParsePath should not fail with", this.expectedError), format.Object(this.lastError, 1))
 }

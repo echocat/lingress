@@ -3,18 +3,19 @@ package fallback
 import (
 	"fmt"
 	"github.com/echocat/lingress/context"
+	"github.com/echocat/lingress/i18n"
 	"github.com/echocat/lingress/support"
 	"net/http"
 	"strings"
 )
 
-func (instance *Fallback) Redirect(ctx *context.Context, statusCode int, target string) {
+func (this *Fallback) Redirect(ctx *context.Context, statusCode int, target string) {
 	if strings.ContainsAny(target, "\r\n") {
 		p := ""
 		if u, err := ctx.Client.RequestedUrl(); err == nil && u != nil {
 			p = u.Path
 		}
-		instance.Status(ctx, http.StatusUnprocessableEntity, p, false)
+		this.Status(ctx, http.StatusUnprocessableEntity, p, false)
 		return
 	}
 	ctx.Client.Status = statusCode
@@ -24,54 +25,54 @@ func (instance *Fallback) Redirect(ctx *context.Context, statusCode int, target 
 		return
 	}
 
-	lc := newLocationContextForCtx(ctx, instance.Bundle)
+	lc := newLocationContextForCtx(ctx, this.Bundle)
 	switch support.NegotiateContentTypeOf(ctx.Client.Request, "application/x-yaml", "application/xml", "application/json", "text/html", "text/plain") {
 	case "application/json":
-		instance.RedirectJson(ctx, statusCode, target, lc)
+		this.RedirectJson(ctx, statusCode, target, lc)
 	case "application/x-yaml":
-		instance.RedirectYaml(ctx, statusCode, target, lc)
+		this.RedirectYaml(ctx, statusCode, target, lc)
 	case "application/xml":
-		instance.RedirectXml(ctx, statusCode, target, lc)
+		this.RedirectXml(ctx, statusCode, target, lc)
 	case "text/html":
-		instance.RedirectHtml(ctx, statusCode, target, lc)
+		this.RedirectHtml(ctx, statusCode, target, lc)
 	default:
-		instance.RedirectText(ctx, statusCode, target, lc)
+		this.RedirectText(ctx, statusCode, target, lc)
 	}
 }
 
-func (instance *Fallback) RedirectJson(ctx *context.Context, statusCode int, target string, lc *support.LocalizationContext) {
+func (this *Fallback) RedirectJson(ctx *context.Context, statusCode int, target string, lc *i18n.LocalizationContext) {
 	genericResponseWithTarget(
 		newLocalizedGenericResponse(ctx, statusCode, lc),
 		target,
 	).StreamAsJson()
 }
 
-func (instance *Fallback) RedirectYaml(ctx *context.Context, statusCode int, target string, lc *support.LocalizationContext) {
+func (this *Fallback) RedirectYaml(ctx *context.Context, statusCode int, target string, lc *i18n.LocalizationContext) {
 	genericResponseWithTarget(
 		newLocalizedGenericResponse(ctx, statusCode, lc),
 		target,
 	).StreamAsYaml()
 }
 
-func (instance *Fallback) RedirectXml(ctx *context.Context, statusCode int, target string, lc *support.LocalizationContext) {
+func (this *Fallback) RedirectXml(ctx *context.Context, statusCode int, target string, lc *i18n.LocalizationContext) {
 	genericResponseWithTarget(
 		newLocalizedGenericResponse(ctx, statusCode, lc),
 		target,
 	).StreamAsXml()
 }
 
-func (instance *Fallback) RedirectText(ctx *context.Context, statusCode int, _ string, lc *support.LocalizationContext) {
+func (this *Fallback) RedirectText(ctx *context.Context, statusCode int, _ string, lc *i18n.LocalizationContext) {
 	ctx.Client.Response.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	ctx.Client.Response.WriteHeader(statusCode)
 	_, _ = ctx.Client.Response.Write([]byte(fmt.Sprintf("%d. %s\n", statusCode, localizeStatus(statusCode, lc))))
 }
 
-func (instance *Fallback) RedirectHtml(ctx *context.Context, statusCode int, target string, lc *support.LocalizationContext) {
+func (this *Fallback) RedirectHtml(ctx *context.Context, statusCode int, target string, lc *i18n.LocalizationContext) {
 	p := ""
 	if u, err := ctx.Client.RequestedUrl(); err == nil && u != nil {
 		p = u.Path
 	}
-	if tmpl, err := cloneAndLocalizeTemplate(instance.RedirectTemplate, lc); err != nil {
+	if tmpl, err := cloneAndLocalizeTemplate(this.RedirectTemplate, lc); err != nil {
 		return
 	} else {
 		object := map[string]interface{}{
@@ -87,7 +88,7 @@ func (instance *Fallback) RedirectHtml(ctx *context.Context, statusCode int, tar
 			ctx.Log().
 				WithError(err).
 				With("statusCode", statusCode).
-				Error("could not render status page.")
+				Error("Could not render status page.")
 		}
 	}
 }

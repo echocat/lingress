@@ -3,82 +3,114 @@ package main
 import (
 	"fmt"
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/echocat/lingress/support"
-	"github.com/echocat/slf4g"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"strings"
-	"time"
-)
-
-const (
-	timeFormat  = "2006-01-02T15:04:05Z"
-	basePackage = "github.com/echocat/lingress/support"
+	_ "github.com/echocat/lingress/support/slf4g_native"
+	"github.com/echocat/slf4g/native"
+	"github.com/echocat/slf4g/native/facade/value"
+	"regexp"
 )
 
 var (
-	groupId = kingpin.Flag("groupId", "").
-		Envar("GROUP_ID").
-		Short('g').
-		Default("").
-		String()
-	artifactId = kingpin.Flag("artifactId", "").
-			Envar("ARTIFACT_ID").
-			Short('a').
-			Default("").
-			String()
-	branch = kingpin.Flag("branch", "").
-		Envar("BRANCH").
-		Short('b').
-		Required().
-		String()
-	revision = kingpin.Flag("revision", "").
-			Envar("REVISION").
-			Short('r').
-			Required().
-			String()
-	output = kingpin.Flag("output", "").
-		Envar("OUTPUT").
-		Short('o').
-		Required().
-		String()
-	targetPackage = kingpin.Arg("package", "").
-			Envar("PACKAGE").
-			Default("./").
-			String()
+	sanitizeBranchNameRegex = regexp.MustCompile(`[^a-zA-Z0-9-.]+`)
 )
 
+func newCmd() cmd {
+	return cmd{
+		outputPrefix:  "dist/lingress",
+		dockerCommand: "docker",
+		withImages:    true,
+	}
+}
+
+type cmd struct {
+	branch       string
+	revision     string
+	outputPrefix string
+
+	isLatest      bool
+	dockerCommand string
+
+	withTests  bool
+	withBuild  bool
+	withImages bool
+	withDeploy bool
+}
+
+func (this *cmd) registerFlags(app *kingpin.Application) {
+	app.Flag("branch", "").
+		Envar("GITHUB_REF_NAME").
+		Short('c').
+		Required().
+		StringVar(&this.branch)
+	app.Flag("revision", "").
+		Envar("GITHUB_SHA").
+		Short('r').
+		Required().
+		StringVar(&this.revision)
+	app.Flag("outputPrefix", "").
+		Envar("BUILDER_OUTPUT_PREFIX").
+		Short('o').
+		PlaceHolder(this.outputPrefix).
+		StringVar(&this.outputPrefix)
+	app.Flag("isLatest", "").
+		Envar("BUILDER_IS_LATEST").
+		BoolVar(&this.isLatest)
+	app.Flag("dockerCommand", "").
+		Envar("BUILDER_DOCKER_COMMAND").
+		PlaceHolder(this.dockerCommand).
+		StringVar(&this.dockerCommand)
+	app.Flag("test", "").
+		PlaceHolder(fmt.Sprint(this.withTests)).
+		Envar("BUILDER_WITH_TESTS").
+		Short('t').
+		BoolVar(&this.withTests)
+	app.Flag("build", "").
+		PlaceHolder(fmt.Sprint(this.withBuild)).
+		Envar("BUILDER_WITH_BUILD").
+		Short('b').
+		BoolVar(&this.withBuild)
+	app.Flag("withImages", "").
+		PlaceHolder(fmt.Sprint(this.withImages)).
+		Envar("BUILDER_WITH_IMAGES").
+		Short('i').
+		BoolVar(&this.withImages)
+	app.Flag("deploy", "").
+		Envar("BUILDER_WITH_DEPLOY").
+		PlaceHolder(fmt.Sprint(this.withDeploy)).
+		Short('d').
+		BoolVar(&this.withDeploy)
+}
+
+func (this *cmd) mustExecute() {
+	this.branch = sanitizeBranchNameRegex.ReplaceAllString(this.branch, "-")
+	if this.withTests {
+		this.mustTest()
+	}
+	if this.withBuild {
+		this.mustBuild()
+	}
+	if this.withDeploy {
+		this.mustDeploy()
+	}
+}
+
 func main() {
-	support.MustRegisterGlobalFalgs(kingpin.CommandLine, "BUILDER_")
+	vp := value.NewProvider(native.DefaultProvider)
+	kingpin.Flag("log.level", "").
+		Envar("BUILDER_LOG_LEVEL").
+		SetValue(&vp.Level)
+	kingpin.Flag("log.format", "").
+		Default("text").
+		Envar("BUILDER_LOG_FORMAT").
+		SetValue(&vp.Consumer.Formatter)
+	kingpin.Flag("log.color", "").
+		Default("auto").
+		Envar("BUILDER_LOG_COLOR").
+		SetValue(vp.Consumer.Formatter.ColorMode)
+
+	cmd := newCmd()
+	cmd.registerFlags(kingpin.CommandLine)
+
 	kingpin.Parse()
 
-	support.Must(os.MkdirAll(filepath.Dir(*output), 0755))
-
-	mustExecute("go", "build", "-ldflags", formatLdFlags(), "-o", *output, *targetPackage)
-}
-
-func mustExecute(args ...string) {
-	if len(args) <= 0 {
-		panic("no arguments provided")
-	}
-	log.Debugf("Execute: %s", support.QuoteAndJoin(args...))
-
-	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-
-	if err := cmd.Run(); err != nil {
-		panic(fmt.Sprintf("command failed [%s]: %v", strings.Join(args, " "), err))
-	}
-}
-
-func formatLdFlags() string {
-	ldFlags := "" +
-		fmt.Sprintf(" -X %s.groupId=%s", basePackage, *groupId) +
-		fmt.Sprintf(" -X %s.artifactId=%s", basePackage, *artifactId) +
-		fmt.Sprintf(" -X %s.branch=%s", basePackage, *branch) +
-		fmt.Sprintf(" -X %s.revision=%s", basePackage, *revision) +
-		fmt.Sprintf(" -X %s.build=%s", basePackage, time.Now().Format(timeFormat))
-	return ldFlags
+	cmd.mustExecute()
 }

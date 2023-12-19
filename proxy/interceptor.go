@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"github.com/echocat/lingress/context"
-	"github.com/echocat/lingress/support"
 )
 
 var (
@@ -17,9 +16,9 @@ type Interceptor interface {
 
 type Interceptors map[context.Stage]map[string]Interceptor
 
-func (instance Interceptors) Handle(ctx *context.Context) (proceed bool, err error) {
+func (this Interceptors) Handle(ctx *context.Context) (proceed bool, err error) {
 	proceed = true
-	if candidates, ok := instance[ctx.Stage]; ok {
+	if candidates, ok := this[ctx.Stage]; ok {
 		for _, candidate := range candidates {
 			if proceed, err = candidate.Handle(ctx); !proceed || err != nil {
 				return
@@ -29,43 +28,43 @@ func (instance Interceptors) Handle(ctx *context.Context) (proceed bool, err err
 	return
 }
 
-func (instance Interceptors) Add(i Interceptor) Interceptors {
+func (this Interceptors) Add(i Interceptor) Interceptors {
 	name := i.Name()
 	for _, stage := range i.HandlesStages() {
-		if ofStage, found := instance[stage]; found {
+		if ofStage, found := this[stage]; found {
 			ofStage[name] = i
 		} else {
-			instance[stage] = map[string]Interceptor{name: i}
+			this[stage] = map[string]Interceptor{name: i}
 		}
 	}
-	return instance
+	return this
 }
 
-func (instance Interceptors) AddFunc(name string, i InterceptorFunc, stages ...context.Stage) Interceptors {
-	return instance.Add(&interceptorFunc{
+func (this Interceptors) AddFunc(name string, i InterceptorFunc, stages ...context.Stage) Interceptors {
+	return this.Add(&interceptorFunc{
 		name:    name,
 		handler: i,
 		stages:  stages,
 	})
 }
 
-func (instance Interceptors) Remove(i Interceptor) Interceptors {
-	return instance.RemoveByName(i.Name())
+func (this Interceptors) Remove(i Interceptor) Interceptors {
+	return this.RemoveByName(i.Name())
 }
 
-func (instance Interceptors) RemoveByName(name string) Interceptors {
-	for stage, candidates := range instance {
+func (this Interceptors) RemoveByName(name string) Interceptors {
+	for stage, candidates := range this {
 		delete(candidates, name)
 		if len(candidates) <= 0 {
-			delete(instance, stage)
+			delete(this, stage)
 		}
 	}
-	return instance
+	return this
 }
 
-func (instance Interceptors) Clone() Interceptors {
+func (this Interceptors) Clone() Interceptors {
 	result := make(Interceptors)
-	for stage, candidates := range instance {
+	for stage, candidates := range this {
 		resultCandidates := make(map[string]Interceptor)
 		for name, candidate := range candidates {
 			resultCandidates[name] = candidate
@@ -73,40 +72,6 @@ func (instance Interceptors) Clone() Interceptors {
 		result[stage] = resultCandidates
 	}
 	return result
-}
-
-func (instance Interceptors) RegisterFlag(fe support.FlagEnabled, appPrefix string) error {
-	alreadyHandled := make(map[support.FlagRegistrar]bool)
-	for _, interceptors := range instance {
-		for _, interceptor := range interceptors {
-			if fr, ok := interceptor.(support.FlagRegistrar); ok {
-				if _, already := alreadyHandled[fr]; !already {
-					if err := fr.RegisterFlag(fe, appPrefix); err != nil {
-						return err
-					}
-					alreadyHandled[fr] = true
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func (instance Interceptors) Init(stop support.Channel) error {
-	alreadyHandled := make(map[support.Initializable]bool)
-	for _, interceptors := range instance {
-		for _, interceptor := range interceptors {
-			if fr, ok := interceptor.(support.Initializable); ok {
-				if _, already := alreadyHandled[fr]; !already {
-					if err := fr.Init(stop); err != nil {
-						return err
-					}
-					alreadyHandled[fr] = true
-				}
-			}
-		}
-	}
-	return nil
 }
 
 type InterceptorFunc func(ctx *context.Context) (proceed bool, err error)
@@ -117,14 +82,14 @@ type interceptorFunc struct {
 	stages  []context.Stage
 }
 
-func (instance *interceptorFunc) Name() string {
-	return instance.name
+func (this *interceptorFunc) Name() string {
+	return this.name
 }
 
-func (instance *interceptorFunc) Handle(ctx *context.Context) (proceed bool, err error) {
-	return instance.handler(ctx)
+func (this *interceptorFunc) Handle(ctx *context.Context) (proceed bool, err error) {
+	return this.handler(ctx)
 }
 
-func (instance *interceptorFunc) HandlesStages() []context.Stage {
-	return instance.stages
+func (this *interceptorFunc) HandlesStages() []context.Stage {
+	return this.stages
 }

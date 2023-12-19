@@ -1,31 +1,35 @@
 package tree
 
-type Tree struct {
-	root         *node
-	rootElements *[]interface{}
-
-	OnAdded   OnAdded
-	OnRemoved OnRemoved
+type Type[T any] interface {
+	Cloneable[T]
 }
 
-type OnAdded func(path []string, element interface{})
-type OnRemoved func(path []string, element interface{})
+type Tree[T Type[T]] struct {
+	root         *node[T]
+	rootElements *[]T
 
-func New() *Tree {
-	return &Tree{
-		root: newNode(),
+	OnAdded   OnAdded[T]
+	OnRemoved OnRemoved[T]
+}
+
+type OnAdded[T Type[T]] func(path []string, element T)
+type OnRemoved[T Type[T]] func(path []string, element T)
+
+func New[T Type[T]]() *Tree[T] {
+	return &Tree[T]{
+		root: newNode[T](),
 	}
 }
 
-type Predicate func(path []string, element interface{}) bool
+type Predicate[T Type[T]] func(path []string, element T) bool
 
-func (instance *Tree) All(consumer func(interface{}) error) error {
-	if n := instance.root; n != nil {
-		if err := instance.all(consumer, n); err != nil {
+func (this *Tree[T]) All(consumer func(T) error) error {
+	if n := this.root; n != nil {
+		if err := this.all(consumer, n); err != nil {
 			return err
 		}
 	}
-	if es := instance.rootElements; es != nil {
+	if es := this.rootElements; es != nil {
 		for _, e := range *es {
 			if err := consumer(e); err != nil {
 				return err
@@ -35,10 +39,10 @@ func (instance *Tree) All(consumer func(interface{}) error) error {
 	return nil
 }
 
-func (instance *Tree) all(consumer func(interface{}) error, n *node) error {
+func (this *Tree[T]) all(consumer func(T) error, n *node[T]) error {
 	if cs := n.children; cs != nil {
 		for _, c := range cs {
-			if err := instance.all(consumer, c); err != nil {
+			if err := this.all(consumer, c); err != nil {
 				return err
 			}
 		}
@@ -55,64 +59,64 @@ func (instance *Tree) all(consumer func(interface{}) error, n *node) error {
 	return nil
 }
 
-func (instance *Tree) Put(path []string, element interface{}) error {
-	instance.put(path, element)
+func (this *Tree[T]) Put(path []string, element T) error {
+	this.put(path, element)
 	return nil
 }
 
-func (instance *Tree) Remove(predicate Predicate) error {
-	instance.remove([]string{}, instance.root, predicate)
-	if instance.rootElements != nil {
-		buf := instance.removeElement(*instance.rootElements, []string{}, predicate)
+func (this *Tree[T]) Remove(predicate Predicate[T]) error {
+	this.remove([]string{}, this.root, predicate)
+	if this.rootElements != nil {
+		buf := this.removeElement(*this.rootElements, []string{}, predicate)
 		if len(buf) > 0 {
-			instance.rootElements = &buf
+			this.rootElements = &buf
 		} else {
-			instance.rootElements = nil
+			this.rootElements = nil
 		}
 	}
 	return nil
 }
 
-func (instance *Tree) Find(path []string) (result []interface{}, err error) {
-	return instance.find(path), nil
+func (this *Tree[T]) Find(path []string) (result []T, err error) {
+	return this.find(path), nil
 }
 
-func (instance *Tree) Clone() *Tree {
-	var rootElements *[]interface{}
-	if instance.rootElements != nil {
-		buf := cloneElements(*instance.rootElements)
+func (this *Tree[T]) Clone() *Tree[T] {
+	var rootElements *[]T
+	if this.rootElements != nil {
+		buf := cloneElements(*this.rootElements)
 		rootElements = &buf
 	}
-	return &Tree{
-		root:         instance.root.clone(),
+	return &Tree[T]{
+		root:         this.root.clone(),
 		rootElements: rootElements,
 	}
 }
 
-func (instance *Tree) HasContent() bool {
-	if instance.root != nil && instance.root.hasContent() {
+func (this *Tree[T]) HasContent() bool {
+	if this.root != nil && this.root.hasContent() {
 		return true
 	}
 
-	if instance.rootElements != nil && len(*instance.rootElements) > 0 {
+	if this.rootElements != nil && len(*this.rootElements) > 0 {
 		return true
 	}
 
 	return false
 }
 
-func (instance *Tree) put(path []string, element interface{}) {
+func (this *Tree[T]) put(path []string, element T) {
 	if len(path) == 0 {
-		if instance.rootElements == nil {
-			instance.rootElements = &[]interface{}{element}
+		if this.rootElements == nil {
+			this.rootElements = &[]T{element}
 		} else {
-			buf := append(*instance.rootElements, element)
-			instance.rootElements = &buf
+			buf := append(*this.rootElements, element)
+			this.rootElements = &buf
 		}
 		return
 	}
 
-	current := instance.root
+	current := this.root
 	for i := 0; i < len(path); i++ {
 		key := path[i]
 		if i+1 < len(path) {
@@ -124,24 +128,24 @@ func (instance *Tree) put(path []string, element interface{}) {
 				}
 			}
 			if !childSelected {
-				newCurrent := newNode()
+				newCurrent := newNode[T]()
 				if current.children == nil {
-					current.children = make(map[string]*node)
+					current.children = make(map[string]*node[T])
 				}
 				current.children[key] = newCurrent
 				current = newCurrent
 			}
 		} else {
 			if current.elements == nil {
-				current.elements = make(map[string][]interface{})
+				current.elements = make(map[string][]T)
 			}
 			if existing, ok := current.elements[key]; ok {
 				current.elements[key] = append(existing, element)
 			} else {
-				current.elements[key] = []interface{}{element}
+				current.elements[key] = []T{element}
 			}
 
-			el := instance.OnAdded
+			el := this.OnAdded
 			if el != nil {
 				el(path, element)
 			}
@@ -149,11 +153,11 @@ func (instance *Tree) put(path []string, element interface{}) {
 	}
 }
 
-func (instance *Tree) remove(path []string, n *node, predicate Predicate) {
+func (this *Tree[T]) remove(path []string, n *node[T], predicate Predicate[T]) {
 	if n.children != nil {
 		for key, child := range n.children {
 			childPath := append(path, key)
-			instance.remove(childPath, child, predicate)
+			this.remove(childPath, child, predicate)
 			if !child.hasContent() {
 				delete(n.children, key)
 			}
@@ -165,7 +169,7 @@ func (instance *Tree) remove(path []string, n *node, predicate Predicate) {
 	if n.elements != nil {
 		for key, elements := range n.elements {
 			elementPath := append(path, key)
-			elements = instance.removeElement(elements, elementPath, predicate)
+			elements = this.removeElement(elements, elementPath, predicate)
 			if len(elements) == 0 {
 				delete(n.elements, key)
 			} else {
@@ -178,12 +182,12 @@ func (instance *Tree) remove(path []string, n *node, predicate Predicate) {
 	}
 }
 
-func (instance *Tree) find(path []string) (result []interface{}) {
-	if instance.rootElements != nil {
-		result = *instance.rootElements
+func (this *Tree[T]) find(path []string) (result []T) {
+	if this.rootElements != nil {
+		result = *this.rootElements
 	}
 
-	current := instance.root
+	current := this.root
 
 	for _, key := range path {
 		matchInPart := false
@@ -206,19 +210,19 @@ func (instance *Tree) find(path []string) (result []interface{}) {
 	return
 }
 
-func (instance *Tree) removeElement(elements []interface{}, path []string, predicate Predicate) []interface{} {
+func (this *Tree[T]) removeElement(elements []T, path []string, predicate Predicate[T]) []T {
 	for next := true; next; {
 		next = false
 
 		for i, candidate := range elements {
 			if predicate(path, candidate) {
-				buf := make([]interface{}, len(elements)-1)
+				buf := make([]T, len(elements)-1)
 				copy(buf, elements[:i])
 				copy(buf[i:], elements[i+1:])
 				elements = buf
 				next = true
 
-				el := instance.OnRemoved
+				el := this.OnRemoved
 				if el != nil {
 					el(path, candidate)
 				}

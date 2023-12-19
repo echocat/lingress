@@ -40,12 +40,12 @@ type OptionsPart interface {
 
 type Annotations map[string]string
 
-func (instance Options) IsRelevant() bool {
-	if instance == nil {
+func (this Options) IsRelevant() bool {
+	if this == nil {
 		return false
 	}
 
-	for _, part := range instance {
+	for _, part := range this {
 		if ok := part.IsRelevant(); ok {
 			return true
 		}
@@ -54,12 +54,12 @@ func (instance Options) IsRelevant() bool {
 	return false
 }
 
-func (instance *Options) Set(annotations Annotations) error {
-	if instance == nil {
+func (this *Options) Set(annotations Annotations) error {
+	if this == nil {
 		return nil
 	}
 
-	for _, part := range *instance {
+	for _, part := range *this {
 		if err := part.Set(annotations); err != nil {
 			return err
 		}
@@ -68,18 +68,21 @@ func (instance *Options) Set(annotations Annotations) error {
 	return nil
 }
 
-func AnnotationIsTrue(name, v string) (value.Bool, error) {
-	if v == "true" {
-		return value.True, nil
+func AnnotationIsBool(name, v string) (value.Bool, error) {
+	switch v {
+	case "true":
+		return value.True(), nil
+	case "false":
+		return value.False(), nil
+	case "":
+		return value.UndefinedBool(), nil
+	default:
+		return value.Bool{}, fmt.Errorf("illegal boolean value for annotation %s: %s", name, v)
 	}
-	if v == "false" {
-		return value.False, nil
-	}
-	return 0, fmt.Errorf("illegal boolean value for annotation %s: %s", name, v)
 }
 
 func AnnotationIsForcibleBool(name, v string) (result value.ForcibleBool, err error) {
-	result = value.NewForcibleBool(value.False, false)
+	result = value.NewForcibleBool(value.False(), false)
 	if err := result.Set(v); err != nil {
 		return value.ForcibleBool{}, fmt.Errorf("illegal boolean value for annotation %s: %s", name, v)
 	}

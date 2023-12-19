@@ -2,99 +2,76 @@ package value
 
 import (
 	"fmt"
+	"github.com/echocat/lingress/support"
 )
 
-type Bool uint8
-
-const (
-	UndefinedBool = Bool(0)
-	False         = Bool(1)
-	True          = Bool(2)
-)
-
-func NewBool(val bool) Bool {
-	if val {
-		return True
-	}
-	return False
+type Bool struct {
+	value *bool
 }
 
-func (instance Bool) Get() interface{} {
-	switch instance {
-	case True:
-		return true
-	case False:
+func UndefinedBool() Bool {
+	return Bool{}
+}
+
+func False() Bool {
+	return Bool{support.AsPtr(false)}
+}
+
+func True() Bool {
+	return Bool{support.AsPtr(true)}
+}
+
+func (this Bool) Get() bool {
+	if this.value == nil {
 		return false
 	}
-	return nil
+	return *this.value
 }
 
-func (instance Bool) GetOr(def bool) bool {
-	switch instance {
-	case True:
-		return true
-	case False:
-		return false
+func (this Bool) GetOr(def bool) bool {
+	if this.value == nil {
+		return def
 	}
-	return def
+	return *this.value
 }
 
-func (instance Bool) String() string {
-	switch instance {
-	case True:
+func (this Bool) String() string {
+	if this.value == nil {
+		return ""
+	}
+	if *this.value {
 		return "true"
-	case False:
-		return "false"
 	}
-	return ""
+	return "false"
 }
 
-func (instance *Bool) Set(plain string) error {
+func (this *Bool) Set(plain string) error {
 	switch plain {
 	case "true":
-		*instance = True
+		*this = True()
 		return nil
 	case "false":
-		*instance = False
+		*this = False()
 		return nil
 	case "":
-		*instance = UndefinedBool
+		*this = UndefinedBool()
 		return nil
 	}
 	return fmt.Errorf("illegal value: %s", plain)
 }
 
-func (instance Bool) IsPresent() bool {
-	return instance == True || instance == False
+func (this Bool) IsPresent() bool {
+	return this.value != nil
 }
 
 type ForcibleBool struct {
-	Forcible
+	Forcible[Bool, bool, *Bool]
 }
 
 func NewForcibleBool(init Bool, forced bool) ForcibleBool {
-	val := init
-	return ForcibleBool{
-		Forcible: NewForcible(&val, forced),
-	}
+	return ForcibleBool{NewForcible[Bool, bool, *Bool](init, forced)}
 }
 
-func (instance ForcibleBool) GetOr(def bool) bool {
-	switch *(instance.value.(*Bool)) {
-	case True:
-		return true
-	case False:
-		return false
-	}
-	return def
-}
-
-func (instance ForcibleBool) Select(target ForcibleBool) ForcibleBool {
-	return ForcibleBool{
-		Forcible: instance.Forcible.Select(target.Forcible),
-	}
-}
-
-func (instance ForcibleBool) Evaluate(other Bool, def bool) bool {
-	return instance.Forcible.Evaluate(other, NewBool(def)).(bool)
+func (this ForcibleBool) Select(target ForcibleBool) ForcibleBool {
+	return ForcibleBool{this.Forcible.Select(target.Forcible)}
 }

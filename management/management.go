@@ -2,10 +2,10 @@ package management
 
 import (
 	"context"
-	"fmt"
 	lctx "github.com/echocat/lingress/context"
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/server"
+	"github.com/echocat/lingress/settings"
 	"github.com/echocat/lingress/support"
 	"github.com/echocat/slf4g"
 	"github.com/echocat/slf4g/level"
@@ -18,29 +18,23 @@ import (
 )
 
 type Management struct {
+	settings *settings.Settings
+
 	Metrics *Metrics
+	Logger  log.Logger
 
 	server http.Server
 	rules  rules.Repository
-	pprof  bool
 }
 
-func New(connectorIds []server.ConnectorId, rulesRepository rules.Repository) (*Management, error) {
+func New(s *settings.Settings, connectorIds []server.ConnectorId, rulesRepository rules.Repository, logger log.Logger) (*Management, error) {
 	result := &Management{
-		Metrics: NewMetrics(connectorIds, rulesRepository),
-		rules:   rulesRepository,
-		pprof:   false,
+		settings: s,
+		Metrics:  NewMetrics(connectorIds, rulesRepository),
+		Logger:   logger,
+		rules:    rulesRepository,
 		server: http.Server{
-			Addr:              ":8090",
-			MaxHeaderBytes:    2 << 20, // 2MB
-			ReadHeaderTimeout: 30 * time.Second,
-			WriteTimeout:      1 * time.Minute,
-			IdleTimeout:       5 * time.Minute,
-			ErrorLog: sdk.NewWrapper(
-				log.GetRootLogger().
-					With("context", "server.management"),
-				level.Debug,
-			),
+			ErrorLog: sdk.NewWrapper(logger, level.Debug),
 		},
 	}
 	result.server.Handler = result
@@ -48,90 +42,67 @@ func New(connectorIds []server.ConnectorId, rulesRepository rules.Repository) (*
 
 }
 
-func (instance *Management) RegisterFlag(fe support.FlagEnabled, appPrefix string) error {
-	fe.Flag("management.listen.http", "Listen address where the management interface is listening to serve").
-		PlaceHolder(instance.server.Addr).
-		Envar(support.FlagEnvName(appPrefix, "MANAGEMENT_LISTEN_HTTP")).
-		StringVar(&instance.server.Addr)
-	fe.Flag("management.maxHeaderBytes", "Maximum number of bytes the server will read parsing the request header's keys and values, including the request line. It does not limit the size of the request body.").
-		PlaceHolder(fmt.Sprint(instance.server.MaxHeaderBytes)).
-		Envar(support.FlagEnvName(appPrefix, "MANAGEMENT_MAX_HEADER_BYTES")).
-		IntVar(&instance.server.MaxHeaderBytes)
-	fe.Flag("management.readHeaderTimeout", "Amount of time allowed to read request headers. The connection's read deadline is reset after reading the headers and the Handler can decide what is considered too slow for the body.").
-		PlaceHolder(fmt.Sprint(instance.server.ReadHeaderTimeout)).
-		Envar(support.FlagEnvName(appPrefix, "MANAGEMENT_READ_HEADER_TIMEOUT")).
-		DurationVar(&instance.server.ReadHeaderTimeout)
-	fe.Flag("management.writeTimeout", "Maximum duration before timing out writes of the response. It is reset whenever a new request's header is read.").
-		PlaceHolder(fmt.Sprint(instance.server.WriteTimeout)).
-		Envar(support.FlagEnvName(appPrefix, "MANAGEMENT_WRITE_TIMEOUT")).
-		DurationVar(&instance.server.WriteTimeout)
-	fe.Flag("management.idleTimeout", "Maximum amount of time to wait for the next request when keep-alives are enabled.").
-		PlaceHolder(fmt.Sprint(instance.server.IdleTimeout)).
-		Envar(support.FlagEnvName(appPrefix, "MANAGEMENT_IDLE_TIMEOUT")).
-		DurationVar(&instance.server.IdleTimeout)
-	fe.Flag("management.pprof", "Will serve at the management endpoint pprof profiling, too.").
-		Envar(support.FlagEnvName(appPrefix, "MANAGEMENT_PPROF")).
-		BoolVar(&instance.pprof)
-
-	return nil
+func (this *Management) CollectContext(ctx *lctx.Context) {
+	this.Metrics.CollectContext(ctx)
 }
 
-func (instance *Management) CollectContext(ctx *lctx.Context) {
-	instance.Metrics.CollectContext(ctx)
+func (this *Management) CollectClientStarted(connector server.ConnectorId) func() {
+	return this.Metrics.CollectClientStarted(connector)
 }
 
-func (instance *Management) CollectClientStarted(connector server.ConnectorId) func() {
-	return instance.Metrics.CollectClientStarted(connector)
+func (this *Management) CollectUpstreamStarted() func() {
+	return this.Metrics.CollectUpstreamStarted()
 }
 
-func (instance *Management) CollectUpstreamStarted() func() {
-	return instance.Metrics.CollectUpstreamStarted()
+func (this *Management) getLogger() log.Logger {
+	return this.Logger
 }
 
-func (instance *Management) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
+func (this *Management) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	if req.Method != "GET" {
 		support.NewGenericResponse(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed), req).
-			StreamJsonTo(resp, req)
+			StreamJsonTo(resp, req, this.getLogger)
 		return
 	}
+	isPprof := this.settings.Management.Pprof.Get()
 	if req.URL.Path == "/health" {
-		instance.handleHealth(resp, req)
+		this.handleHealth(resp, req)
 	} else if req.URL.Path == "/status" {
-		instance.handleStatus(resp, req)
+		this.handleStatus(resp, req)
 	} else if req.URL.Path == "/metrics" {
-		instance.handleMetrics(resp, req)
+		this.handleMetrics(resp, req)
 	} else if req.URL.Path == "/rules" {
-		instance.handleRules(resp, req, "")
+		this.handleRules(resp, req, "")
 	} else if strings.HasPrefix(req.URL.Path, "/rules/") {
-		instance.handleRules(resp, req, req.URL.Path[7:])
-	} else if instance.pprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/cmdline") {
+		this.handleRules(resp, req, req.URL.Path[7:])
+	} else if isPprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/cmdline") {
 		pprof.Cmdline(resp, req)
-	} else if instance.pprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/profile") {
+	} else if isPprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/profile") {
 		pprof.Profile(resp, req)
-	} else if instance.pprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/symbol") {
+	} else if isPprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/symbol") {
 		pprof.Symbol(resp, req)
-	} else if instance.pprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/trace") {
+	} else if isPprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/trace") {
 		pprof.Trace(resp, req)
-	} else if instance.pprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/") {
+	} else if isPprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/") {
 		pprof.Index(resp, req)
-	} else if instance.pprof && req.URL.Path == "/debug/pprof" {
+	} else if isPprof && req.URL.Path == "/debug/pprof" {
 		http.Redirect(resp, req, "/debug/pprof/", http.StatusMovedPermanently)
 	} else {
 		support.NewGenericResponse(http.StatusNotFound, http.StatusText(http.StatusNotFound), req).
-			StreamJsonTo(resp, req)
+			StreamJsonTo(resp, req, this.getLogger)
 	}
 }
 
-func (instance *Management) handleHealth(resp http.ResponseWriter, req *http.Request) {
+func (this *Management) handleHealth(resp http.ResponseWriter, req *http.Request) {
 	support.NewGenericResponse(http.StatusOK, http.StatusText(http.StatusOK), req).
-		StreamJsonTo(resp, req)
+		StreamJsonTo(resp, req, this.getLogger)
 }
 
-func (instance *Management) handleStatus(resp http.ResponseWriter, req *http.Request) {
+func (this *Management) handleStatus(resp http.ResponseWriter, req *http.Request) {
 	var numberOfRules uint
 	var numberOfRequests uint64
 	var totalDuration time.Duration
-	_ = instance.rules.All(func(rule rules.Rule) error {
+	_ = this.rules.All(func(rule rules.Rule) error {
 		numberOfRules++
 		numberOfRequests += rule.Statistics().NumberOfUsages()
 		totalDuration += rule.Statistics().TotalDuration()
@@ -141,14 +112,12 @@ func (instance *Management) handleStatus(resp http.ResponseWriter, req *http.Req
 
 	data := map[string]interface{}{
 		"runtime": map[string]interface{}{
-			"groupId":    runtime.GroupId,
-			"artifactId": runtime.ArtifactId,
-			"revision":   runtime.Revision,
-			"branch":     runtime.Branch,
-			"build":      runtime.Build,
-			"goVersion":  runtime.GoVersion,
-			"os":         runtime.Os,
-			"arch":       runtime.Arch,
+			"revision":  runtime.Revision,
+			"branch":    runtime.Branch,
+			"build":     runtime.Build,
+			"goVersion": runtime.GoVersion,
+			"os":        runtime.Os,
+			"arch":      runtime.Arch,
 		},
 		"statistics": map[string]interface{}{
 			"numberOfRules":    numberOfRules,
@@ -158,21 +127,22 @@ func (instance *Management) handleStatus(resp http.ResponseWriter, req *http.Req
 	}
 	support.NewGenericResponse(http.StatusOK, http.StatusText(http.StatusOK), req).
 		WithData(data).
-		StreamJsonTo(resp, req)
+		StreamJsonTo(resp, req, this.getLogger)
 }
 
-func (instance *Management) handleMetrics(resp http.ResponseWriter, req *http.Request) {
-	instance.Metrics.Handler.ServeHTTP(resp, req)
+func (this *Management) handleMetrics(resp http.ResponseWriter, req *http.Request) {
+	this.Metrics.Handler.ServeHTTP(resp, req)
 }
 
-func (instance *Management) handleRules(resp http.ResponseWriter, req *http.Request, requestedSource string) {
+func (this *Management) handleRules(resp http.ResponseWriter, req *http.Request, requestedSource string) {
 	result := make(map[string][]map[string]interface{})
 
-	if err := instance.rules.All(func(rule rules.Rule) error {
+	if err := this.rules.All(func(rule rules.Rule) error {
 		source := rule.Source().String()
 		if requestedSource == "" || requestedSource == source {
 			entry := map[string]interface{}{
 				"statistics": rule.Statistics(),
+				"pathType":   rule.PathType(),
 			}
 			if h := rule.Host(); h != "" {
 				entry["host"] = h
@@ -195,10 +165,11 @@ func (instance *Management) handleRules(resp http.ResponseWriter, req *http.Requ
 		}
 		return nil
 	}); err != nil {
-		log.WithError(err).
-			Error("unable to read rules")
+		this.Logger.
+			WithError(err).
+			Error("Unable to read rules.")
 		support.NewGenericResponse(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), req).
-			StreamJsonTo(resp, req)
+			StreamJsonTo(resp, req, this.getLogger)
 		return
 	}
 
@@ -208,54 +179,61 @@ func (instance *Management) handleRules(resp http.ResponseWriter, req *http.Requ
 		var ok bool
 		if data, ok = result[requestedSource]; !ok {
 			support.NewGenericResponse(http.StatusNotFound, http.StatusText(http.StatusNotFound), req).
-				StreamJsonTo(resp, req)
+				StreamJsonTo(resp, req, this.getLogger)
 			return
 		}
 	}
 
 	support.NewGenericResponse(http.StatusOK, http.StatusText(http.StatusOK), req).
 		WithData(data).
-		StreamJsonTo(resp, req)
+		StreamJsonTo(resp, req, this.getLogger)
 }
 
-func (instance *Management) Init(stop support.Channel) error {
-	go instance.shutdownListener(stop)
+func (this *Management) Init(stop support.Channel) error {
+	go this.shutdownListener(stop)
 
-	ln, err := net.Listen("tcp", instance.server.Addr)
+	if err := this.settings.Management.ApplyToHttpServer(&this.server); err != nil {
+		return err
+	}
+
+	ln, err := net.Listen("tcp", this.server.Addr)
 	if err != nil {
 		return err
 	}
 
-	if instance.pprof {
-		log.With("addr", instance.server.Addr).
-			Warnf("DO NOT USE IN PRODUCTION!"+
-				" pprof endpoints are activated for debugging at listen address %s."+
+	if this.settings.Management.Pprof.Get() {
+		this.Logger.
+			With("addr", this.server.Addr).
+			Warn("DO NOT USE IN PRODUCTION!" +
+				" pprof endpoints are activated for debugging at listening." +
 				" This functionality is only for debug purposes.",
-				instance.server.Addr,
 			)
 	}
 
 	go func() {
-		if err := instance.server.Serve(ln); err != nil && err != http.ErrServerClosed {
-			log.WithError(err).
-				With("addr", instance.server.Addr).
-				Error("server is unable to serve management interface")
+		if err := this.server.Serve(ln); err != nil && err != http.ErrServerClosed {
+			this.Logger.
+				WithError(err).
+				With("addr", this.server.Addr).
+				Error("Server is unable to serve management interface.")
 			stop.Broadcast()
 		}
 	}()
-	log.With("addr", instance.server.Addr).
-		Info("serve management interface")
+	this.Logger.
+		With("addr", this.server.Addr).
+		Info("Serve management interface...")
 
 	return nil
 }
 
-func (instance *Management) shutdownListener(stop support.Channel) {
+func (this *Management) shutdownListener(stop support.Channel) {
 	stop.Wait()
-	ctx, done := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer done()
-	if err := instance.server.Shutdown(ctx); err != nil {
-		log.WithError(err).
-			With("addr", instance.server.Addr).
-			Warn("cannot graceful shutdown management interface")
+	ctx, cancelFnc := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancelFnc()
+	if err := this.server.Shutdown(ctx); err != nil {
+		this.Logger.
+			WithError(err).
+			With("addr", this.server.Addr).
+			Warn("Cannot graceful shutdown management interface.")
 	}
 }

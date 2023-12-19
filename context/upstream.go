@@ -32,40 +32,40 @@ type Upstream struct {
 	Duration time.Duration
 }
 
-func (instance *Upstream) configure() {
-	instance.Response = nil
-	instance.Request = nil
-	instance.Address = nil
-	instance.Cancel = nil
-	instance.Status = -1
-	instance.Started = emptyTime
-	instance.Duration = 0
+func (this *Upstream) configure() {
+	this.Response = nil
+	this.Request = nil
+	this.Address = nil
+	this.Cancel = nil
+	this.Status = -1
+	this.Started = emptyTime
+	this.Duration = 0
 }
 
-func (instance *Upstream) clean() {
-	if req := instance.Request; req != nil {
+func (this *Upstream) clean() {
+	if req := this.Request; req != nil {
 		if b := req.Body; b != nil {
 			_ = b.Close()
 		}
 	}
-	if resp := instance.Request; resp != nil {
+	if resp := this.Request; resp != nil {
 		if b := resp.Body; b != nil {
 			_ = b.Close()
 		}
 	}
-	instance.Response = nil
-	instance.Request = nil
-	instance.Address = nil
-	instance.Cancel = nil
-	instance.Status = -1
-	instance.Started = emptyTime
-	instance.Duration = 0
+	this.Response = nil
+	this.Request = nil
+	this.Address = nil
+	this.Cancel = nil
+	this.Status = -1
+	this.Started = emptyTime
+	this.Duration = 0
 }
 
-func (instance *Upstream) AsMap(r rules.Rule) map[string]interface{} {
+func (this *Upstream) AsMap(r rules.Rule) map[string]interface{} {
 	buf := make(map[string]interface{})
 
-	instance.ApplyToMap(r, "", &buf)
+	this.ApplyToMap(r, "", &buf)
 
 	if len(buf) == 0 {
 		return nil
@@ -74,20 +74,20 @@ func (instance *Upstream) AsMap(r rules.Rule) map[string]interface{} {
 	return buf
 }
 
-func (instance *Upstream) ApplyToMap(r rules.Rule, prefix string, to *map[string]interface{}) {
-	if addr := instance.Address; addr != nil {
+func (this *Upstream) ApplyToMap(r rules.Rule, prefix string, to *map[string]interface{}) {
+	if addr := this.Address; addr != nil {
 		(*to)[prefix+FieldUpstreamAddress] = addr.String()
 	}
-	if s := instance.Status; s > 0 {
+	if s := this.Status; s > 0 {
 		(*to)[prefix+FieldUpstreamStatus] = s
 	}
-	if t := instance.Started; t != emptyTime {
+	if t := this.Started; t != emptyTime {
 		(*to)[prefix+FieldUpstreamStarted] = t
 	}
-	if d := instance.Duration; d > 0 {
+	if d := this.Duration; d > 0 {
 		(*to)[prefix+FieldUpstreamDuration] = d / time.Microsecond
 	}
-	if req := instance.Request; req != nil {
+	if req := this.Request; req != nil {
 		if u := req.URL; u != nil {
 			(*to)[prefix+FieldUpstreamUrl] = u.String()
 		}

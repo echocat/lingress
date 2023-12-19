@@ -38,7 +38,7 @@ func CreateDummyCertificateFor(name string) (tls.Certificate, error) {
 			CommonName: name,
 		},
 		NotBefore: now,
-		NotAfter:  now.Add(time.Hour * 24 * 365),
+		NotAfter:  now.Add(time.Hour * 24 * 365 * 10),
 
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},

@@ -2,8 +2,8 @@ package kubernetes
 
 import (
 	"fmt"
+	"github.com/echocat/lingress/settings"
 	"github.com/echocat/lingress/support"
-	"io/ioutil"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	dynamicFake "k8s.io/client-go/dynamic/fake"
@@ -24,8 +24,9 @@ const (
 	ServiceNamespace  = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 )
 
-func NewEnvironment() (env *Environment, err error) {
+func NewEnvironment(s *settings.Settings) (env *Environment, err error) {
 	return &Environment{
+		settings:      s,
 		lock:          new(sync.Mutex),
 		tokenFile:     ServiceTokenFile,
 		rootCAFile:    ServiceRootCAFile,
@@ -33,19 +34,16 @@ func NewEnvironment() (env *Environment, err error) {
 	}, nil
 }
 
-func MustNewEnvironment() *Environment {
-	result, err := NewEnvironment()
+func MustNewEnvironment(s *settings.Settings) *Environment {
+	result, err := NewEnvironment(s)
 	support.Must(err)
 	return result
 }
 
 type Environment struct {
-	Kubeconfig KubeconfigPath
-	Context    string
-	Namespace  string
-
-	lock    *sync.Mutex
-	payload *environmentPayload
+	settings *settings.Settings
+	lock     *sync.Mutex
+	payload  *environmentPayload
 
 	tokenFile     string
 	rootCAFile    string
@@ -57,30 +55,8 @@ type environmentPayload struct {
 	contextName string
 }
 
-func (instance *Environment) RegisterFlag(fe support.FlagEnabled, appPrefix string) error {
-	fe.Flag("kubeconfig", "Defines the location of the kubeconfig."+
-		" If set to 'incluster' it will assume it is inside of the cluster."+
-		" If set to 'mock' a mocked version will be created that works with every context together.").
-		PlaceHolder("<kube config file>").
-		Envar(support.FlagEnvName(appPrefix, "KUBECONFIG")).
-		SetValue(&instance.Kubeconfig)
-	fe.Flag("context", "Defines context which you try to access of the kubeconfig."+
-		" This value is ignored if kbueconfig 'incluster' is used.").
-		PlaceHolder("<context>").
-		Short('c').
-		Envar(support.FlagEnvName(appPrefix, "CONTEXT")).
-		StringVar(&instance.Context)
-	fe.Flag("namespace", "Defines namespace where it service is bound to/running in."+
-		" This value is ignored if kbueconfig 'incluster' is used.").
-		PlaceHolder("<namespace>").
-		Short('n').
-		Envar(support.FlagEnvName(appPrefix, "NAMESPACE")).
-		StringVar(&instance.Namespace)
-	return nil
-}
-
-func (instance *Environment) NewClient() (kubernetes.Interface, error) {
-	if loaded, err := instance.get(); err != nil {
+func (this *Environment) NewClient() (kubernetes.Interface, error) {
+	if loaded, err := this.get(); err != nil {
 		return nil, err
 	} else if loaded.restConfig == nil {
 		// TODO! We should find a way to implement this, too
@@ -90,8 +66,8 @@ func (instance *Environment) NewClient() (kubernetes.Interface, error) {
 	}
 }
 
-func (instance *Environment) NewDynamicClient() (dynamic.Interface, error) {
-	if loaded, err := instance.get(); err != nil {
+func (this *Environment) NewDynamicClient() (dynamic.Interface, error) {
+	if loaded, err := this.get(); err != nil {
 		return nil, err
 	} else if loaded.restConfig == nil {
 		scheme := runtime.NewScheme()
@@ -101,46 +77,46 @@ func (instance *Environment) NewDynamicClient() (dynamic.Interface, error) {
 	}
 }
 
-func (instance *Environment) ContextName() (string, error) {
-	if loaded, err := instance.get(); err != nil {
+func (this *Environment) ContextName() (string, error) {
+	if loaded, err := this.get(); err != nil {
 		return "", err
 	} else {
 		return loaded.contextName, nil
 	}
 }
 
-func (instance *Environment) get() (loaded *environmentPayload, err error) {
-	if instance.payload == nil {
-		instance.lock.Lock()
-		defer instance.lock.Unlock()
-		if instance.payload == nil {
-			if payload, err := instance.load(instance.Kubeconfig, instance.Context); err != nil {
+func (this *Environment) get() (loaded *environmentPayload, err error) {
+	if this.payload == nil {
+		this.lock.Lock()
+		defer this.lock.Unlock()
+		if this.payload == nil {
+			if payload, err := this.load(this.settings.Kubernetes.Config, this.settings.Kubernetes.Context); err != nil {
 				return nil, err
 			} else {
-				instance.payload = payload
+				this.payload = payload
 			}
 		}
 	}
-	return instance.payload, nil
+	return this.payload, nil
 }
 
-func (instance *Environment) load(path KubeconfigPath, targetContext string) (*environmentPayload, error) {
+func (this *Environment) load(path settings.KubeconfigPath, targetContext string) (*environmentPayload, error) {
 	if path.IsInCluster() {
-		return instance.loadForInCluster()
+		return this.loadForInCluster()
 	} else if path.IsMock() {
-		return instance.loadMock(targetContext)
+		return this.loadMock(targetContext)
 	} else {
-		return instance.loadFromPath(path, targetContext)
+		return this.loadFromPath(path, targetContext)
 	}
 }
 
-func (instance *Environment) loadForInCluster() (*environmentPayload, error) {
+func (this *Environment) loadForInCluster() (*environmentPayload, error) {
 	host, port := os.Getenv("KUBERNETES_SERVICE_HOST"), os.Getenv("KUBERNETES_SERVICE_PORT")
 	if len(host) == 0 || len(port) == 0 {
 		return nil, rest.ErrNotInCluster
 	}
 
-	ts := transport.NewCachedFileTokenSource(instance.tokenFile)
+	ts := transport.NewCachedFileTokenSource(this.tokenFile)
 
 	if _, err := ts.Token(); err != nil {
 		return nil, err
@@ -148,16 +124,16 @@ func (instance *Environment) loadForInCluster() (*environmentPayload, error) {
 
 	tlsClientConfig := rest.TLSClientConfig{}
 
-	if _, err := certutil.NewPool(instance.rootCAFile); err != nil {
-		return nil, fmt.Errorf("expected to load root CA config from %s, but got err: %v", instance.rootCAFile, err)
+	if _, err := certutil.NewPool(this.rootCAFile); err != nil {
+		return nil, fmt.Errorf("expected to load root CA config from %s, but got err: %v", this.rootCAFile, err)
 	} else {
-		tlsClientConfig.CAFile = instance.rootCAFile
+		tlsClientConfig.CAFile = this.rootCAFile
 	}
 
-	if nsb, err := ioutil.ReadFile(instance.namespaceFile); err != nil {
-		return nil, fmt.Errorf("expected to load namespace from %s, but got err: %v", instance.rootCAFile, err)
+	if nsb, err := os.ReadFile(this.namespaceFile); err != nil {
+		return nil, fmt.Errorf("expected to load namespace from %s, but got err: %v", this.rootCAFile, err)
 	} else {
-		instance.Namespace = string(nsb)
+		this.settings.Kubernetes.Namespace = string(nsb)
 	}
 
 	return &environmentPayload{
@@ -166,11 +142,11 @@ func (instance *Environment) loadForInCluster() (*environmentPayload, error) {
 			TLSClientConfig: tlsClientConfig,
 			WrapTransport:   transport.TokenSourceWrapTransport(ts),
 		},
-		contextName: KubeconfigInCluster,
+		contextName: settings.KubeconfigInCluster,
 	}, nil
 }
 
-func (instance *Environment) loadMock(targetContext string) (*environmentPayload, error) {
+func (this *Environment) loadMock(targetContext string) (*environmentPayload, error) {
 	if targetContext == "" {
 		targetContext = "mock"
 	}
@@ -180,7 +156,7 @@ func (instance *Environment) loadMock(targetContext string) (*environmentPayload
 	}, nil
 }
 
-func (instance *Environment) loadFromPath(path KubeconfigPath, targetContext string) (*environmentPayload, error) {
+func (this *Environment) loadFromPath(path settings.KubeconfigPath, targetContext string) (*environmentPayload, error) {
 	loadedConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		path.ToConfigLoader(targetContext),
 		&clientcmd.ConfigOverrides{

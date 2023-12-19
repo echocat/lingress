@@ -6,34 +6,8 @@ import (
 	"unicode"
 )
 
-var (
-	globalFlagRegistrars []FlagRegistrar
-)
-
 type FlagEnabled interface {
 	Flag(name, help string) *kingpin.FlagClause
-}
-
-type FlagRegistrar interface {
-	RegisterFlag(fe FlagEnabled, appPrefix string) error
-}
-
-func RegisterFlagRegistrar(fr FlagRegistrar) FlagRegistrar {
-	globalFlagRegistrars = append(globalFlagRegistrars, fr)
-	return fr
-}
-
-func RegisterGlobalFlags(fe FlagEnabled, appPrefix string) error {
-	for _, fr := range globalFlagRegistrars {
-		if err := fr.RegisterFlag(fe, appPrefix); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func MustRegisterGlobalFalgs(fe FlagEnabled, appPrefix string) {
-	Must(RegisterGlobalFlags(fe, appPrefix))
 }
 
 func FlagEnvNameNormalize(what string) string {

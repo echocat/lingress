@@ -26,32 +26,35 @@ func NewByHost(onAdded OnAdded, onRemoved OnRemoved) *ByHost {
 	return result
 }
 
-func (instance *ByHost) All(consumer func(Rule) error) error {
-	for _, value := range instance.hostFullMatch {
-		if err := value.All(consumer); err != nil {
+func (this *ByHost) All(consumer func(Rule) error) error {
+	for _, v := range this.hostFullMatch {
+		if err := v.All(consumer); err != nil {
 			return err
 		}
 	}
-	if err := instance.allHostsMatching.All(consumer); err != nil {
+	if err := this.allHostsMatching.All(consumer); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (instance *ByHost) Find(host value.Fqdn, path []string) (Rules, error) {
+func (this *ByHost) Find(host value.Fqdn, path []string) (Rules, error) {
 	var result Rules = rules{}
 	for _, strategy := range allFindHostByStrategies {
-		candidate, err := strategy(instance, host, path)
+		candidate, err := strategy(this, host, path)
 		if err != nil {
 			return nil, err
 		}
 		if candidate == nil {
 			continue
 		}
-		resultAny, candidateAny := result.Any(), candidate.Any()
+
+		candidateAny := candidate.AnyFilteredBy(path)
 		if candidateAny == nil {
 			continue
 		}
+
+		resultAny := result.AnyFilteredBy(path)
 		if resultAny == nil || len(candidateAny.Path()) > len(resultAny.Path()) {
 			result = candidate
 		}
@@ -107,11 +110,11 @@ func findHostByAllHostsMatchStrategy(instance *ByHost, _ value.Fqdn, path []stri
 	return r, nil
 }
 
-func (instance *ByHost) Put(r Rule) error {
+func (this *ByHost) Put(r Rule) error {
 	hostMaybeWithWildcard := r.Host()
 
 	if hostMaybeWithWildcard == "" {
-		return instance.allHostsMatching.Put(r)
+		return this.allHostsMatching.Put(r)
 	}
 
 	hadWildcard, host, err := hostMaybeWithWildcard.WithoutWildcard()
@@ -121,51 +124,51 @@ func (instance *ByHost) Put(r Rule) error {
 
 	var target map[value.Fqdn]*ByPath
 	if hadWildcard {
-		target = instance.hostPrefixWildcardMatch
+		target = this.hostPrefixWildcardMatch
 	} else {
-		target = instance.hostFullMatch
+		target = this.hostFullMatch
 	}
 
 	if existing, ok := target[host]; ok {
 		return existing.Put(r)
 	}
 
-	value := NewByPath(instance.onAdded, instance.onRemoved)
-	target[host] = value
-	return value.Put(r)
+	v := NewByPath(this.onAdded, this.onRemoved)
+	target[host] = v
+	return v.Put(r)
 }
 
-func (instance *ByHost) Remove(predicate Predicate) error {
-	if err := instance.allHostsMatching.Remove(predicate); err != nil {
+func (this *ByHost) Remove(predicate Predicate) error {
+	if err := this.allHostsMatching.Remove(predicate); err != nil {
 		return err
 	}
-	for host, v := range instance.hostFullMatch {
+	for host, v := range this.hostFullMatch {
 		if err := v.Remove(predicate); err != nil {
 			return err
 		}
 		if !v.HasContent() {
-			delete(instance.hostFullMatch, host)
+			delete(this.hostFullMatch, host)
 		}
 	}
-	for host, v := range instance.hostPrefixWildcardMatch {
+	for host, v := range this.hostPrefixWildcardMatch {
 		if err := v.Remove(predicate); err != nil {
 			return err
 		}
 		if !v.HasContent() {
-			delete(instance.hostPrefixWildcardMatch, host)
+			delete(this.hostPrefixWildcardMatch, host)
 		}
 	}
 	return nil
 }
 
-func (instance *ByHost) Clone() *ByHost {
-	result := NewByHost(instance.onAdded, instance.onRemoved)
+func (this *ByHost) Clone() *ByHost {
+	result := NewByHost(this.onAdded, this.onRemoved)
 
-	result.allHostsMatching = instance.allHostsMatching.Clone()
-	for k, v := range instance.hostFullMatch {
+	result.allHostsMatching = this.allHostsMatching.Clone()
+	for k, v := range this.hostFullMatch {
 		result.hostFullMatch[k] = v.Clone()
 	}
-	for k, v := range instance.hostPrefixWildcardMatch {
+	for k, v := range this.hostPrefixWildcardMatch {
 		result.hostPrefixWildcardMatch[k] = v.Clone()
 	}
 

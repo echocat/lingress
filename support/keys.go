@@ -3,15 +3,16 @@ package support
 import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
 )
 
 func CreatePrivateKey() (interface{}, error) {
-	pk, err := rsa.GenerateKey(rand.Reader, 4096)
+	pk, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create RSA 4096 private key: %w", err)
+		return nil, fmt.Errorf("cannot create private key: %w", err)
 	}
 	return pk, err
 }

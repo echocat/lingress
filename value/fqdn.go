@@ -14,7 +14,7 @@ var (
 
 type Fqdn string
 
-func (instance *Fqdn) UnmarshalText(b []byte) error {
+func (this *Fqdn) UnmarshalText(b []byte) error {
 	target := strings.ToLower(string(b))
 	candidate := strings.Split(target, ".")
 
@@ -26,12 +26,12 @@ func (instance *Fqdn) UnmarshalText(b []byte) error {
 		target = target[:len(target)-1]
 	}
 
-	*instance = Fqdn(target)
+	*this = Fqdn(target)
 	return nil
 }
 
-func (instance Fqdn) Parent() Fqdn {
-	parts := strings.SplitN(string(instance), ".", 2)
+func (this Fqdn) Parent() Fqdn {
+	parts := strings.SplitN(string(this), ".", 2)
 
 	// Too few segments...
 	if len(parts) <= 1 {
@@ -47,40 +47,54 @@ func (instance Fqdn) Parent() Fqdn {
 	return result
 }
 
-func (instance *Fqdn) Set(plain string) error {
-	return instance.UnmarshalText([]byte(plain))
+func (this *Fqdn) Set(plain string) error {
+	return this.UnmarshalText([]byte(plain))
 }
 
-func (instance Fqdn) MarshalText() (text []byte, err error) {
-	if err := validateFqdn(string(instance), false); err != nil {
+func (this Fqdn) MarshalText() (text []byte, err error) {
+	if err := validateFqdn(string(this), false); err != nil {
 		return nil, err
 	}
-	return []byte(instance.String()), nil
+	return []byte(this.String()), nil
 }
 
-func (instance Fqdn) String() string {
-	return string(instance)
+func (this Fqdn) String() string {
+	return string(this)
 }
 
-func (instance Fqdn) Get() interface{} {
-	return instance
+func (this Fqdn) Get() interface{} {
+	return this
 }
 
-func (instance Fqdn) IsPresent() bool {
-	return instance != ""
+func (this Fqdn) IsPresent() bool {
+	return this != ""
+}
+
+type Fqdns []Fqdn
+
+func (this Fqdns) Strings() []string {
+	result := make([]string, len(this))
+	for i, v := range this {
+		result[i] = v.String()
+	}
+	return result
+}
+
+func (this Fqdns) String() string {
+	return strings.Join(this.Strings(), ",")
 }
 
 type WildcardSupportingFqdn Fqdn
 
-func (instance WildcardSupportingFqdn) WithoutWildcard() (hadWildcard bool, withoutWildcard Fqdn, err error) {
-	parts := strings.SplitN(string(instance), ".", 2)
+func (this WildcardSupportingFqdn) WithoutWildcard() (hadWildcard bool, withoutWildcard Fqdn, err error) {
+	parts := strings.SplitN(string(this), ".", 2)
 
 	if len(parts) <= 0 {
 		// Empty stays empty...
 		return false, "", nil
 	}
 
-	withoutWildcard = Fqdn(instance)
+	withoutWildcard = Fqdn(this)
 	// Too few segments...
 	if len(parts) >= 2 && parts[0] == "*" {
 		hadWildcard = true
@@ -92,14 +106,14 @@ func (instance WildcardSupportingFqdn) WithoutWildcard() (hadWildcard bool, with
 	return
 }
 
-func (instance WildcardSupportingFqdn) MarshalText() (text []byte, err error) {
-	if err := validateFqdn(string(instance), true); err != nil {
+func (this WildcardSupportingFqdn) MarshalText() (text []byte, err error) {
+	if err := validateFqdn(string(this), true); err != nil {
 		return nil, err
 	}
-	return []byte(instance.String()), nil
+	return []byte(this.String()), nil
 }
 
-func (instance *WildcardSupportingFqdn) UnmarshalText(b []byte) error {
+func (this *WildcardSupportingFqdn) UnmarshalText(b []byte) error {
 	target := strings.ToLower(string(b))
 	candidate := strings.Split(target, ".")
 
@@ -111,29 +125,43 @@ func (instance *WildcardSupportingFqdn) UnmarshalText(b []byte) error {
 		target = target[:len(target)-1]
 	}
 
-	*instance = WildcardSupportingFqdn(target)
+	*this = WildcardSupportingFqdn(target)
 	return nil
 }
 
-func (instance *WildcardSupportingFqdn) Set(plain string) error {
-	return instance.UnmarshalText([]byte(plain))
+func (this *WildcardSupportingFqdn) Set(plain string) error {
+	return this.UnmarshalText([]byte(plain))
 }
 
-func (instance WildcardSupportingFqdn) String() string {
-	return string(instance)
+func (this WildcardSupportingFqdn) String() string {
+	return string(this)
 }
 
-func (instance WildcardSupportingFqdn) Get() interface{} {
-	return instance
+func (this WildcardSupportingFqdn) Get() interface{} {
+	return this
 }
 
-func (instance WildcardSupportingFqdn) IsPresent() bool {
-	return instance != ""
+func (this WildcardSupportingFqdn) IsPresent() bool {
+	return this != ""
 }
 
 func validateFqdn(candidate string, leadingWildcardAllowed bool) error {
 	segments := strings.Split(strings.ToLower(candidate), ".")
 	return validateFqdnSegments(segments, candidate, leadingWildcardAllowed)
+}
+
+type WildcardSupportingFqdns []WildcardSupportingFqdn
+
+func (this WildcardSupportingFqdns) Strings() []string {
+	result := make([]string, len(this))
+	for i, v := range this {
+		result[i] = v.String()
+	}
+	return result
+}
+
+func (this WildcardSupportingFqdns) String() string {
+	return strings.Join(this.Strings(), ",")
 }
 
 func validateFqdnSegments(segments []string, original string, leadingWildcardAllowed bool) error {

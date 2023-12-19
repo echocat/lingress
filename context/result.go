@@ -60,28 +60,28 @@ var (
 	}
 )
 
-func (instance SimpleResult) WasResponseSendToClient() bool {
-	return instance == ResultSuccess
+func (this SimpleResult) WasResponseSendToClient() bool {
+	return this == ResultSuccess
 }
 
-func (instance SimpleResult) Status() int {
-	if status, ok := resultToStatus[instance]; ok {
+func (this SimpleResult) Status() int {
+	if status, ok := resultToStatus[this]; ok {
 		return status
 	} else {
 		return http.StatusInternalServerError
 	}
 }
 
-func (instance SimpleResult) Name() string {
-	if name, ok := resultToName[instance]; ok {
+func (this SimpleResult) Name() string {
+	if name, ok := resultToName[this]; ok {
 		return name
 	} else {
-		return fmt.Sprintf("unknown-result-%d", instance)
+		return fmt.Sprintf("unknown-result-%d", this)
 	}
 }
 
-func (instance SimpleResult) String() string {
-	return instance.Name()
+func (this SimpleResult) String() string {
+	return this.Name()
 }
 
 type RedirectResult struct {
@@ -89,18 +89,18 @@ type RedirectResult struct {
 	Target     string
 }
 
-func (instance RedirectResult) WasResponseSendToClient() bool {
+func (this RedirectResult) WasResponseSendToClient() bool {
 	return false
 }
 
-func (instance RedirectResult) Status() int {
-	return instance.StatusCode
+func (this RedirectResult) Status() int {
+	return this.StatusCode
 }
 
-func (instance RedirectResult) Name() string {
-	return fmt.Sprintf("redirect-%d", instance.StatusCode)
+func (this RedirectResult) Name() string {
+	return fmt.Sprintf("redirect-%d", this.StatusCode)
 }
 
-func (instance RedirectResult) String() string {
-	return instance.Name() + ":" + instance.Target
+func (this RedirectResult) String() string {
+	return this.Name() + ":" + this.Target
 }

@@ -1,0 +1,27 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+{{- if.Capabilities.APIVersions.Has "policy/v1/PodDisruptionBudget" }}
+apiVersion: policy/v1
+{{- else }}
+apiVersion: policy/v1beta1
+{{- end }}
+kind: PodDisruptionBudget
+metadata:
+  name: {{ template "lingress.fullname" . }}
+  namespace: {{ template "lingress.namespace" . }}
+  labels:
+    {{- include "lingress.labels" . | nindent 4 }}
+    {{- with .Values.podDisruptionBudget.labels -}}{{- . | toYaml | nindent 4 -}}{{- end }}
+  annotations:
+    {{- include "lingress.annotations" . | nindent 4 }}
+    {{- with .Values.podDisruptionBudget.annotations -}}{{- . | toYaml | nindent 4 -}}{{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "lingress.selectorLabels" . | nindent 6 }}
+  {{- with .Values.podDisruptionBudget.minAvailable }}
+  minAvailable: {{.}}
+  {{- end}}
+  {{- with .Values.podDisruptionBudget.maxUnavailable }}
+  maxUnavailable: {{.}}
+  {{- end}}
+{{ end }}

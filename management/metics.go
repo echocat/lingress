@@ -4,7 +4,9 @@ import (
 	"github.com/echocat/lingress/context"
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/server"
+	"github.com/echocat/lingress/support"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
@@ -85,8 +87,8 @@ type ConnectionStates struct {
 
 func NewMetrics(connectorIds []server.ConnectorId, rulesRepository rules.Repository) *Metrics {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(prometheus.NewGoCollector())
-	registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
+	registry.MustRegister(collectors.NewGoCollector())
+	registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
 
 	return &Metrics{
 		Client:   NewConnectorEnabledClientMetrics(connectorIds, registry),
@@ -235,32 +237,32 @@ func NewRulesMetrics(registerer prometheus.Registerer, rulesRepository rules.Rep
 	return result
 }
 
-func (instance *Metrics) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
-	instance.Handler.ServeHTTP(resp, req)
+func (this *Metrics) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
+	this.Handler.ServeHTTP(resp, req)
 }
 
-func (instance *Metrics) CollectContext(ctx *context.Context) {
-	labels := instance.labelsFor(ctx)
-	instance.Client.collectContext(labels, ctx)
+func (this *Metrics) CollectContext(ctx *context.Context) {
+	labels := this.labelsFor(ctx)
+	this.Client.collectContext(labels, ctx)
 	if v := ctx.Upstream.Duration; v > -1 {
-		instance.Upstream.Request.DurationSeconds.With(labels).Observe(v.Seconds())
-		instance.Upstream.Request.Total.With(labels).Inc()
+		this.Upstream.Request.DurationSeconds.With(labels).Observe(v.Seconds())
+		this.Upstream.Request.Total.With(labels).Inc()
 	}
 }
 
-func (instance *Metrics) CollectClientStarted(connector server.ConnectorId) func() {
-	return instance.Client.collectClientStarted(connector)
+func (this *Metrics) CollectClientStarted(connector server.ConnectorId) func() {
+	return this.Client.collectClientStarted(connector)
 }
 
-func (instance *Metrics) CollectUpstreamStarted() func() {
-	source := instance.Upstream.Request.Source
+func (this *Metrics) CollectUpstreamStarted() func() {
+	source := this.Upstream.Request.Source
 	atomic.AddUint64(&source.Current, 1)
 	return func() {
 		atomic.AddUint64(&source.Current, ^uint64(0))
 	}
 }
 
-func (instance *Metrics) labelsFor(ctx *context.Context) prometheus.Labels {
+func (this *Metrics) labelsFor(ctx *context.Context) prometheus.Labels {
 	result := prometheus.Labels{
 		"client_status":         "none",
 		"client_status_summary": "none",
@@ -300,28 +302,28 @@ func (instance *Metrics) labelsFor(ctx *context.Context) prometheus.Labels {
 	return result
 }
 
-func (instance *RulesMetrics) total() (result float64) {
-	_ = instance.rules.All(func(rules.Rule) error {
+func (this *RulesMetrics) total() (result float64) {
+	_ = this.rules.All(func(rules.Rule) error {
 		result++
 		return nil
 	})
 	return
 }
 
-func (instance *RulesMetrics) sources() float64 {
-	result := map[rules.SourceReference]bool{}
-	_ = instance.rules.All(func(r rules.Rule) error {
+func (this *RulesMetrics) sources() float64 {
+	result := map[support.ObjectReference]bool{}
+	_ = this.rules.All(func(r rules.Rule) error {
 		result[r.Source()] = true
 		return nil
 	})
 	return float64(len(result))
 }
 
-func (instance ConnectorEnabledClientMetrics) collectContext(labels prometheus.Labels, ctx *context.Context) {
-	if instance == nil {
+func (this ConnectorEnabledClientMetrics) collectContext(labels prometheus.Labels, ctx *context.Context) {
+	if this == nil {
 		return
 	}
-	if v := instance[ctx.Client.Connector]; v != nil {
+	if v := this[ctx.Client.Connector]; v != nil {
 		if d := ctx.Client.Duration; d > -1 {
 			v.Request.DurationSeconds.With(labels).Observe(d.Seconds())
 			v.Request.Total.With(labels).Inc()
@@ -329,11 +331,11 @@ func (instance ConnectorEnabledClientMetrics) collectContext(labels prometheus.L
 	}
 }
 
-func (instance ConnectorEnabledClientMetrics) collectClientStarted(connector server.ConnectorId) func() {
-	if instance == nil {
+func (this ConnectorEnabledClientMetrics) collectClientStarted(connector server.ConnectorId) func() {
+	if this == nil {
 		return func() {}
 	}
-	if v := instance[connector]; v != nil {
+	if v := this[connector]; v != nil {
 		source := v.Request.Source
 		atomic.AddUint64(&source.Current, 1)
 		return func() {

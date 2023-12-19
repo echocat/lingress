@@ -7,51 +7,51 @@ import (
 )
 
 var (
-	givenTreeForFind = Tree{
-		root: &node{
-			children: map[string]*node{
+	givenTreeForFind = Tree[testValue]{
+		root: &node[testValue]{
+			children: map[string]*node[testValue]{
 				"a1": {
-					children: map[string]*node{
+					children: map[string]*node[testValue]{
 						"b1": {
-							elements: map[string][]interface{}{
+							elements: map[string][]testValue{
 								"c1": {"A1B1C1"},
 								"c2": {"A1B1C2"},
 								"c3": {"A1B1C3"},
 							},
 						},
 						"b2": {
-							elements: map[string][]interface{}{
+							elements: map[string][]testValue{
 								"c1": {"A1B2C1"},
 								"c2": {"A1B2C2"},
 								"c3": {"A1B2C3"},
 							},
 						},
 					},
-					elements: map[string][]interface{}{
+					elements: map[string][]testValue{
 						"b1": {"A1B1"},
 						"b3": {"A1B3"},
 					},
 				},
 				"a2": {
-					children: map[string]*node{
+					children: map[string]*node[testValue]{
 						"b1": {
-							elements: map[string][]interface{}{
+							elements: map[string][]testValue{
 								"c1": {"A2B1C1"},
 								"c2": {"A2B1C2"},
 								"c3": {"A2B1C3"},
 							},
 						},
 						"b2": {
-							elements: map[string][]interface{}{
+							elements: map[string][]testValue{
 								"c1": {"A2B2C1"},
 								"c2": {"A2B2C2"},
 								"c3": {"A2B2C3"},
 							},
 						},
 						"b3": {
-							children: map[string]*node{
+							children: map[string]*node[testValue]{
 								"c1": {
-									elements: map[string][]interface{}{
+									elements: map[string][]testValue{
 										"d1": {"A2B3C1"},
 										"d2": {"A2B3C1"},
 									},
@@ -59,20 +59,20 @@ var (
 							},
 						},
 					},
-					elements: map[string][]interface{}{
+					elements: map[string][]testValue{
 						"b1": {"A2B1"},
 						"b2": {"A2B2"},
 						"b3": {"A2B3"},
 					},
 				},
 			},
-			elements: map[string][]interface{}{
+			elements: map[string][]testValue{
 				"a1": {"A1"},
 				"a2": {"A2"},
 				"a3": {"A3"},
 			},
 		},
-		rootElements: &[]interface{}{"ROOT"},
+		rootElements: &[]testValue{"ROOT"},
 	}
 )
 
@@ -90,7 +90,7 @@ func Test_Node_Find(t *testing.T) {
 	executeTestFindRun(t, "/xxx/a2", "ROOT")
 }
 
-func executeTestFindRun(t *testing.T, path string, expectedElements ...interface{}) {
+func executeTestFindRun(t *testing.T, path string, expectedElements ...testValue) {
 	name := strings.ReplaceAll(path[1:], "/", "_")
 	if path == "/" {
 		name = "ROOT"

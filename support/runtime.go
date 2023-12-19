@@ -2,8 +2,6 @@ package support
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	rt "runtime"
 	"time"
 )
@@ -13,24 +11,16 @@ const (
 )
 
 var (
-	groupId    = ""
-	artifactId = ""
-	revision   = "latest"
-	branch     = "development"
-	build      = ""
+	revision = "latest"
+	branch   = "development"
+	build    = ""
 
-	runtime    = resolveRuntime()
-	executable = resolveExecutable()
+	runtime = resolveRuntime()
 )
 
 // Runtime returns an instance of RuntimeT
 func Runtime() RuntimeT {
 	return runtime
-}
-
-// Executable returns the actual name of the executable
-func Executable() string {
-	return executable
 }
 
 // RuntimeT hold the runtime information about this application. To provide the correct information
@@ -42,8 +32,6 @@ func Executable() string {
 // escapes everything in the right order:
 //
 //	go run github.com/echocat/lingress/build \
-//		[-g <groupId>] \    # Default: ""
-//		-a <artifactId> \
 //		-b <branch> \
 //		-b <revision> \
 //		-o <output> \
@@ -58,57 +46,35 @@ func Executable() string {
 //		-b $REVISION \
 //		-o out/app \
 //		./
-//
 type RuntimeT struct {
-	GroupId    string    `yaml:"groupId" json:"groupId"`
-	ArtifactId string    `yaml:"artifactId" json:"artifactId"`
-	Revision   string    `yaml:"revision" json:"revision"`
-	Branch     string    `yaml:"branch" json:"branch"`
-	Build      time.Time `yaml:"build" json:"build"`
-	GoVersion  string    `yaml:"goVersion" json:"goVersion"`
-	Os         string    `yaml:"os" json:"os"`
-	Arch       string    `yaml:"arch" json:"arch"`
+	Revision  string    `yaml:"revision" json:"revision"`
+	Branch    string    `yaml:"branch" json:"branch"`
+	Build     time.Time `yaml:"build" json:"build"`
+	GoVersion string    `yaml:"goVersion" json:"goVersion"`
+	Os        string    `yaml:"os" json:"os"`
+	Arch      string    `yaml:"arch" json:"arch"`
 }
 
-func (instance RuntimeT) Name() string {
-	g := instance.GroupId
-	a := instance.ArtifactId
-	if g == "" {
-		return a
-	}
-	return g + "/" + a
-}
-
-func (instance RuntimeT) String() string {
-	return fmt.Sprintf(`%s
+func (this RuntimeT) LongString() string {
+	return fmt.Sprintf(`lingress
  Branch:       %s
  Revision:     %s
  Built:        %s
  Go version:   %s
  OS/Arch:      %s/%s`,
-		instance.Name(), instance.Branch, instance.Revision, instance.Build, instance.GoVersion, instance.Os, instance.Arch)
+		this.Branch, this.Revision, this.Build, this.GoVersion, this.Os, this.Arch)
 }
 
-func (instance RuntimeT) ShortString() string {
+func (this RuntimeT) String() string {
 	return fmt.Sprintf(`%s:%s`,
-		instance.Branch, instance.Revision)
+		this.Branch, this.Revision)
 }
 
-func (instance RuntimeT) MarshalText() (text []byte, err error) {
-	return []byte(instance.ShortString()), nil
+func (this RuntimeT) MarshalText() (text []byte, err error) {
+	return []byte(this.String()), nil
 }
 
 func resolveRuntime() (result RuntimeT) {
-	result.GroupId = groupId
-	result.ArtifactId = artifactId
-	if result.ArtifactId == "" {
-		if fallback, err := os.Executable(); err != nil {
-			result.ArtifactId = filepath.Base(os.Args[0])
-		} else {
-			result.ArtifactId = filepath.Base(fallback)
-		}
-	}
-
 	result.Revision = revision
 	result.Branch = branch
 
@@ -126,12 +92,4 @@ func resolveRuntime() (result RuntimeT) {
 	result.Arch = rt.GOARCH
 
 	return
-}
-
-func resolveExecutable() string {
-	if result, err := os.Executable(); err != nil {
-		return os.Args[0]
-	} else {
-		return result
-	}
 }

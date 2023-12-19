@@ -26,24 +26,24 @@ func newLimitedListener(count uint16, linger int16, l net.Listener) *limitedList
 	}
 }
 
-func (instance *limitedListener) Accept() (net.Conn, error) {
+func (this *limitedListener) Accept() (net.Conn, error) {
 	success := false
-	<-instance.sem // acquire
+	<-this.sem // acquire
 	defer func() {
 		if !success {
-			instance.sem <- true
+			this.sem <- true
 		}
 	}()
-	if c, err := instance.Listener.Accept(); err != nil {
+	if c, err := this.Listener.Accept(); err != nil {
 		return nil, err
 	} else {
-		if err := c.(*net.TCPConn).SetLinger(int(instance.linger)); err != nil {
-			return nil, fmt.Errorf("cannot set the SO_LINGER to %d", instance.linger)
+		if err := c.(*net.TCPConn).SetLinger(int(this.linger)); err != nil {
+			return nil, fmt.Errorf("cannot set the SO_LINGER to %d", this.linger)
 		}
 		result := &limitedConn{
 			Conn:                c,
 			annotatedRemoteAddr: &annotatedAddr{Addr: c.RemoteAddr()},
-			parent:              instance,
+			parent:              this,
 		}
 		success = true
 		return result, nil
@@ -57,15 +57,15 @@ type limitedConn struct {
 	annotatedAddr
 }
 
-func (instance *limitedConn) RemoteAddr() net.Addr {
-	return instance.annotatedRemoteAddr
+func (this *limitedConn) RemoteAddr() net.Addr {
+	return this.annotatedRemoteAddr
 }
 
-func (instance *limitedConn) Close() error {
+func (this *limitedConn) Close() error {
 	defer func() {
-		instance.parent.sem <- true // release
+		this.parent.sem <- true // release
 	}()
-	return instance.Conn.Close()
+	return this.Conn.Close()
 }
 
 type AnnotatedAddr interface {
@@ -79,10 +79,10 @@ type annotatedAddr struct {
 	state *http.ConnState
 }
 
-func (instance *annotatedAddr) GetState() *http.ConnState {
-	return instance.state
+func (this *annotatedAddr) GetState() *http.ConnState {
+	return this.state
 }
 
-func (instance *annotatedAddr) SetState(v *http.ConnState) {
-	instance.state = v
+func (this *annotatedAddr) SetState(v *http.ConnState) {
+	this.state = v
 }

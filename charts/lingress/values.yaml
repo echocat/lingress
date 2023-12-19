@@ -1,0 +1,123 @@
+image:
+    repository: ghcr.io/echocat/lingress
+    tag: v0.7.0
+    pullPolicy: IfNotPresent
+
+# namespace: Namespace to deploy lingress to.
+namespace: ""
+
+controller:
+    # controller.enabled: `true` if lingress controller should be created
+    enabled: true
+    # controller.args: list of all settings pass to lingress. See https://github.com/echocat/lingress/blob/main/README.md for details.
+    args:
+        - "--log.level=INFO"
+    ports:
+        http: 8080
+        https: 8443
+        management: 8090
+
+    # controller.kind: Can be either `Deployment` or `DaemonSet`
+    kind: Deployment
+    # controller.replicas: How many instances should run of lingress controller (ignored if controller.kind=`DaemonSet`)
+    replicas: 1
+    strategy: {}
+
+    priorityClassName: ""
+
+    annotations: {}
+    labels: {}
+    podAnnotations: {}
+    podLabels: {}
+
+    resources: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+
+    securityContext:
+        # controller.securityContext.runAsUser defines under which user the operator Pod and its containers/processes run.
+        runAsUser: 1001
+        # controller.securityContext.runAsGroup defines under which group the operator Pod and its containers/processes run.
+        runAsGroup: 1001
+        # controller.securityContext.fsGroup defines the filesystem group
+        fsGroup: 65534
+
+service:
+    # service.enabled: `true` if lingress service should be created
+    enabled: true
+    ports:
+        http: 80
+        https: 443
+
+    annotations: {}
+    labels: {}
+
+    type: ClusterIP
+    internalTrafficPolicy: {}
+    externalTrafficPolicy: {}
+
+    management:
+        # service.management.enabled: `true` if lingress management service should be created
+        enabled: true
+        ports:
+            management: 80
+
+        annotations: {}
+        labels: {}
+
+        type: ClusterIP
+        internalTrafficPolicy: {}
+        externalTrafficPolicy: {}
+
+serviceAccount:
+    # serviceAccount.enabled: Whether to create a service account or not
+    enabled: true
+    # serviceAccount.name: The name of the service account to create or use
+    name: ""
+    annotations: {}
+    labels: {}
+
+rbac:
+    # rbac.enabled: `true` if rbac resources should be created
+    enabled: true
+    annotations: {}
+    labels: {}
+
+autoscaler:
+    # autoscaler.enabled: `true` if autoscaler should be created
+    enabled: false
+    annotations: {}
+    labels: {}
+#    minReplicas: 1
+#    maxReplicas: 10
+#    metrics:
+#    - type: Resource
+#      resource:
+#        name: cpu
+#        target:
+#          type: Utilization
+#          averageUtilization: 60
+#    - type: Resource
+#      resource:
+#        name: memory
+#        target:
+#          type: Utilization
+#          averageUtilization: 60
+#    behavior:
+#      scaleDown:
+#        stabilizationWindowSeconds: 300
+#        policies:
+#        - type: Pods
+#          value: 1
+#          periodSeconds: 60
+
+podDisruptionBudget:
+    # podDisruptionBudget.enabled: `true` if podDisruptionBudget should be created
+    enabled: false
+    annotations: {}
+    labels: {}
+#    maxUnavailable: 1
+#    maxUnavailable: 33%
+#    minAvailable: 0
+#    minAvailable: 25%

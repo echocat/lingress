@@ -3,6 +3,8 @@ package rules
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/echocat/lingress/rules/tree"
+	"github.com/echocat/lingress/support"
 	"github.com/echocat/lingress/value"
 	"net"
 	"strings"
@@ -11,17 +13,38 @@ import (
 type Rule interface {
 	Host() value.WildcardSupportingFqdn
 	Path() []string
-	Source() SourceReference
+	PathType() PathType
+	Source() support.ObjectReference
 	Backend() net.Addr
 	Options() Options
 	Statistics() *Statistics
+
+	tree.Cloneable[Rule]
+}
+
+type PathType uint8
+
+const (
+	PathTypeExact PathType = iota
+	PathTypePrefix
+)
+
+func (this PathType) String() string {
+	switch this {
+	case PathTypeExact:
+		return "Exact"
+	case PathTypePrefix:
+		return "Prefix"
+	default:
+		return fmt.Sprintf("Unknown-%d", this)
+	}
 }
 
 type Predicate func(path []string, r Rule) bool
 
-func PredicateBySource(reference SourceReference) Predicate {
+func PredicateByObjectReference(or support.ObjectReference) Predicate {
 	return func(path []string, r Rule) bool {
-		return reference.Equals(r.Source())
+		return or.Equals(r.Source())
 	}
 }
 
@@ -31,16 +54,18 @@ type OnRemoved func(path []string, r Rule)
 type rule struct {
 	host       value.WildcardSupportingFqdn
 	path       []string
-	source     SourceReference
+	pathType   PathType
+	source     support.ObjectReference
 	backend    net.Addr
 	options    Options
 	statistics *Statistics
 }
 
-func NewRule(host value.WildcardSupportingFqdn, path []string, source SourceReference, backend net.Addr, options Options) Rule {
+func NewRule(host value.WildcardSupportingFqdn, path []string, pathType PathType, source support.ObjectReference, backend net.Addr, options Options) Rule {
 	return &rule{
 		host:       host,
 		path:       path,
+		pathType:   pathType,
 		source:     source,
 		backend:    backend,
 		options:    options,
@@ -48,44 +73,52 @@ func NewRule(host value.WildcardSupportingFqdn, path []string, source SourceRefe
 	}
 }
 
-func (instance *rule) clone() *rule {
-	r := *instance
+func (this *rule) clone() *rule {
+	r := *this
 	return &r
 }
 
-func (instance *rule) Host() value.WildcardSupportingFqdn {
-	return instance.host
+func (this *rule) Clone() Rule {
+	return this.clone()
 }
 
-func (instance *rule) Path() []string {
-	return instance.path
+func (this *rule) Host() value.WildcardSupportingFqdn {
+	return this.host
 }
 
-func (instance *rule) Source() SourceReference {
-	return instance.source
+func (this *rule) Path() []string {
+	return this.path
 }
 
-func (instance *rule) Backend() net.Addr {
-	return instance.backend
+func (this *rule) PathType() PathType {
+	return this.pathType
 }
 
-func (instance *rule) Options() Options {
-	return instance.options
+func (this *rule) Source() support.ObjectReference {
+	return this.source
 }
 
-func (instance *rule) Statistics() *Statistics {
-	return instance.statistics
+func (this *rule) Backend() net.Addr {
+	return this.backend
 }
 
-func (instance *rule) String() string {
-	return fmt.Sprintf("(%v) %s/%s -> %v", instance.Source(), instance.Host(), strings.Join(instance.Path(), "/"), instance.Backend())
+func (this *rule) Options() Options {
+	return this.options
 }
 
-func (instance *rule) MarshalJSON() ([]byte, error) {
+func (this *rule) Statistics() *Statistics {
+	return this.statistics
+}
+
+func (this *rule) String() string {
+	return fmt.Sprintf("(%v) %s/%s -> %v", this.Source(), this.Host(), strings.Join(this.Path(), "/"), this.Backend())
+}
+
+func (this *rule) MarshalJSON() ([]byte, error) {
 	buf := make(map[string]string)
-	buf["host"] = instance.host.String()
-	buf["path"] = "/" + strings.Join(instance.Path(), "/")
-	buf["source"] = instance.Source().String()
-	buf["backend"] = instance.Backend().String()
+	buf["host"] = this.host.String()
+	buf["path"] = "/" + strings.Join(this.Path(), "/")
+	buf["source"] = this.Source().String()
+	buf["backend"] = this.Backend().String()
 	return json.Marshal(buf)
 }

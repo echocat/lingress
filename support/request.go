@@ -22,6 +22,16 @@ func RequestIdOfRequest(req *http.Request) string {
 	return ""
 }
 
+func CorrelationIdOfRequest(req *http.Request) any {
+	if x := req.Header.Get("X-Correlation-ID"); len(x) > 0 && len(x) <= 256 {
+		if len(x) > 256 {
+			return x[:255]
+		}
+		return x
+	}
+	return ""
+}
+
 func HostOfRequest(req *http.Request) any {
 	if x := req.Header.Get("X-Forwarded-Host"); len(x) > 0 {
 		return x
@@ -55,21 +65,25 @@ func UriOfRequest(req *http.Request) any {
 	return result
 }
 
-func UserAgentOfRequest(req *http.Request) any {
+func UserAgentOfRequest(req *http.Request) string {
 	if x := req.Header.Get("User-Agent"); len(x) > 0 {
 		if len(x) > 256 {
 			return x[:255]
 		}
 		return x
 	}
-	return fields.Exclude
+	return ""
+}
+
+func UserAgentOfRequestAny(req *http.Request) any {
+	return UserAgentOfRequest(req)
 }
 
 func PathOfRequest(req *http.Request) string {
 	return req.URL.Path
 }
 
-func RequestBasedLazyStringerFor(req *http.Request, delegate func(*http.Request) any) fields.Lazy {
+func RequestBasedLazyFor(req *http.Request, delegate func(*http.Request) any) fields.Lazy {
 	return fields.LazyFunc(func() interface{} {
 		return delegate(req)
 	})

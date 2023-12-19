@@ -1,0 +1,36 @@
+{{- if .Values.autoscaler.enabled }}
+{{- if semverCompare ">=1.23.0-0" .Capabilities.KubeVersion.Version }}
+apiVersion: autoscaling/v2
+{{- else }}
+apiVersion: autoscaling/v2beta2
+{{- end }}
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ template "lingress.fullname" . }}
+  namespace: {{ template "lingress.namespace" . }}
+  labels:
+    {{- include "lingress.labels" . | nindent 4 }}
+    {{- with .Values.autoscaler.labels -}}{{- . | toYaml | nindent 4 -}}{{- end }}
+  annotations:
+    {{- include "lingress.annotations" . | nindent 4 }}
+    {{- with .Values.autoscaler.annotations -}}{{- . | toYaml | nindent 4 -}}{{- end }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: {{.Values.controller.kind}}
+    name: {{ template "lingress.fullname" . }}
+  {{- with .Values.autoscaler.minReplicas }}
+  minReplicas: {{.}}
+  {{- end}}
+  {{- with .Values.autoscaler.maxReplicas }}
+  maxReplicas: {{.}}
+  {{- end}}
+  {{- with .Values.autoscaler.metrics }}
+  metrics:
+    {{- . | toYaml | nindent 4 -}}
+  {{- end}}
+  {{- with .Values.autoscaler.behavior  }}
+  behavior:
+    {{- . | toYaml | nindent 4 -}}
+  {{- end}}
+{{ end }}

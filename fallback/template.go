@@ -1,13 +1,15 @@
 package fallback
 
 import (
+	"github.com/echocat/lingress/file/providers"
+	"github.com/echocat/lingress/i18n"
 	"github.com/echocat/lingress/support"
 	"html/template"
 )
 
 var (
 	defaultFuncMap = func() template.FuncMap {
-		tlc := &support.LocalizationContext{}
+		tlc := &i18n.LocalizationContext{}
 		return template.FuncMap{
 			"join":          support.Join,
 			"i18n":          tlc.Message,
@@ -17,8 +19,8 @@ var (
 	}()
 )
 
-func newTemplate(fp support.FileProvider, name string, funcMaps ...template.FuncMap) (*template.Template, error) {
-	if plain, err := fp.Find(name); err != nil {
+func newTemplate(fp providers.FileProvider, name string, funcMaps ...template.FuncMap) (*template.Template, error) {
+	if plain, err := fp.ReadFile(name); err != nil {
 		return nil, err
 	} else {
 		tmpl := template.New("resources/templates/" + name).Funcs(defaultFuncMap)
@@ -29,7 +31,7 @@ func newTemplate(fp support.FileProvider, name string, funcMaps ...template.Func
 	}
 }
 
-func cloneAndLocalizeTemplate(in *template.Template, lc *support.LocalizationContext) (*template.Template, error) {
+func cloneAndLocalizeTemplate(in *template.Template, lc *i18n.LocalizationContext) (*template.Template, error) {
 	if out, err := in.Clone(); err != nil {
 		return nil, err
 	} else {

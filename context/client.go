@@ -29,8 +29,8 @@ var (
 type Client struct {
 	Connector             server.ConnectorId
 	FromOtherReverseProxy bool
-	Response              http.ResponseWriter
 	Request               *http.Request
+	Response              http.ResponseWriter
 
 	Status   int
 	Started  time.Time
@@ -41,80 +41,82 @@ type Client struct {
 	address      *string
 }
 
-func (instance *Client) configure(connector server.ConnectorId, fromOtherReverseProxy bool, resp http.ResponseWriter, req *http.Request) {
-	instance.Connector = connector
-	instance.FromOtherReverseProxy = fromOtherReverseProxy
-	instance.Response = resp
-	instance.Request = req
-	instance.Status = -1
-	instance.Started = emptyTime
-	instance.Duration = -1
+func (this *Client) configure(connector server.ConnectorId, fromOtherReverseProxy bool, resp http.ResponseWriter, req *http.Request) {
+	this.Connector = connector
+	this.FromOtherReverseProxy = fromOtherReverseProxy
+	this.Response = resp
+	this.Request = req
+	this.Status = -1
+	this.Started = emptyTime
+	this.Duration = -1
 
-	instance.requestedUrl = nil
-	instance.origin = nil
-	instance.address = nil
+	this.requestedUrl = nil
+	this.origin = nil
+	this.address = nil
 }
 
-func (instance *Client) clean() {
-	if req := instance.Request; req != nil {
+func (this *Client) clean() error {
+	if req := this.Request; req != nil {
 		if b := req.Body; b != nil {
 			_ = b.Close()
 		}
 	}
-	if resp := instance.Request; resp != nil {
+	if resp := this.Request; resp != nil {
 		if b := resp.Body; b != nil {
 			_ = b.Close()
 		}
 	}
-	instance.Connector = ""
-	instance.FromOtherReverseProxy = false
-	instance.Response = nil
-	instance.Request = nil
-	instance.Status = -1
-	instance.Started = emptyTime
-	instance.Duration = -1
+	this.Connector = ""
+	this.FromOtherReverseProxy = false
+	this.Request = nil
+	this.Response = nil
+	this.Status = -1
+	this.Started = emptyTime
+	this.Duration = -1
 
-	instance.requestedUrl = nil
-	instance.origin = nil
-	instance.address = nil
+	this.requestedUrl = nil
+	this.origin = nil
+	this.address = nil
+
+	return nil
 }
 
-func (instance *Client) AsMap() map[string]interface{} {
+func (this *Client) AsMap() map[string]interface{} {
 	buf := make(map[string]interface{})
-	instance.ApplyToMap("", &buf)
+	this.ApplyToMap("", &buf)
 	return buf
 }
 
-func (instance *Client) ApplyToMap(prefix string, to *map[string]interface{}) {
-	req := instance.Request
+func (this *Client) ApplyToMap(prefix string, to *map[string]interface{}) {
+	req := this.Request
 
 	(*to)[prefix+FieldClientMethod] = req.Method
 	(*to)[prefix+FieldClientProto] = req.Proto
 	(*to)[prefix+FieldClientUserAgent] = support.UserAgentOfRequest(req)
-	if u, _ := instance.RequestedUrl(); u != nil {
+	if u, _ := this.RequestedUrl(); u != nil {
 		(*to)[prefix+FieldClientUrl] = u.String()
 	}
 
-	if r, err := instance.Address(); err == nil {
+	if r, err := this.Address(); err == nil {
 		(*to)[prefix+FieldClientAddress] = r
 	}
-	if s := instance.Status; s > 0 {
+	if s := this.Status; s > 0 {
 		(*to)[prefix+FieldClientStatus] = s
 	}
-	if t := instance.Started; t != emptyTime {
+	if t := this.Started; t != emptyTime {
 		(*to)[prefix+FieldClientStarted] = t
 	}
-	if d := instance.Duration; d > -1 {
+	if d := this.Duration; d > -1 {
 		(*to)[prefix+FieldClientDuration] = d / time.Microsecond
 	}
 }
 
-func (instance Client) schemeOf(req *http.Request) string {
+func (this Client) schemeOf(req *http.Request) string {
 	if req.TLS != nil {
 		return "https"
 	}
 
-	if instance.FromOtherReverseProxy {
+	if this.FromOtherReverseProxy {
 		if x := req.Header.Get("X-Forwarded-Proto"); x != "" {
 			return x
 		}
@@ -126,23 +128,23 @@ func (instance Client) schemeOf(req *http.Request) string {
 	return "http"
 }
 
-func (instance Client) Host() string {
-	req := instance.Request
+func (this Client) Host() string {
+	req := this.Request
 	if req == nil {
 		return ""
 	}
 
-	return instance.hostOf(req)
+	return this.hostOf(req)
 }
 
-func (instance Client) hostOf(req *http.Request) string {
+func (this Client) hostOf(req *http.Request) string {
 	host := req.Host
 
 	if x := req.Header.Get("Host"); x != "" {
 		host = x
 	}
 
-	if instance.FromOtherReverseProxy {
+	if this.FromOtherReverseProxy {
 		if x := req.Header.Get("X-Forwarded-Host"); x != "" {
 			host = x
 		}
@@ -151,10 +153,10 @@ func (instance Client) hostOf(req *http.Request) string {
 	return host
 }
 
-func (instance Client) uriOf(req *http.Request) string {
+func (this Client) uriOf(req *http.Request) string {
 	result := req.RequestURI
 
-	if instance.FromOtherReverseProxy {
+	if this.FromOtherReverseProxy {
 		if x := req.Header.Get("X-Forwarded-Prefix"); x != "" {
 			result = x + result
 		}
@@ -166,12 +168,12 @@ func (instance Client) uriOf(req *http.Request) string {
 	return result
 }
 
-func (instance *Client) RequestedUrl() (*url.URL, error) {
-	if ru := instance.requestedUrl; ru != nil {
+func (this *Client) RequestedUrl() (*url.URL, error) {
+	if ru := this.requestedUrl; ru != nil {
 		return ru, nil
 	}
 
-	req := instance.Request
+	req := this.Request
 	if req == nil {
 		return nil, ErrNoRequestSet
 	}
@@ -180,9 +182,9 @@ func (instance *Client) RequestedUrl() (*url.URL, error) {
 		return nil, ErrNoRequestSet
 	}
 
-	scheme := instance.schemeOf(req)
-	host := instance.hostOf(req)
-	uri := instance.uriOf(req)
+	scheme := this.schemeOf(req)
+	host := this.hostOf(req)
+	uri := this.uriOf(req)
 
 	raw := fmt.Sprintf("%s://%s%s", scheme, host, uri)
 
@@ -194,17 +196,17 @@ func (instance *Client) RequestedUrl() (*url.URL, error) {
 	ru.User = inUrl.User
 	ru.Fragment = inUrl.Fragment
 
-	instance.requestedUrl = ru
+	this.requestedUrl = ru
 
 	return ru, nil
 }
 
-func (instance *Client) Origin() (*url.URL, error) {
-	if ou := instance.origin; ou != nil {
+func (this *Client) Origin() (*url.URL, error) {
+	if ou := this.origin; ou != nil {
 		return ou, nil
 	}
 
-	req := instance.Request
+	req := this.Request
 	if req == nil {
 		return nil, ErrNoRequestSet
 	}
@@ -219,17 +221,17 @@ func (instance *Client) Origin() (*url.URL, error) {
 		return nil, nil // We ignore these errors and just tread it as no Origin.
 	}
 
-	instance.origin = ou
+	this.origin = ou
 
 	return ou, nil
 }
 
-func (instance *Client) Address() (string, error) {
-	if r := instance.address; r != nil {
+func (this *Client) Address() (string, error) {
+	if r := this.address; r != nil {
 		return *r, nil
 	}
 
-	req := instance.Request
+	req := this.Request
 	if req == nil {
 		return "", ErrNoRequestSet
 	}
@@ -239,13 +241,13 @@ func (instance *Client) Address() (string, error) {
 		return "", fmt.Errorf("illegal remote address (%s): %v", req.RemoteAddr, err)
 	}
 
-	if instance.FromOtherReverseProxy {
+	if this.FromOtherReverseProxy {
 		if x := req.Header.Get("X-Forwarded-For"); x != "" {
 			r = x
 		}
 	}
 
-	instance.address = &r
+	this.address = &r
 
 	return r, nil
 }
