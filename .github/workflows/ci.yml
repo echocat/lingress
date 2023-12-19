@@ -55,7 +55,7 @@ jobs:
           helm package ./charts/lingress --app-version=v${version} --version=${version} --destination var
           mv var/lingress-*.tgz var/lingress-helm-chart.tgz
           sha256sum -b var/lingress-helm-chart.tgz | cut -d' ' -f1 > var/lingress-helm-chart.tgz.sha256
-          tar -xzf var/lingress-0.9.0.tgz lingress/Chart.yaml -O > var/lingress-helm-chart.yaml
+          tar -xzf var/lingress-helm-chart.tgz lingress/Chart.yaml -O > var/lingress-helm-chart.yaml
 
       - name: "Deploy: Binary/Image"
         if: startsWith(github.ref, 'refs/tags/')
