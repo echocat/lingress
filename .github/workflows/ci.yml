@@ -71,6 +71,7 @@ jobs:
             var/lingress-helm-chart.tgz
             var/lingress-helm-chart.tgz.sha256
             var/lingress-helm-chart.yaml
+            dist/*
           generate_release_notes: true
           fail_on_unmatched_files: true
 
@@ -78,5 +79,8 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: assets
-          path: var
+          path: |
+            var
+            !var/var/profile.cov
+            dist
           retention-days: 5

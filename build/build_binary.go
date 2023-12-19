@@ -1,10 +1,13 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"github.com/echocat/lingress/support"
 	_ "github.com/echocat/lingress/support/slf4g_native"
 	"github.com/echocat/slf4g"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,7 +21,12 @@ const (
 
 var (
 	targetLinuxAmd64 = target{os: "linux", arch: "amd64"}
-	targets          = []target{targetLinuxAmd64}
+	targets          = []target{
+		targetLinuxAmd64,
+		{os: "linux", arch: "arm64"},
+		{os: "windows", arch: "amd64"},
+		{os: "windows", arch: "arm64"},
+	}
 )
 
 func (this *cmd) mustBuildBinaries() {
@@ -43,6 +51,20 @@ func (this *cmd) mustBuildBinary(t target, forTesting bool) {
 	mustExecuteTo(func(cmd *exec.Cmd) {
 		cmd.Env = append(os.Environ(), "GOOS="+t.os, "GOARCH="+t.arch, "CGO_ENABLED=0")
 	}, os.Stderr, os.Stdout, "go", "build", "-ldflags", this.formatLdFlags(this.branch, this.revision, forTesting), "-o", on, "./main")
+
+	f, err := os.Open(on)
+	if err != nil {
+		panic(fmt.Errorf("cannot open just created binary %q: %w", on, err))
+	}
+	defer func() { _ = f.Close() }()
+	hash := sha256.New()
+	if _, err = io.Copy(hash, f); err != nil {
+		panic(fmt.Errorf("cannot hash just created binary %q: %w", on, err))
+	}
+	hashHex := hex.EncodeToString(hash.Sum(nil))
+	if err := os.WriteFile(on+".sha256", []byte(hashHex), 0644); err != nil {
+		panic(fmt.Errorf("cannot safe hash of just created binary %q: %w", on, err))
+	}
 
 	l = l.With("duration", time.Now().Sub(started).Truncate(time.Millisecond))
 	if forTesting {
