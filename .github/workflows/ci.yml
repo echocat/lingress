@@ -81,6 +81,6 @@ jobs:
           name: assets
           path: |
             var
-            !var/var/profile.cov
+            !var/profile.cov
             dist
           retention-days: 5
