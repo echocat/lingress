@@ -1,6 +1,7 @@
 package context
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/server"
@@ -21,6 +22,8 @@ const (
 )
 
 var (
+	contextKey = struct{ dRe3fwEgdfdr109 int }{dRe3fwEgdfdr109: 45220919304575}
+
 	contextPool = sync.Pool{
 		New: func() interface{} {
 			return new(Context)
@@ -53,28 +56,30 @@ func AcquireContext(
 	resp http.ResponseWriter,
 	req *http.Request,
 	logger log.Logger,
-) (*Context, error) {
+) (*Context, *http.Request, error) {
 	success := false
 	result := contextPool.Get().(*Context)
 	defer func(created *Context) {
 		if !success {
-			created.Release()
+			_ = created.Release()
 		}
 	}(result)
+
+	nReq := req.WithContext(context.WithValue(req.Context(), contextKey, result))
 
 	result.Settings = s
 	id, err := NewId(fromOtherReverseProxy, req)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	result.Id = id
 	correlationId, err := NewCorrelationId(req)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	result.CorrelationId = correlationId
 	result.Stage = StageCreated
-	result.Client.configure(connector, fromOtherReverseProxy, resp, req)
+	result.Client.configure(connector, fromOtherReverseProxy, resp, nReq)
 	result.Upstream.configure()
 	result.Logger = logger
 
@@ -85,7 +90,11 @@ func AcquireContext(
 	result.Properties = make(map[string]interface{})
 
 	success = true
-	return result, nil
+	return result, nReq, nil
+}
+
+func OfRequest(req *http.Request) *Context {
+	return req.Context().Value(contextKey).(*Context)
 }
 
 func (this *Context) Done(result Result, err ...error) {
@@ -120,8 +129,8 @@ func (this *Context) LogProvider() func() log.Logger {
 	return this.Log
 }
 
-func (this *Context) Release() {
-	this.Client.clean()
+func (this *Context) Release() error {
+	err := this.Client.clean()
 	this.Upstream.clean()
 	this.Stage = StageUnknown
 	this.Id = NilRequestId
@@ -135,6 +144,8 @@ func (this *Context) Release() {
 	this.Properties = nil
 
 	contextPool.Put(this)
+
+	return err
 }
 
 func (this *Context) MarshalJSON() ([]byte, error) {

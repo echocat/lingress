@@ -29,8 +29,8 @@ var (
 type Client struct {
 	Connector             server.ConnectorId
 	FromOtherReverseProxy bool
-	Response              http.ResponseWriter
 	Request               *http.Request
+	Response              http.ResponseWriter
 
 	Status   int
 	Started  time.Time
@@ -55,7 +55,7 @@ func (this *Client) configure(connector server.ConnectorId, fromOtherReverseProx
 	this.address = nil
 }
 
-func (this *Client) clean() {
+func (this *Client) clean() error {
 	if req := this.Request; req != nil {
 		if b := req.Body; b != nil {
 			_ = b.Close()
@@ -68,8 +68,8 @@ func (this *Client) clean() {
 	}
 	this.Connector = ""
 	this.FromOtherReverseProxy = false
-	this.Response = nil
 	this.Request = nil
+	this.Response = nil
 	this.Status = -1
 	this.Started = emptyTime
 	this.Duration = -1
@@ -77,6 +77,8 @@ func (this *Client) clean() {
 	this.requestedUrl = nil
 	this.origin = nil
 	this.address = nil
+
+	return nil
 }
 
 func (this *Client) AsMap() map[string]interface{} {

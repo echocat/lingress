@@ -29,7 +29,7 @@ func PrefixInterceptor(ctx *context.Context) (proceed bool, err error) {
 		u.Path = "/" + strings.Join(path, "/")
 	}
 
-	if opts.XForwardedPrefix.GetOr(false) {
+	if opts.XForwardedPrefix.GetOr(true) {
 		prefix := ""
 		if ctx.Client.FromOtherReverseProxy {
 			prefix = ctx.Client.Request.Header.Get("X-Forwarded-Prefix")

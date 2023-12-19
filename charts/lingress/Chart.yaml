@@ -1,0 +1,16 @@
+apiVersion: v2
+type: application
+
+name: lingress
+home: https://github.com/echocat/lingress
+description: Helm chart for lingress = the lean ingress controller.
+icon: https://avatars.githubusercontent.com/u/3128980?s=400&u=56110ac6c7f305d840c74be1c59fc7d58a87dc70&v=4
+kubeVersion: ">=1.16.0-0"
+
+##########################################################################################################
+# ⚠️ WARNING ⚠️                                                                                          #
+##########################################################################################################
+# The following values are only placeholders and needs to be replaced upon release with the real values. #
+##########################################################################################################
+version: 1.0.0-snapshot
+appVersion: v0.0.0

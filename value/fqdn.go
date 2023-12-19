@@ -70,6 +70,20 @@ func (this Fqdn) IsPresent() bool {
 	return this != ""
 }
 
+type Fqdns []Fqdn
+
+func (this Fqdns) Strings() []string {
+	result := make([]string, len(this))
+	for i, v := range this {
+		result[i] = v.String()
+	}
+	return result
+}
+
+func (this Fqdns) String() string {
+	return strings.Join(this.Strings(), ",")
+}
+
 type WildcardSupportingFqdn Fqdn
 
 func (this WildcardSupportingFqdn) WithoutWildcard() (hadWildcard bool, withoutWildcard Fqdn, err error) {
@@ -134,6 +148,20 @@ func (this WildcardSupportingFqdn) IsPresent() bool {
 func validateFqdn(candidate string, leadingWildcardAllowed bool) error {
 	segments := strings.Split(strings.ToLower(candidate), ".")
 	return validateFqdnSegments(segments, candidate, leadingWildcardAllowed)
+}
+
+type WildcardSupportingFqdns []WildcardSupportingFqdn
+
+func (this WildcardSupportingFqdns) Strings() []string {
+	result := make([]string, len(this))
+	for i, v := range this {
+		result[i] = v.String()
+	}
+	return result
+}
+
+func (this WildcardSupportingFqdns) String() string {
+	return strings.Join(this.Strings(), ",")
 }
 
 func validateFqdnSegments(segments []string, original string, leadingWildcardAllowed bool) error {

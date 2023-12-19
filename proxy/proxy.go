@@ -69,7 +69,7 @@ func (this *Proxy) Init(support.Channel) error {
 }
 
 func (this *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseWriter, req *http.Request) {
-	ctx, err := lctx.AcquireContext(this.settings, connector.GetId(), this.settings.Server.BehindReverseProxy, resp, req, this.Logger)
+	ctx, _, err := lctx.AcquireContext(this.settings, connector.GetId(), this.settings.Server.BehindReverseProxy.Get(), resp, req, this.Logger)
 	if err != nil {
 		this.Logger.
 			WithError(err).
@@ -79,7 +79,11 @@ func (this *Proxy) ServeHTTP(connector server.Connector, resp http.ResponseWrite
 	al := this.AccessLogger
 	defer func() {
 		if al == nil {
-			ctx.Release()
+			if err := ctx.Release(); err != nil {
+				this.Logger.
+					WithError(err).
+					Error("Problem while releasing context.")
+			}
 		}
 	}()
 	ctx.Client.Started = time.Now()
@@ -227,22 +231,18 @@ func (this *Proxy) createBackendRequestFor(ctx *lctx.Context, r rules.Rule) (pro
 	}
 
 	bCtx := fReq.Context()
-	//noinspection GoDeprecation
-	if cn, ok := ctx.Client.Response.(http.CloseNotifier); ok {
-		var cancel context.CancelFunc
-		bCtx, ctx.Upstream.Cancel = context.WithCancel(bCtx)
-		ctx.Upstream.Cancel = cancel
-		notifyChan := cn.CloseNotify()
-		go func(cancel context.CancelFunc) {
-			if cancel != nil {
-				select {
-				case <-notifyChan:
-					cancel()
-				case <-bCtx.Done():
-				}
+	var cancel context.CancelFunc
+	bCtx, ctx.Upstream.Cancel = context.WithCancel(bCtx)
+	ctx.Upstream.Cancel = cancel
+	go func(cancel context.CancelFunc) {
+		if cancel != nil {
+			select {
+			case <-ctx.Client.Request.Context().Done():
+				cancel()
+			case <-bCtx.Done():
 			}
-		}(cancel)
-	}
+		}
+	}(cancel)
 
 	bReq := (&http.Request{
 		Host:             u.Host,
@@ -356,9 +356,7 @@ func (this *Proxy) execute(ctx *lctx.Context) error {
 		// Force chunking if we saw a response trailer.
 		// This prevents net/http from calculating the length for short
 		// bodies and adding a Content-Length.
-		if fl, ok := ctx.Client.Response.(http.Flusher); ok {
-			fl.Flush()
-		}
+		ctx.Client.Response.(http.Flusher).Flush()
 	}
 
 	if len(ctx.Upstream.Response.Trailer) == announcedTrailers {
@@ -385,17 +383,13 @@ func (this *Proxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.Reque
 
 	copyHeader(res.Header, rw.Header())
 
-	hj, ok := rw.(http.Hijacker)
-	if !ok {
-		return fmt.Errorf("can't switch protocols using non-Hijacker ResponseWriter type %T", rw)
-	}
 	backConn, ok := res.Body.(io.ReadWriteCloser)
 	if !ok {
 		return fmt.Errorf("internal error: 101 switching protocols response with non-writable body")
 	}
 	//noinspection GoUnhandledErrorResult
 	defer backConn.Close()
-	conn, brw, err := hj.Hijack()
+	conn, brw, err := rw.(http.Hijacker).Hijack()
 	if err != nil {
 		return fmt.Errorf("hijack failed on protocol switch: %v", err)
 	}

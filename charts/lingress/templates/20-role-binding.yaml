@@ -1,0 +1,21 @@
+{{ if .Values.rbac.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ template "lingress.fullname" . }}
+  labels:
+    {{- include "lingress.labels" . | nindent 4 }}
+    {{- with .Values.rbac.labels -}}{{- . | toYaml | nindent 4 -}}{{- end }}
+  annotations:
+    {{- include "lingress.annotations" . | nindent 4 }}
+    {{- with .Values.rbac.annotations -}}{{- . | toYaml | nindent 4 -}}{{- end }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ template "lingress.fullname" . }}
+subjects:
+  - apiGroup: ""
+    kind: ServiceAccount
+    name: {{ template "lingress.serviceAccountName" . }}
+    namespace: {{ template "lingress.namespace" . }}
+{{ end }}

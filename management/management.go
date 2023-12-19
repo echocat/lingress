@@ -64,6 +64,7 @@ func (this *Management) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 			StreamJsonTo(resp, req, this.getLogger)
 		return
 	}
+	isPprof := this.settings.Management.Pprof.Get()
 	if req.URL.Path == "/health" {
 		this.handleHealth(resp, req)
 	} else if req.URL.Path == "/status" {
@@ -74,17 +75,17 @@ func (this *Management) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 		this.handleRules(resp, req, "")
 	} else if strings.HasPrefix(req.URL.Path, "/rules/") {
 		this.handleRules(resp, req, req.URL.Path[7:])
-	} else if this.settings.Management.Pprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/cmdline") {
+	} else if isPprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/cmdline") {
 		pprof.Cmdline(resp, req)
-	} else if this.settings.Management.Pprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/profile") {
+	} else if isPprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/profile") {
 		pprof.Profile(resp, req)
-	} else if this.settings.Management.Pprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/symbol") {
+	} else if isPprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/symbol") {
 		pprof.Symbol(resp, req)
-	} else if this.settings.Management.Pprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/trace") {
+	} else if isPprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/trace") {
 		pprof.Trace(resp, req)
-	} else if this.settings.Management.Pprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/") {
+	} else if isPprof && strings.HasPrefix(req.URL.Path, "/debug/pprof/") {
 		pprof.Index(resp, req)
-	} else if this.settings.Management.Pprof && req.URL.Path == "/debug/pprof" {
+	} else if isPprof && req.URL.Path == "/debug/pprof" {
 		http.Redirect(resp, req, "/debug/pprof/", http.StatusMovedPermanently)
 	} else {
 		support.NewGenericResponse(http.StatusNotFound, http.StatusText(http.StatusNotFound), req).
@@ -200,7 +201,7 @@ func (this *Management) Init(stop support.Channel) error {
 		return err
 	}
 
-	if this.settings.Management.Pprof {
+	if this.settings.Management.Pprof.Get() {
 		this.Logger.
 			With("addr", this.server.Addr).
 			Warn("DO NOT USE IN PRODUCTION!" +

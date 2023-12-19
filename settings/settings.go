@@ -25,10 +25,6 @@ func New() (Settings, error) {
 	if err != nil {
 		return Settings{}, err
 	}
-	header, err := NewHeader()
-	if err != nil {
-		return Settings{}, err
-	}
 	ingress, err := NewIngress()
 	if err != nil {
 		return Settings{}, err
@@ -38,6 +34,14 @@ func New() (Settings, error) {
 		return Settings{}, err
 	}
 	management, err := NewManagement()
+	if err != nil {
+		return Settings{}, err
+	}
+	request, err := NewRequest()
+	if err != nil {
+		return Settings{}, err
+	}
+	response, err := NewResponse()
 	if err != nil {
 		return Settings{}, err
 	}
@@ -59,10 +63,11 @@ func New() (Settings, error) {
 		Cors:       cors,
 		Discovery:  discovery,
 		Fallback:   fallback,
-		Header:     header,
 		Ingress:    ingress,
 		Kubernetes: kubernetes,
 		Management: management,
+		Request:    request,
+		Response:   response,
 		Server:     server,
 		Tls:        tls,
 		Upstream:   upstream,
@@ -83,7 +88,8 @@ type Settings struct {
 	Cors       Cors       `json:"cors,omitempty" yaml:"cors,omitempty"`
 	Discovery  Discovery  `json:"discovery,omitempty" yaml:"discovery,omitempty"`
 	Fallback   Fallback   `json:"fallback,omitempty" yaml:"fallback,omitempty"`
-	Header     Header     `json:"header,omitempty" yaml:"header,omitempty"`
+	Request    Request    `json:"request,omitempty" yaml:"request,omitempty"`
+	Response   Response   `json:"response,omitempty" yaml:"response,omitempty"`
 	Ingress    Ingress    `json:"ingress,omitempty" yaml:"ingress,omitempty"`
 	Kubernetes Kubernetes `json:"kubernetes,omitempty" yaml:"kubernetes,omitempty"`
 	Management Management `json:"management,omitempty" yaml:"management,omitempty"`
@@ -98,10 +104,11 @@ func (this *Settings) RegisterFlags(fe support.FlagEnabled, appPrefix string) {
 	this.Cors.RegisterFlags(fe, appPrefix)
 	this.Discovery.RegisterFlags(fe, appPrefix)
 	this.Fallback.RegisterFlags(fe, appPrefix)
-	this.Header.RegisterFlags(fe, appPrefix)
 	this.Ingress.RegisterFlags(fe, appPrefix)
 	this.Kubernetes.RegisterFlags(fe, appPrefix)
 	this.Management.RegisterFlags(fe, appPrefix)
+	this.Request.RegisterFlags(fe, appPrefix)
+	this.Response.RegisterFlags(fe, appPrefix)
 	this.Server.RegisterFlags(fe, appPrefix)
 	this.Tls.RegisterFlags(fe, appPrefix)
 	this.Upstream.RegisterFlags(fe, appPrefix)

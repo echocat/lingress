@@ -3,6 +3,7 @@ package settings
 import (
 	"fmt"
 	"github.com/echocat/lingress/support"
+	"github.com/echocat/lingress/value"
 )
 
 func NewServer() (Server, error) {
@@ -18,14 +19,14 @@ func NewServer() (Server, error) {
 		Http:  http,
 		Https: https,
 
-		BehindReverseProxy: false,
+		BehindReverseProxy: value.False(),
 	}, nil
 }
 
 type Server struct {
 	Http               ServerConnector `yaml:"http,omitempty" json:"http,omitempty"`
 	Https              ServerConnector `yaml:"https,omitempty" json:"https,omitempty"`
-	BehindReverseProxy bool            `yaml:"behindReverseProxy,omitempty" json:"behindReverseProxy,omitempty"`
+	BehindReverseProxy value.Bool      `yaml:"behindReverseProxy,omitempty" json:"behindReverseProxy,omitempty"`
 }
 
 func (this *Server) RegisterFlags(fe support.FlagEnabled, appPrefix string) {
@@ -33,9 +34,9 @@ func (this *Server) RegisterFlags(fe support.FlagEnabled, appPrefix string) {
 	this.Https.RegisterFlags(fe, appPrefix)
 
 	fe.Flag("server.behindReverseProxy", "If true also X-Forwarded headers are evaluated before send to upstream.").
-		PlaceHolder(fmt.Sprint(this.BehindReverseProxy)).
+		PlaceHolder(this.BehindReverseProxy.String()).
 		Envar(support.FlagEnvName(appPrefix, "SERVER_BEHIND_REVERSE_PROXY")).
-		BoolVar(&this.BehindReverseProxy)
+		SetValue(&this.BehindReverseProxy)
 }
 
 func (this *Server) GetById(id string) (*ServerConnector, error) {

@@ -11,7 +11,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/cache"
 	"net"
 	"strings"
 	"sync/atomic"
@@ -119,11 +118,11 @@ type repositoryImplState struct {
 	initiated   atomic.Value
 }
 
-func (this *repositoryImplState) onSecretCertificatesChanged(key string, new metav1.Object) error {
+func (this *repositoryImplState) onSecretCertificatesChanged(ref support.ObjectReference, new metav1.Object) error {
 	l := this.Logger.
-		With("key", key)
+		With("ref", ref)
 
-	if removed, err := this.CertificatesByHost.RemoveBySource(key); err != nil {
+	if removed, err := this.CertificatesByHost.RemoveBySource(ref); err != nil {
 		return err
 	} else if len(removed) > 0 {
 		l.With("fqdns", removed).Info("Certificates for FQNDs removed.")
@@ -153,7 +152,7 @@ func (this *repositoryImplState) onSecretCertificatesChanged(key string, new met
 					candidate = append(ca, ca...)
 				}
 			}
-			if added, err := this.CertificatesByHost.AddBytes(key, candidate, pk); err != nil {
+			if added, err := this.CertificatesByHost.AddBytes(ref, candidate, pk); err != nil {
 				l.WithError(err).Warn("Cannot parse certificate and privateKey pair from secret; ignoring...")
 				continue
 			} else if len(added) > 0 {
@@ -165,8 +164,8 @@ func (this *repositoryImplState) onSecretCertificatesChanged(key string, new met
 	return nil
 }
 
-func (this *repositoryImplState) isExpectedCertificatesKey(what string) bool {
-	if this.settings.Tls.SecretNamePattern != nil && !this.settings.Tls.SecretNamePattern.MatchString(what) {
+func (this *repositoryImplState) isExpectedCertificatesKey(what support.ObjectReference) bool {
+	if this.settings.Tls.SecretNamePattern != nil && !this.settings.Tls.SecretNamePattern.MatchString(what.ShortString()) {
 		return false
 	}
 
@@ -175,7 +174,7 @@ func (this *repositoryImplState) isExpectedCertificatesKey(what string) bool {
 			if !strings.Contains(candidate, "/") {
 				candidate = this.settings.Kubernetes.Namespace + "/" + candidate
 			}
-			if candidate == what {
+			if candidate == what.ShortString() {
 				return true
 			}
 		}
@@ -185,28 +184,28 @@ func (this *repositoryImplState) isExpectedCertificatesKey(what string) bool {
 	return true
 }
 
-func (this *repositoryImplState) onServiceSecretsElementAdded(key string, new metav1.Object) error {
-	if this.isExpectedCertificatesKey(key) {
-		return this.onSecretCertificatesChanged(key, new)
+func (this *repositoryImplState) onServiceSecretsElementAdded(ref support.ObjectReference, new metav1.Object) error {
+	if this.isExpectedCertificatesKey(ref) {
+		return this.onSecretCertificatesChanged(ref, new)
 	}
 	return nil
 }
 
-func (this *repositoryImplState) onServiceSecretsElementUpdated(key string, _, new metav1.Object) error {
-	if this.isExpectedCertificatesKey(key) {
-		return this.onSecretCertificatesChanged(key, new)
+func (this *repositoryImplState) onServiceSecretsElementUpdated(ref support.ObjectReference, _, new metav1.Object) error {
+	if this.isExpectedCertificatesKey(ref) {
+		return this.onSecretCertificatesChanged(ref, new)
 	}
 	return nil
 }
 
-func (this *repositoryImplState) onServiceSecretsElementRemoved(key string) error {
-	if this.isExpectedCertificatesKey(key) {
-		return this.onSecretCertificatesChanged(key, nil)
+func (this *repositoryImplState) onServiceSecretsElementRemoved(ref support.ObjectReference) error {
+	if this.isExpectedCertificatesKey(ref) {
+		return this.onSecretCertificatesChanged(ref, nil)
 	}
 	return nil
 }
 
-func (this *repositoryImplState) onIngressElementAdded(_ string, new metav1.Object) error {
+func (this *repositoryImplState) onIngressElementAdded(ref support.ObjectReference, new metav1.Object) error {
 	target := this.ByHostRules
 	clonedUpdate := this.initiated.Load() == true
 	if clonedUpdate {
@@ -219,7 +218,7 @@ func (this *repositoryImplState) onIngressElementAdded(_ string, new metav1.Obje
 		return nil
 	}
 
-	if err := this.visitIngress(candidate, target); err != nil {
+	if err := this.visitIngress(ref, candidate, target); err != nil {
 		return err
 	}
 
@@ -229,35 +228,25 @@ func (this *repositoryImplState) onIngressElementAdded(_ string, new metav1.Obje
 	return nil
 }
 
-func (this *repositoryImplState) onIngressElementUpdated(key string, _, new metav1.Object) error {
+func (this *repositoryImplState) onIngressElementUpdated(ref support.ObjectReference, _, new metav1.Object) error {
 	candidate := new.(*networkingv1.Ingress)
 
 	if this.matchesIngressClass(candidate) {
-		return this.onIngressElementAdded(key, new)
+		return this.onIngressElementAdded(ref, new)
 	}
 
-	return this.onIngressElementRemoved(key)
+	return this.onIngressElementRemoved(ref)
 }
 
-func (this *repositoryImplState) onIngressElementRemoved(key string) error {
+func (this *repositoryImplState) onIngressElementRemoved(ref support.ObjectReference) error {
 	target := this.ByHostRules
 	clonedUpdate := this.initiated.Load() != true
 	if clonedUpdate {
 		target = target.Clone()
 	}
 
-	namespace, name, err := cache.SplitMetaNamespaceKey(key)
-	if err != nil {
-		return fmt.Errorf("cannot parse key '%s' to namespace and name: %v", key, err)
-	}
-
-	source := sourceReference{
-		namespace: namespace,
-		name:      name,
-	}
-
-	if err := target.Remove(PredicateBySource(source)); err != nil {
-		return fmt.Errorf("cannot remove previous element by source '%s': %v", source, err)
+	if err := target.Remove(PredicateByObjectReference(ref)); err != nil {
+		return fmt.Errorf("cannot remove previous element by source %v: %v", ref, err)
 	}
 
 	if clonedUpdate {
@@ -285,22 +274,23 @@ func (this *repositoryImplState) matchesIngressClass(what *networkingv1.Ingress)
 	return false
 }
 
-func (this *repositoryImplState) visitIngress(ingress *networkingv1.Ingress, target *ByHost) error {
-	source := &sourceReference{
-		namespace: ingress.Namespace,
-		name:      ingress.Name,
-	}
-	if err := target.Remove(PredicateBySource(source)); err != nil {
+func (this *repositoryImplState) visitIngress(ref support.ObjectReference, ingress *networkingv1.Ingress, target *ByHost) error {
+	if err := target.Remove(PredicateByObjectReference(ref)); err != nil {
 		return err
 	}
 
 	l := this.Logger.
-		With("type", "ingress").
-		Withf("key", "%s/%s", source.namespace, source.name)
+		With("ref", ref)
+
+	if len(ingress.Spec.TLS) > 0 {
+		l.Warn("Currently ingress configurations with spec.tls settings are not supported; ignoring...")
+
+		return nil
+	}
 
 	if v := ingress.Spec.DefaultBackend; v != nil {
 		l := l.With("kind", "defaultBackend")
-		backend, err := this.ingressToBackend(source, *v, l)
+		backend, err := this.ingressToBackend(ref, v, l)
 		if err != nil {
 			return err
 		}
@@ -309,7 +299,7 @@ func (this *repositoryImplState) visitIngress(ingress *networkingv1.Ingress, tar
 			if err != nil {
 				return err
 			}
-			r := NewRule("", []string{}, PathTypePrefix, source, backend, options)
+			r := NewRule("", []string{}, PathTypePrefix, ref, backend, options)
 			if err := target.Put(r); err != nil {
 				return err
 			}
@@ -331,6 +321,11 @@ func (this *repositoryImplState) visitIngress(ingress *networkingv1.Ingress, tar
 				}
 				l = l.With("path", path)
 
+				if forPath.Backend.Resource != nil {
+					l.Warn("Currently ingress configurations with spec.rules.http.paths.backend.resource settings are not supported; ignoring...")
+					continue
+				}
+
 				forService := forPath.Backend.Service
 				if forService == nil {
 					l.Warn("There is no service configured for path; ignoring...")
@@ -340,7 +335,8 @@ func (this *repositoryImplState) visitIngress(ingress *networkingv1.Ingress, tar
 					l.Warn("There is no service.name configured for path; ignoring...")
 					continue
 				}
-				l = l.Withf("service", "%s/%s", source.namespace, forService.Name)
+				serviceOr := this.ingressToServiceReference(ref, forService)
+				l = l.With("service", serviceOr)
 
 				if forService.Port.Number != 0 {
 					l = l.With("port", forService.Port.Number)
@@ -358,7 +354,7 @@ func (this *repositoryImplState) visitIngress(ingress *networkingv1.Ingress, tar
 				}
 				l = l.With("pathType", pathType)
 
-				backend, err := this.ingressToBackend(source, forPath.Backend, l)
+				backend, err := this.ingressToBackend(ref, &forPath.Backend, l)
 				if err != nil {
 					return err
 				}
@@ -377,7 +373,7 @@ func (this *repositoryImplState) visitIngress(ingress *networkingv1.Ingress, tar
 					continue
 				}
 
-				r := NewRule(host, path, pathType, source, backend, options)
+				r := NewRule(host, path, pathType, ref, backend, options)
 				if err := target.Put(r); err != nil {
 					return err
 				}
@@ -407,7 +403,7 @@ func (this *repositoryImplState) newOptionsBy(ingress *networkingv1.Ingress) (Op
 	return result, nil
 }
 
-func (this *repositoryImplState) ingressToBackend(source *sourceReference, ib networkingv1.IngressBackend, usingLogger log.Logger) (net.Addr, error) {
+func (this *repositoryImplState) ingressToBackend(source support.ObjectReference, ib *networkingv1.IngressBackend, usingLogger log.Logger) (net.Addr, error) {
 	service, err := this.ingressToService(source, ib)
 	if err != nil {
 		return nil, err
@@ -474,10 +470,12 @@ func (this *repositoryImplState) clusterIpBasedServiceToAddr(ipStr string, port 
 	}
 }
 
-func (this *repositoryImplState) ingressToService(source *sourceReference, ib networkingv1.IngressBackend) (*v1.Service, error) {
-	serviceKey := fmt.Sprintf("%s/%s", source.namespace, ib.Service.Name)
+func (this *repositoryImplState) ingressToServiceReference(source support.ObjectReference, isb *networkingv1.IngressServiceBackend) support.ObjectReference {
+	return source.WithApiVersionAndKind("v1", "Service").WithName(isb.Name)
+}
 
-	return this.definitions.Service.Get(serviceKey)
+func (this *repositoryImplState) ingressToService(source support.ObjectReference, ib *networkingv1.IngressBackend) (*v1.Service, error) {
+	return this.definitions.Service.Get(this.ingressToServiceReference(source, ib.Service).ShortString())
 }
 
 func (this *KubernetesBasedRepository) All(consumer func(Rule) error) error {

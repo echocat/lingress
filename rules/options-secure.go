@@ -47,7 +47,7 @@ func (this *OptionsSecure) Set(annotations Annotations) (err error) {
 
 func evaluateOptionForceSecure(annotations map[string]string) (value.Bool, error) {
 	if v, ok := annotations[annotationForceSecure]; ok {
-		return AnnotationIsTrue(annotationForceSecure, v)
+		return AnnotationIsBool(annotationForceSecure, v)
 	}
 	return value.UndefinedBool(), nil
 }

@@ -53,7 +53,7 @@ func (this *OptionsPrefix) Set(annotations Annotations) (err error) {
 
 func evaluateOptionStripRulePathPrefix(annotations map[string]string) (value.Bool, error) {
 	if v, ok := annotations[annotationStripRulePathPrefix]; ok {
-		return AnnotationIsTrue(annotationStripRulePathPrefix, v)
+		return AnnotationIsBool(annotationStripRulePathPrefix, v)
 	}
 	return value.UndefinedBool(), nil
 }
@@ -67,7 +67,7 @@ func evaluateOptionPathPrefix(annotations map[string]string) ([]string, error) {
 
 func evaluateOptionXForwardedPrefix(annotations map[string]string) (value.Bool, error) {
 	if v, ok := annotations[annotationXForwardedPrefix]; ok {
-		return AnnotationIsTrue(annotationXForwardedPrefix, v)
+		return AnnotationIsBool(annotationXForwardedPrefix, v)
 	}
 	return value.UndefinedBool(), nil
 }

@@ -3,6 +3,7 @@ package settings
 import (
 	"fmt"
 	"github.com/echocat/lingress/support"
+	"github.com/echocat/lingress/value"
 	"net/http"
 	"strings"
 )
@@ -18,7 +19,7 @@ func NewServerConnector(id string, listenAddress string) (ServerConnector, error
 		ListenAddress:        listenAddress,
 		MaxConnections:       maxConnections,
 		SoLinger:             -1,
-		RespectProxyProtocol: false,
+		RespectProxyProtocol: value.False(),
 	}, nil
 }
 
@@ -30,7 +31,7 @@ type ServerConnector struct {
 	SoLinger       int16  `json:"soLinger,omitempty" yaml:"soLinger,omitempty"`
 
 	// See https://www.haproxy.org/download/2.3/doc/proxy-protocol.txt
-	RespectProxyProtocol bool `json:"respectProxyProtocol,omitempty" yaml:"respectProxyProtocol,omitempty"`
+	RespectProxyProtocol value.Bool `json:"respectProxyProtocol,omitempty" yaml:"respectProxyProtocol,omitempty"`
 }
 
 func (this *ServerConnector) RegisterFlags(fe support.FlagEnabled, appPrefix string) {
@@ -47,9 +48,9 @@ func (this *ServerConnector) RegisterFlags(fe support.FlagEnabled, appPrefix str
 		Envar(this.flagEnvVar(appPrefix, "SO_LINGER")).
 		Int16Var(&this.SoLinger)
 	fe.Flag(this.flagName("proxyProtocol.respect"), "If set to true the proxy protocol will be respected. See: https://www.haproxy.org/download/2.3/doc/proxy-protocol.txt").
-		PlaceHolder(fmt.Sprint(this.RespectProxyProtocol)).
+		PlaceHolder(this.RespectProxyProtocol.String()).
 		Envar(this.flagEnvVar(appPrefix, "PROXY_PROTOCOL_RESPECT")).
-		BoolVar(&this.RespectProxyProtocol)
+		SetValue(&this.RespectProxyProtocol)
 }
 
 func (this *ServerConnector) flagEnvVar(appPrefix string, suffix string) string {

@@ -68,7 +68,7 @@ func (this *Options) Set(annotations Annotations) error {
 	return nil
 }
 
-func AnnotationIsTrue(name, v string) (value.Bool, error) {
+func AnnotationIsBool(name, v string) (value.Bool, error) {
 	switch v {
 	case "true":
 		return value.True(), nil

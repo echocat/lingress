@@ -25,10 +25,10 @@ type Definition struct {
 	OnError          OnErrorFunc
 }
 
-type OnElementChangedFunc func(key string, new metav1.Object) error
-type OnElementUpdatedFunc func(key string, old, new metav1.Object) error
-type OnElementRemovedFunc func(key string) error
-type OnErrorFunc func(key string, event string, err error)
+type OnElementChangedFunc func(ref support.ObjectReference, new metav1.Object) error
+type OnElementUpdatedFunc func(ref support.ObjectReference, old, new metav1.Object) error
+type OnElementRemovedFunc func(ref support.ObjectReference) error
+type OnErrorFunc func(ref support.ObjectReference, event string, err error)
 
 func newDefinition(typeDescription string, informer cache.SharedInformer, logger log.Logger) (*Definition, error) {
 	return &Definition{
@@ -86,22 +86,27 @@ func (this *Definition) Run(stop support.Channel) {
 func (this *Definition) onClusterElementAdded(new interface{}) {
 	l := this.logEvent("elementAdded")
 
-	key, err := cache.MetaNamespaceKeyFunc(new)
+	objSource, ok := new.(support.ObjectReferenceSource)
+	if !ok {
+		l.With("objectType", reflect.TypeOf(new)).
+			Error("Cannot determine reference of an object of type.")
+	}
+	ref, err := support.NewObjectReferenceOf(objSource)
 	if err != nil {
 		l.WithError(err).
-			With("objectType", reflect.TypeOf(new).String()).
-			Error("Cannot determine key of an object of type.")
+			With("objectType", reflect.TypeOf(new)).
+			Error("Cannot determine reference of an object of type.")
 	}
 
 	if this.OnElementAdded == nil {
 		return
 	}
 
-	l = l.With("key", key)
-	if err := this.OnElementAdded(key, new.(metav1.Object)); err != nil {
+	l = l.With("ref", ref)
+	if err := this.OnElementAdded(ref, objSource); err != nil {
 		this.lastError.Store(err)
 		if this.OnError != nil {
-			this.OnError(key, "elementRemoved", err)
+			this.OnError(ref, "elementRemoved", err)
 		} else {
 			l.WithError(err).
 				Error("Cannot handle element.")
@@ -114,22 +119,27 @@ func (this *Definition) onClusterElementAdded(new interface{}) {
 func (this *Definition) onClusterElementUpdated(old interface{}, new interface{}) {
 	l := this.logEvent("elementUpdated")
 
-	key, err := cache.MetaNamespaceKeyFunc(new)
+	objSource, ok := new.(support.ObjectReferenceSource)
+	if !ok {
+		l.With("objectType", reflect.TypeOf(new)).
+			Error("Cannot determine reference of an object of type.")
+	}
+	ref, err := support.NewObjectReferenceOf(objSource)
 	if err != nil {
 		l.WithError(err).
-			With("objectType", reflect.TypeOf(new).String()).
-			Error("Cannot determine key of an object of type.")
+			With("objectType", reflect.TypeOf(new)).
+			Error("Cannot determine reference of an object of type.")
 	}
 
 	if this.OnElementUpdated == nil {
 		return
 	}
 
-	l = l.With("key", key)
-	if err := this.OnElementUpdated(key, old.(metav1.Object), new.(metav1.Object)); err != nil {
+	l = l.With("ref", ref)
+	if err := this.OnElementUpdated(ref, old.(metav1.Object), objSource); err != nil {
 		this.lastError.Store(err)
 		if this.OnError != nil {
-			this.OnError(key, "elementRemoved", err)
+			this.OnError(ref, "elementRemoved", err)
 		} else {
 			l.WithError(err).
 				Error("Cannot handle element.")
@@ -142,22 +152,27 @@ func (this *Definition) onClusterElementUpdated(old interface{}, new interface{}
 func (this *Definition) onClusterElementRemoved(old interface{}) {
 	l := this.logEvent("elementRemoved")
 
-	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(old)
+	objSource, ok := old.(support.ObjectReferenceSource)
+	if !ok {
+		l.With("objectType", reflect.TypeOf(old)).
+			Error("Cannot determine key of an object of type.")
+	}
+	ref, err := support.NewObjectReferenceOf(objSource)
 	if err != nil {
 		l.WithError(err).
-			With("objectType", reflect.TypeOf(old).String()).
-			Error("Cannot determine key of an object of type.")
+			With("objectType", reflect.TypeOf(old)).
+			Error("Cannot determine reference of an object of type.")
 	}
 
 	if this.OnElementRemoved == nil {
 		return
 	}
 
-	l = l.With("key", key)
-	if err := this.OnElementRemoved(key); err != nil {
+	l = l.With("ref", ref)
+	if err := this.OnElementRemoved(ref); err != nil {
 		this.lastError.Store(err)
 		if this.OnError != nil {
-			this.OnError(key, "elementRemoved", err)
+			this.OnError(ref, "elementRemoved", err)
 		} else {
 			l.WithError(err).
 				Error("Cannot handle element.")
@@ -169,8 +184,4 @@ func (this *Definition) onClusterElementRemoved(old interface{}) {
 
 func (this *Definition) logEvent(event string) log.Logger {
 	return this.Logger.With("event", event)
-}
-
-func (this *Definition) logKey(event string, key string) log.Logger {
-	return this.logEvent(event).With("key", key)
 }

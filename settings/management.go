@@ -3,6 +3,7 @@ package settings
 import (
 	"fmt"
 	"github.com/echocat/lingress/support"
+	"github.com/echocat/lingress/value"
 	"net/http"
 	"time"
 )
@@ -15,7 +16,7 @@ func NewManagement() (Management, error) {
 		WriteTimeout:          1 * time.Minute,
 		IdleTimeout:           5 * time.Minute,
 
-		Pprof: false,
+		Pprof: value.False(),
 	}, nil
 }
 
@@ -25,7 +26,7 @@ type Management struct {
 	ReadHeaderTimeout     time.Duration `json:"readHeaderTimeout,omitempty" yaml:"readHeaderTimeout,omitempty"`
 	WriteTimeout          time.Duration `json:"writeTimeout,omitempty" yaml:"writeTimeout,omitempty"`
 	IdleTimeout           time.Duration `json:"idleTimeout,omitempty" yaml:"idleTimeout,omitempty"`
-	Pprof                 bool          `json:"pprof,omitempty" yaml:"pprof,omitempty"`
+	Pprof                 value.Bool    `json:"pprof,omitempty" yaml:"pprof,omitempty"`
 }
 
 func (this *Management) RegisterFlags(fe support.FlagEnabled, appPrefix string) {
@@ -50,8 +51,9 @@ func (this *Management) RegisterFlags(fe support.FlagEnabled, appPrefix string) 
 		Envar(support.FlagEnvName(appPrefix, "MANAGEMENT_IDLE_TIMEOUT")).
 		DurationVar(&this.IdleTimeout)
 	fe.Flag("management.pprof", "Will serve at the management endpoint pprof profiling, too.").
+		PlaceHolder(this.Pprof.String()).
 		Envar(support.FlagEnvName(appPrefix, "MANAGEMENT_PPROF")).
-		BoolVar(&this.Pprof)
+		SetValue(&this.Pprof)
 }
 
 func (this *Management) ApplyToHttpServer(target *http.Server) error {

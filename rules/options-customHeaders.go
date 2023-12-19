@@ -11,8 +11,8 @@ var _ = RegisterDefaultOptionsPart(&OptionsCustomHeaders{})
 const (
 	optionsCustomerHeadersKey = "custom-headers"
 
-	annotationRequestHeaders  = "lingress.echocat.org/headers-request"
-	annotationResponseHeaders = "lingress.echocat.org/headers-response"
+	annotationRequestHeaders  = "lingress.echocat.org/headers.request"
+	annotationResponseHeaders = "lingress.echocat.org/headers.response"
 )
 
 func OptionsCustomHeadersOf(rule Rule) *OptionsCustomHeaders {

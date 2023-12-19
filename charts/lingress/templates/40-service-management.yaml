@@ -1,0 +1,26 @@
+{{ if .Values.service.management.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "lingress.fullname" . }}-management
+  namespace: {{ template "lingress.namespace" . }}
+  labels:
+    {{- include "lingress.labels" . | nindent 4 }}
+    {{- with .Values.service.management.labels -}}{{- . | toYaml | nindent 4 -}}{{- end }}
+  annotations:
+    {{- include "lingress.annotations" . | nindent 4 }}
+    {{- with .Values.service.management.annotations -}}{{- . | toYaml | nindent 4 -}}{{- end }}
+spec:
+  ports:
+    - port: {{.Values.service.management.ports.management}}
+      targetPort: management
+  selector:
+    {{- include "lingress.selectorLabels" . | nindent 4 }}
+  type: {{.Values.service.management.type}}
+  {{- with .Values.service.management.internalTrafficPolicy }}
+  internalTrafficPolicy: {{. | quote}}
+  {{- end}}
+  {{- with .Values.service.management.externalTrafficPolicy }}
+  externalTrafficPolicy: {{. | quote}}
+  {{- end}}
+{{ end }}

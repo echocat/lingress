@@ -52,7 +52,7 @@ func (this *CustomHeaders) handleRequest(ctx *context.Context) (proceed bool, er
 		apply(rules.OptionsCustomHeadersOf(r).RequestHeaders)
 	}
 
-	apply(ctx.Settings.Header.Request)
+	apply(ctx.Settings.Response.Headers)
 
 	return true, nil
 }
@@ -80,7 +80,7 @@ func (this *CustomHeaders) handleResponse(ctx *context.Context) (proceed bool, e
 		apply(rules.OptionsCustomHeadersOf(r).ResponseHeaders)
 	}
 
-	apply(ctx.Settings.Header.Response)
+	apply(ctx.Settings.Response.Headers)
 
 	return true, nil
 }

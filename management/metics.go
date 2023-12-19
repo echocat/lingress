@@ -4,6 +4,7 @@ import (
 	"github.com/echocat/lingress/context"
 	"github.com/echocat/lingress/rules"
 	"github.com/echocat/lingress/server"
+	"github.com/echocat/lingress/support"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -310,7 +311,7 @@ func (this *RulesMetrics) total() (result float64) {
 }
 
 func (this *RulesMetrics) sources() float64 {
-	result := map[rules.SourceReference]bool{}
+	result := map[support.ObjectReference]bool{}
 	_ = this.rules.All(func(r rules.Rule) error {
 		result[r.Source()] = true
 		return nil

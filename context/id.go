@@ -1,7 +1,6 @@
 package context
 
 import (
-	"encoding/base32"
 	"encoding/base64"
 	"fmt"
 	"github.com/google/uuid"
@@ -12,7 +11,7 @@ type Id uuid.UUID
 
 var (
 	NilRequestId = Id(uuid.Nil)
-	idEncoding   = base64.StdEncoding.WithPadding(base32.NoPadding)
+	idEncoding   = base64.StdEncoding.WithPadding(base64.NoPadding)
 )
 
 func NewId(fromOtherReverseProxy bool, req *http.Request) (Id, error) {

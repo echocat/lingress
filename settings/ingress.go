@@ -2,7 +2,6 @@ package settings
 
 import (
 	"github.com/echocat/lingress/support"
-	"strings"
 )
 
 var (
@@ -21,7 +20,7 @@ type Ingress struct {
 
 func (this *Ingress) RegisterFlags(fe support.FlagEnabled, appPrefix string) {
 	fe.Flag("ingress.class", "Ingress classes which this application should respect.").
-		PlaceHolder(strings.Join(this.Classes, ",")).
+		PlaceHolder("<class[,...]>").
 		Envar(support.FlagEnvName(appPrefix, "INGRESS_CLASS")).
 		StringsVar(&this.Classes)
 }

@@ -73,7 +73,7 @@ func (this *HttpConnector) Serve(stop support.Channel) error {
 	}
 	ln = newLimitedListener(this.serverSettings.MaxConnections, this.serverSettings.SoLinger, ln)
 
-	if this.serverSettings.RespectProxyProtocol {
+	if this.serverSettings.RespectProxyProtocol.Get() {
 		ln = &proxyproto.Listener{Listener: ln}
 	}
 

@@ -106,7 +106,7 @@ func evaluateOptionCorsAllowedHeaders(annotations map[string]string) (value2.Hea
 
 func evaluateOptionCorsAllowedCredentials(annotations map[string]string) (value.Bool, error) {
 	if v, ok := annotations[annotationCorsAllowedCredentials]; ok {
-		return AnnotationIsTrue(annotationCorsAllowedCredentials, v)
+		return AnnotationIsBool(annotationCorsAllowedCredentials, v)
 	}
 	return value.UndefinedBool(), nil
 }

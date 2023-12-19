@@ -212,7 +212,7 @@ func (this *Lingress) createTlsConfig() (*tls.Config, error) {
 		GetCertificate: this.resolveCertificate,
 	}
 
-	if this.settings.Tls.FallbackCertificate {
+	if this.settings.Tls.FallbackCertificate.Get() {
 		v, err := support.CreateDummyCertificate()
 		if err != nil {
 			return fail(err)
@@ -275,9 +275,15 @@ func (this *Lingress) onAccessLog(ctx *lctx.Context) {
 }
 
 func (this *Lingress) doAccessLog(entry *accessLogEntry) {
-	defer entry.Release()
+	defer func() {
+		if err := entry.Release(); err != nil {
+			this.logger.
+				WithError(err).
+				Error("Problem while releasing context.")
+		}
+	}()
 
-	entry.load(this.settings.AccessLog.Inline)
+	entry.load(this.settings.AccessLog.Inline.Get())
 	status := 0
 	if c, ok := entry.data["client"]; ok {
 		if ps, ok := c.(map[string]interface{})["status"]; ok {

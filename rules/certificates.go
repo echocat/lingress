@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"github.com/echocat/lingress/support"
 	"github.com/echocat/lingress/value"
 	"slices"
 	"strings"
@@ -47,33 +48,33 @@ func (this certificates) hasContent() bool {
 	return len(this.all) > 0
 }
 
-func (this *certificates) add(source string, ins ...*tls.Certificate) bool {
+func (this *certificates) add(source support.ObjectReference, ins ...*tls.Certificate) bool {
 	if this.sourceToCertificates == nil {
 		this.sourceToCertificates = map[string]*Certificates{
-			source: (*Certificates)(&ins),
+			source.ShortString(): (*Certificates)(&ins),
 		}
 		this.all = ins
 		return true
 	}
 
-	ofSource, ok := this.sourceToCertificates[source]
+	ofSource, ok := this.sourceToCertificates[source.ShortString()]
 	if !ok {
 		ofSource = &Certificates{}
-		this.sourceToCertificates[source] = ofSource
+		this.sourceToCertificates[source.ShortString()] = ofSource
 	}
 	return ofSource.addAll(ins) || this.all.addAll(ins)
 }
 
-func (this *certificates) remove(source string) bool {
+func (this *certificates) remove(source support.ObjectReference) bool {
 	if this.sourceToCertificates == nil {
 		return false
 	}
 
-	_, ok := this.sourceToCertificates[source]
+	_, ok := this.sourceToCertificates[source.ShortString()]
 	if !ok {
 		return false
 	}
-	delete(this.sourceToCertificates, source)
+	delete(this.sourceToCertificates, source.ShortString())
 
 	anyRemoved := false
 
@@ -106,7 +107,7 @@ type certificatesByHostValue struct {
 	wildcard certificates
 }
 
-func (this *certificatesByHostValue) remove(source string) bool {
+func (this *certificatesByHostValue) remove(source support.ObjectReference) bool {
 	return this.direct.remove(source) || this.wildcard.remove(source)
 }
 
@@ -140,7 +141,7 @@ func (this *CertificatesByHost) Find(host value.WildcardSupportingFqdn) Certific
 	return values[shortHost].wildcard.all
 }
 
-func (this *CertificatesByHost) RemoveBySource(source string) ([]value.WildcardSupportingFqdn, error) {
+func (this *CertificatesByHost) RemoveBySource(source support.ObjectReference) (value.WildcardSupportingFqdns, error) {
 	this.mutex.Lock()
 	defer this.mutex.Unlock()
 
@@ -160,7 +161,7 @@ func (this *CertificatesByHost) RemoveBySource(source string) ([]value.WildcardS
 		delete(this.values, host)
 	}
 
-	removedS := make([]value.WildcardSupportingFqdn, len(removed))
+	removedS := make(value.WildcardSupportingFqdns, len(removed))
 	var ri int
 	for host := range removed {
 		removedS[ri] = host
@@ -170,7 +171,7 @@ func (this *CertificatesByHost) RemoveBySource(source string) ([]value.WildcardS
 	return removedS, nil
 }
 
-func (this *CertificatesByHost) Add(source string, certificate tls.Certificate) ([]value.WildcardSupportingFqdn, error) {
+func (this *CertificatesByHost) Add(source support.ObjectReference, certificate tls.Certificate) (value.WildcardSupportingFqdns, error) {
 	this.mutex.Lock()
 	defer this.mutex.Unlock()
 
@@ -205,7 +206,7 @@ func (this *CertificatesByHost) Add(source string, certificate tls.Certificate) 
 		}
 	}
 
-	addedS := make([]value.WildcardSupportingFqdn, len(added))
+	addedS := make(value.WildcardSupportingFqdns, len(added))
 	var ai int
 	for host := range added {
 		addedS[ai] = host
@@ -215,7 +216,7 @@ func (this *CertificatesByHost) Add(source string, certificate tls.Certificate) 
 	return addedS, nil
 }
 
-func (this *CertificatesByHost) add(source string, host value.WildcardSupportingFqdn, certificate *tls.Certificate) bool {
+func (this *CertificatesByHost) add(source support.ObjectReference, host value.WildcardSupportingFqdn, certificate *tls.Certificate) bool {
 	wildcarded := false
 	if strings.HasPrefix(string(host), "*.") {
 		host = host[2:]
@@ -236,7 +237,7 @@ func (this *CertificatesByHost) add(source string, host value.WildcardSupporting
 	}
 }
 
-func (this *CertificatesByHost) AddBytes(source string, certificate, privateKey []byte) ([]value.WildcardSupportingFqdn, error) {
+func (this *CertificatesByHost) AddBytes(source support.ObjectReference, certificate, privateKey []byte) (value.WildcardSupportingFqdns, error) {
 	cert, err := tls.X509KeyPair(certificate, privateKey)
 	if err != nil {
 		return nil, err

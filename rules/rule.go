@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/echocat/lingress/rules/tree"
+	"github.com/echocat/lingress/support"
 	"github.com/echocat/lingress/value"
 	"net"
 	"strings"
@@ -13,7 +14,7 @@ type Rule interface {
 	Host() value.WildcardSupportingFqdn
 	Path() []string
 	PathType() PathType
-	Source() SourceReference
+	Source() support.ObjectReference
 	Backend() net.Addr
 	Options() Options
 	Statistics() *Statistics
@@ -41,9 +42,9 @@ func (this PathType) String() string {
 
 type Predicate func(path []string, r Rule) bool
 
-func PredicateBySource(reference SourceReference) Predicate {
+func PredicateByObjectReference(or support.ObjectReference) Predicate {
 	return func(path []string, r Rule) bool {
-		return reference.Equals(r.Source())
+		return or.Equals(r.Source())
 	}
 }
 
@@ -54,13 +55,13 @@ type rule struct {
 	host       value.WildcardSupportingFqdn
 	path       []string
 	pathType   PathType
-	source     SourceReference
+	source     support.ObjectReference
 	backend    net.Addr
 	options    Options
 	statistics *Statistics
 }
 
-func NewRule(host value.WildcardSupportingFqdn, path []string, pathType PathType, source SourceReference, backend net.Addr, options Options) Rule {
+func NewRule(host value.WildcardSupportingFqdn, path []string, pathType PathType, source support.ObjectReference, backend net.Addr, options Options) Rule {
 	return &rule{
 		host:       host,
 		path:       path,
@@ -93,7 +94,7 @@ func (this *rule) PathType() PathType {
 	return this.pathType
 }
 
-func (this *rule) Source() SourceReference {
+func (this *rule) Source() support.ObjectReference {
 	return this.source
 }
 

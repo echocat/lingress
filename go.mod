@@ -2,8 +2,11 @@ module github.com/echocat/lingress
 
 go 1.21.0
 
+replace github.com/CAFxX/httpcompression => github.com/echocat/go-httpcompression v0.0.10
+
 require (
 	dario.cat/mergo v1.0.0
+	github.com/CAFxX/httpcompression v0.0.10
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/echocat/slf4g v1.5.2
 	github.com/echocat/slf4g-klog v1.5.2
@@ -23,6 +26,7 @@ require (
 
 require (
 	github.com/alecthomas/units v0.0.0-20231202071711-9a357b53e9c9 // indirect
+	github.com/andybalholm/brotli v1.0.6 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -30,9 +34,9 @@ require (
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/evanphx/json-patch v5.7.0+incompatible // indirect
 	github.com/go-logr/logr v1.3.0 // indirect
-	github.com/go-openapi/jsonpointer v0.20.0 // indirect
-	github.com/go-openapi/jsonreference v0.20.2 // indirect
-	github.com/go-openapi/swag v0.22.4 // indirect
+	github.com/go-openapi/jsonpointer v0.20.1 // indirect
+	github.com/go-openapi/jsonreference v0.20.3 // indirect
+	github.com/go-openapi/swag v0.22.5 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
@@ -41,6 +45,7 @@ require (
 	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/klauspost/compress v1.17.4 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect

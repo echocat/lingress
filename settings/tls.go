@@ -5,7 +5,6 @@ import (
 	"github.com/echocat/lingress/support"
 	"github.com/echocat/lingress/value"
 	"regexp"
-	"strings"
 )
 
 func NewTls() (Tls, error) {
@@ -15,7 +14,7 @@ func NewTls() (Tls, error) {
 		SecretLabelSelector: []string{},
 		SecretFieldSelector: []string{},
 		Forced:              value.NewForcibleBool(value.False(), false),
-		FallbackCertificate: false,
+		FallbackCertificate: value.False(),
 	}, nil
 }
 
@@ -25,12 +24,12 @@ type Tls struct {
 	SecretLabelSelector []string           `yaml:"secretLabelSelector,omitempty" json:"secretLabelSelector,omitempty"`
 	SecretFieldSelector []string           `yaml:"secretFieldSelector,omitempty" json:"secretFieldSelector,omitempty"`
 	Forced              value.ForcibleBool `yaml:"forced,omitempty" json:"forced,omitempty"`
-	FallbackCertificate bool               `yaml:"fallbackCertificate,omitempty" json:"fallbackCertificate,omitempty"`
+	FallbackCertificate value.Bool         `yaml:"fallbackCertificate,omitempty" json:"fallbackCertificate,omitempty"`
 }
 
 func (this *Tls) RegisterFlags(fe support.FlagEnabled, appPrefix string) {
 	fe.Flag("tls.secretNames", "Name of the secrets that contains the tls keys and certificates.").
-		PlaceHolder(strings.Join(this.SecretNames, ",")).
+		PlaceHolder("<secret name[,...<secret name>]>").
 		Envar(support.FlagEnvName(appPrefix, "TLS_SECRET_NAMES")).
 		StringsVar(&this.SecretNames)
 	fe.Flag("tls.secretNamePatterns", "Patterns for name of the secrets that contains the tls keys and certificates.").
@@ -50,7 +49,7 @@ func (this *Tls) RegisterFlags(fe support.FlagEnabled, appPrefix string) {
 		Envar(support.FlagEnvName(appPrefix, "TLS_FORCED")).
 		SetValue(&this.Forced)
 	fe.Flag("tls.fallbackCertificate", "If set lingress will use a fallback certificate for every request for which no other certificate can be determined.").
-		PlaceHolder(fmt.Sprint(this.FallbackCertificate)).
+		PlaceHolder(this.FallbackCertificate.String()).
 		Envar(support.FlagEnvName(appPrefix, "TLS_FALLBACK_CERTIFICATE")).
-		BoolVar(&this.FallbackCertificate)
+		SetValue(&this.FallbackCertificate)
 }

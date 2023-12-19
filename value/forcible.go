@@ -35,6 +35,9 @@ func (this Forcible[V, T, MV]) EvaluateOr(other V, def V) V {
 	if other.IsPresent() {
 		return other
 	}
+	if this.value.IsPresent() {
+		return this.value
+	}
 	return def
 }
 
