@@ -53,7 +53,7 @@ jobs:
           mkdir -p var
           [[ "${GITHUB_REF}" =~ ^refs\/tags\/v.+$ ]] && version="${GITHUB_REF/refs\/tags\/v/}" || version=0.1.0
           helm package ./charts/lingress --app-version=v${version} --version=${version} --destination var
-          mv var/lingress-0.9.0.tgz var/lingress-helm-chart.tgz
+          mv var/lingress-*.tgz var/lingress-helm-chart.tgz
           sha256sum -b var/lingress-helm-chart.tgz | cut -d' ' -f1 > var/lingress-helm-chart.tgz.sha256
           tar -xzf var/lingress-0.9.0.tgz lingress/Chart.yaml -O > var/lingress-helm-chart.yaml
 
