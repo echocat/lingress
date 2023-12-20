@@ -12,9 +12,11 @@ metadata:
     {{- with .Values.service.annotations -}}{{- . | toYaml | nindent 4 -}}{{- end }}
 spec:
   ports:
-    - port: {{.Values.service.ports.http}}
+    - name: http
+      port: {{.Values.service.ports.http}}
       targetPort: http
-    - port: {{.Values.service.ports.https}}
+    - name: https
+      port: {{.Values.service.ports.https}}
       targetPort: https
   selector:
     {{- include "lingress.selectorLabels" . | nindent 4 }}

@@ -11,12 +11,21 @@ controller:
     # controller.enabled: `true` if lingress controller should be created
     enabled: true
     # controller.args: list of all settings pass to lingress. See https://github.com/echocat/lingress/blob/main/README.md for details.
-    args:
-        - "--log.level=INFO"
+    args: []
+        # - "--server.http.proxyProtocol.respect=true"
+        # - "--server.https.proxyProtocol.respect=true"
+        # - "--tls.fallbackCertificate=true"
+        # - "--tls.secretLabelSelector=my-public-tls-certificate=true"
+        # - "--accessLog.inline=false"
     ports:
         http: 8080
         https: 8443
         management: 8090
+
+    log:
+        level: info
+        format: json
+        color: always
 
     # controller.kind: Can be either `Deployment` or `DaemonSet`
     kind: Deployment
@@ -54,7 +63,7 @@ service:
     annotations: {}
     labels: {}
 
-    type: ClusterIP
+    type: LoadBalancer
     internalTrafficPolicy: {}
     externalTrafficPolicy: {}
 

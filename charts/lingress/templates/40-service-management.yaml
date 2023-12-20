@@ -12,7 +12,8 @@ metadata:
     {{- with .Values.service.management.annotations -}}{{- . | toYaml | nindent 4 -}}{{- end }}
 spec:
   ports:
-    - port: {{.Values.service.management.ports.management}}
+    - name: management
+      port: {{.Values.service.management.ports.management}}
       targetPort: management
   selector:
     {{- include "lingress.selectorLabels" . | nindent 4 }}

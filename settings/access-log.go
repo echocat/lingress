@@ -9,7 +9,7 @@ import (
 func NewAccessLog() (AccessLog, error) {
 	return AccessLog{
 		QueueSize: 5000,
-		Inline:    value.False(),
+		Inline:    value.True(),
 	}, nil
 }
 

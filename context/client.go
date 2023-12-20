@@ -18,7 +18,6 @@ const (
 	FieldClientUrl       = "url"
 	FieldClientAddress   = "address"
 	FieldClientStatus    = "status"
-	FieldClientStarted   = "started"
 	FieldClientDuration  = "duration"
 )
 
@@ -102,9 +101,6 @@ func (this *Client) ApplyToMap(prefix string, to *map[string]interface{}) {
 	}
 	if s := this.Status; s > 0 {
 		(*to)[prefix+FieldClientStatus] = s
-	}
-	if t := this.Started; t != emptyTime {
-		(*to)[prefix+FieldClientStarted] = t
 	}
 	if d := this.Duration; d > -1 {
 		(*to)[prefix+FieldClientDuration] = d / time.Microsecond

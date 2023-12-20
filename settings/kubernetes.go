@@ -151,7 +151,7 @@ func (this KubeconfigLoader) Load() (*clientcmdapi.Config, error) {
 	}
 
 	if !atLeastOneConfigFound {
-		return nil, fmt.Errorf("there is neither argument --kubeconfig nor environment variable %s provided nor does %s exist", EnvVarKubeconfig, this.DefaultKubeconfig)
+		return nil, fmt.Errorf("there is neither argument --kubernetes.config nor environment variable %s provided nor does %s exist", EnvVarKubeconfig, this.DefaultKubeconfig)
 	}
 
 	return config, nil

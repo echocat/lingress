@@ -40,9 +40,13 @@ spec:
       containers:
         - name: "controller"
           args:
-            - "--server.http.listenAddress={{.Values.controller.ports.http}}"
-            - "--server.https.listenAddress={{.Values.controller.ports.https}}"
-            - "--management.listenAddress={{.Values.controller.ports.management}}"
+            - "--server.http.listenAddress=:{{.Values.controller.ports.http}}"
+            - "--server.https.listenAddress=:{{.Values.controller.ports.https}}"
+            - "--management.listenAddress=:{{.Values.controller.ports.management}}"
+            - "--kubernetes.config=incluster"
+            - "--log.level={{.Values.controller.log.level}}"
+            - "--log.format={{.Values.controller.log.format}}"
+            - "--log.color={{.Values.controller.log.color}}"
             {{- range .Values.controller.args }}
             - {{ . | quote }}
             {{- end }}
@@ -81,7 +85,7 @@ spec:
           {{- end }}
       {{- with .Values.controller.securityContext.fsGroup }}
       securityContext:
-        fsGroup: {{ . | quote }}
+        fsGroup: {{ . }}
       {{- end }}
       {{- with .Values.controller.nodeSelector }}
       nodeSelector:

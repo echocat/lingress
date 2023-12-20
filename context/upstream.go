@@ -12,7 +12,6 @@ import (
 const (
 	FieldUpstreamAddress  = "address"
 	FieldUpstreamStatus   = "status"
-	FieldUpstreamStarted  = "started"
 	FieldUpstreamDuration = "duration"
 	FieldUpstreamUrl      = "url"
 	FieldUpstreamMethod   = "method"
@@ -80,9 +79,6 @@ func (this *Upstream) ApplyToMap(r rules.Rule, prefix string, to *map[string]int
 	}
 	if s := this.Status; s > 0 {
 		(*to)[prefix+FieldUpstreamStatus] = s
-	}
-	if t := this.Started; t != emptyTime {
-		(*to)[prefix+FieldUpstreamStarted] = t
 	}
 	if d := this.Duration; d > 0 {
 		(*to)[prefix+FieldUpstreamDuration] = d / time.Microsecond

@@ -128,7 +128,7 @@ func Test_Environment_get_with_nonExisting_defaultConfig_and_envVar_fails(t *tes
 
 	_, err := env.get()
 
-	g.Expect(err).To(MatchError("there is neither argument --kubeconfig nor environment variable KUBE_CONFIG provided nor does nonExisting.yml exist"))
+	g.Expect(err).To(MatchError("there is neither argument --kubernetes.config nor environment variable KUBE_CONFIG provided nor does nonExisting.yml exist"))
 }
 
 func Test_Environment_get_with_mock_with_set_context_succeeds(t *testing.T) {
