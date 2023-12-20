@@ -17,7 +17,7 @@ metadata:
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
-    kind: {{.Values.controller.kind}}
+    kind: {{.Values.controller.kind | default `Deployment`}}
     name: {{ template "lingress.fullname" . }}
   {{- with .Values.autoscaler.minReplicas }}
   minReplicas: {{.}}

@@ -1,6 +1,10 @@
 {{- if .Values.controller.enabled -}}
 apiVersion: apps/v1
+{{- if not .Values.controller.kind}}
 kind: Deployment
+{{- else }}
+kind: {{.Values.controller.kind}}
+{{- end }}
 metadata:
   name: {{ template "lingress.fullname" . }}
   namespace: {{ template "lingress.namespace" . }}
