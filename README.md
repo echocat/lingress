@@ -31,14 +31,6 @@ In contrast to the most other ingress controllers for Kubernetes, this one does 
 1. [Kubernetes cluster with API v1.22.0+](https://kubernetes.io/releases/) (or API compatible such as [k3s](https://k3s.io/) or [OpenShift Kubernetes Engine](https://docs.openshift.com/container-platform/latest/welcome/oke_about.html))
 2. [Helm v3.0.0+](https://helm.sh/) 
 
-## Contributing
-
-lingress is an open source project by [echocat](https://echocat.org).
-So if you want to make this project even better, you can contribute to this project on [GitHub](https://github.com/echocat/lingress)
-by [fork us](https://github.com/echocat/lingress/fork).
-
-If you commit code to this project, you have to accept that this code will be released under the [license](#license) of this project.
-
 ## More topics
 * [Setup](doc/setup.md)
 * [Configuration](doc/configuration.md)
