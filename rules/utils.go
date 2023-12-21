@@ -7,10 +7,6 @@ import (
 	"strings"
 )
 
-const (
-	ingressClass = "lingress"
-)
-
 var (
 	ErrIllegalPath = errors.New("illegal path")
 )

@@ -15,7 +15,7 @@ controller:
         # - "--server.http.proxyProtocol.respect=true"
         # - "--server.https.proxyProtocol.respect=true"
         # - "--tls.fallbackCertificate=true"
-        # - "--tls.secretLabelSelector=my-public-tls-certificate=true"
+        # - "--tls.secretLabelSelector=my-public-tls-certificates=true"
         # - "--accessLog.inline=false"
     ports:
         http: 8080
