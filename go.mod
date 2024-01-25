@@ -11,7 +11,7 @@ require (
 	github.com/echocat/slf4g v1.5.2
 	github.com/echocat/slf4g-klog v1.5.2
 	github.com/echocat/slf4g/native v1.5.2
-	github.com/google/uuid v1.5.0
+	github.com/google/uuid v1.6.0
 	github.com/nicksnyder/go-i18n/v2 v2.3.0
 	github.com/onsi/gomega v1.31.1
 	github.com/pires/go-proxyproto v0.7.0
