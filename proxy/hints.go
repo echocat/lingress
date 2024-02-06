@@ -19,6 +19,7 @@ func UpstreamHintsInterceptor(ctx *context.Context) (proceed bool, err error) {
 	if u, err := ctx.Client.RequestedUrl(); err != nil {
 		return false, err
 	} else if u != nil {
+		ctx.Upstream.Request.Host = u.Host
 		h.Set("Host", u.Host)
 		h.Set("X-Forwarded-Host", u.Host)
 		h.Set("X-Forwarded-Proto", u.Scheme)
