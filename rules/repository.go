@@ -413,7 +413,7 @@ func (this *repositoryImplState) ingressToBackend(source support.ObjectReference
 		return nil, nil
 	}
 
-	if service.Spec.Type != v1.ServiceTypeClusterIP {
+	if service.Spec.Type != v1.ServiceTypeClusterIP && service.Spec.Type != "" {
 		usingLogger.
 			With("serviceType", service.Spec.Type).
 			Warn("Unsupported serviceType; ignoring...")
