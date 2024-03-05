@@ -17,8 +17,9 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/echocat/go-httpcompression v0.0.10 h1:LyQbJjKcp2y5LsvkA54gHlkWImhLuOHmLcXHptmVFio=
 github.com/echocat/go-httpcompression v0.0.10/go.mod h1:jR/lmDAPsTD6lQaDw7Q8SnmtyUaJyEE2nwVCmyt3z0o=
-github.com/echocat/slf4g v1.5.2 h1:QBdnMI95Ju9j0VHsZ7IHGFKqrsF1EBN1n9EqWIjM4dw=
 github.com/echocat/slf4g v1.5.2/go.mod h1:YvF/d1TcPvT+/xiHStLHPI4xPT1GGeEmPczn2MSljNA=
+github.com/echocat/slf4g v1.5.3 h1:DdQGyHwdv3+hxRWJh+ZAikUDMVt4TWQg//kcsYJ1SLk=
+github.com/echocat/slf4g v1.5.3/go.mod h1:YvF/d1TcPvT+/xiHStLHPI4xPT1GGeEmPczn2MSljNA=
 github.com/echocat/slf4g-klog v1.5.2 h1:Cl6yiz62v7gIQPvatZDrtruFM+GXuQWI04xyz7xk40I=
 github.com/echocat/slf4g-klog v1.5.2/go.mod h1:I04Vv0AQFUaPQjg/um14lwpp12TxvHklhxLE0Fp7pMk=
 github.com/echocat/slf4g-logr v1.5.2 h1:Ufeyeg3FNTLXlDdfEKHCiw2TF1CmVeIDkbMUwnqqOWQ=

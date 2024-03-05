@@ -8,7 +8,7 @@ require (
 	dario.cat/mergo v1.0.0
 	github.com/CAFxX/httpcompression v0.0.10
 	github.com/alecthomas/kingpin/v2 v2.4.0
-	github.com/echocat/slf4g v1.5.2
+	github.com/echocat/slf4g v1.5.3
 	github.com/echocat/slf4g-klog v1.5.2
 	github.com/echocat/slf4g/native v1.5.2
 	github.com/google/uuid v1.6.0
