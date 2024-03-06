@@ -24,8 +24,8 @@ github.com/echocat/slf4g-klog v1.5.2 h1:Cl6yiz62v7gIQPvatZDrtruFM+GXuQWI04xyz7xk
 github.com/echocat/slf4g-klog v1.5.2/go.mod h1:I04Vv0AQFUaPQjg/um14lwpp12TxvHklhxLE0Fp7pMk=
 github.com/echocat/slf4g-logr v1.5.2 h1:Ufeyeg3FNTLXlDdfEKHCiw2TF1CmVeIDkbMUwnqqOWQ=
 github.com/echocat/slf4g-logr v1.5.2/go.mod h1:nk6kJyOATGbauhz9e+4KZLUL2PEP163U3MPsO+jxCNo=
-github.com/echocat/slf4g/native v1.5.2 h1:DFXpybP8d3GcflOngj0H7NymJ+McJanNlQRxWL9yEfA=
-github.com/echocat/slf4g/native v1.5.2/go.mod h1:vCZn/wnp0xfdXlm5W1DwJI2SaLBc6NKaAqtNqe1y0VY=
+github.com/echocat/slf4g/native v1.5.3 h1:eR14gqITxjoQ3Q5BYTInAKrDR9O7H1YgOn9tEki48F8=
+github.com/echocat/slf4g/native v1.5.3/go.mod h1:8hMNlQaGVhqjB97Ykh0dqsxcgYFBSGQkWkv2uC3JI5c=
 github.com/emicklei/go-restful/v3 v3.11.0 h1:rAQeMHw1c7zTmncogyy8VvRZwtkmkZ4FxERmMY4rD+g=
 github.com/emicklei/go-restful/v3 v3.11.0/go.mod h1:6n3XBCmQQb25CM2LCACGz8ukIrRry+4bhvbpWn3mrbc=
 github.com/evanphx/json-patch v5.7.0+incompatible h1:vgGkfT/9f8zE6tvSCe74nfpAVDQ2tG6yudJd8LBksgI=
