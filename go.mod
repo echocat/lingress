@@ -14,7 +14,7 @@ require (
 	github.com/echocat/slf4g/native v1.5.3
 	github.com/google/uuid v1.6.0
 	github.com/nicksnyder/go-i18n/v2 v2.4.0
-	github.com/onsi/gomega v1.33.0
+	github.com/onsi/gomega v1.33.1
 	github.com/pires/go-proxyproto v0.7.0
 	github.com/prometheus/client_golang v1.19.0
 	golang.org/x/net v0.24.0
