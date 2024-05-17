@@ -20,9 +20,9 @@ require (
 	golang.org/x/net v0.25.0
 	golang.org/x/text v0.15.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.30.0
+	k8s.io/api v0.30.1
 	k8s.io/apimachinery v0.30.1
-	k8s.io/client-go v0.30.0
+	k8s.io/client-go v0.30.1
 )
 
 require (
