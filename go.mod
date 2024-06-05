@@ -1,7 +1,7 @@
 module github.com/echocat/lingress
 
 go 1.21.0
-toolchain go1.22.2
+toolchain go1.22.3
 
 replace github.com/CAFxX/httpcompression => github.com/echocat/go-httpcompression v0.0.10
 
@@ -18,7 +18,7 @@ require (
 	github.com/pires/go-proxyproto v0.7.0
 	github.com/prometheus/client_golang v1.19.1
 	golang.org/x/net v0.25.0
-	golang.org/x/text v0.15.0
+	golang.org/x/text v0.16.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.30.1
 	k8s.io/apimachinery v0.30.1
