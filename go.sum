@@ -24,8 +24,8 @@ github.com/echocat/slf4g-klog v1.6.0 h1:4Z7edYcDs9N8SqcATiKa0XUGbeSj9mnW3Nka+IK2
 github.com/echocat/slf4g-klog v1.6.0/go.mod h1:KMm3HSAJuKfI5kUa8laBdBORVy8eZyqS2WUUCu3pe38=
 github.com/echocat/slf4g-logr v1.5.3 h1:9bTuj9dAdR56tktPJoPwAdcCGGcarEtPRN6i2kwFq00=
 github.com/echocat/slf4g-logr v1.5.3/go.mod h1:8wEreDy+ZQTW7J+eZNm9rNk3t15Jg1XbxbiMPFbJd4Q=
-github.com/echocat/slf4g/native v1.6.0 h1:kLVjwVps5gf4xoVQJQXBR+pYbRF+ZmuVuqMJGerZ0aY=
-github.com/echocat/slf4g/native v1.6.0/go.mod h1:Ueg542Lc2H1U7g0PqIHpZj39RPau4k0qbVTVTxNrbKA=
+github.com/echocat/slf4g/native v1.6.1 h1:g8Y8abLWwFkSQit4JQUvPO1MqpHUiPFZZINjkvPzY50=
+github.com/echocat/slf4g/native v1.6.1/go.mod h1:ijM/ey57jUdK7k0uqbhfJJYK6K8DtbEp+HfyDMBO63E=
 github.com/emicklei/go-restful/v3 v3.11.0 h1:rAQeMHw1c7zTmncogyy8VvRZwtkmkZ4FxERmMY4rD+g=
 github.com/emicklei/go-restful/v3 v3.11.0/go.mod h1:6n3XBCmQQb25CM2LCACGz8ukIrRry+4bhvbpWn3mrbc=
 github.com/evanphx/json-patch v5.7.0+incompatible h1:vgGkfT/9f8zE6tvSCe74nfpAVDQ2tG6yudJd8LBksgI=
@@ -143,8 +143,8 @@ golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9/go.mod h1:RxMgew5VJxzue5/jJ
 golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
-golang.org/x/sys v0.23.0 h1:YfKFowiIMvtgl1UERQoTPPToxltDeZfbj4H7dVUCwmM=
-golang.org/x/sys v0.23.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+golang.org/x/sys v0.24.0 h1:Twjiwq9dn6R1fQcyiK+wQyHWfaz/BJB+YIpzU/Cv3Xg=
+golang.org/x/sys v0.24.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
 golang.org/x/term v0.23.0 h1:F6D4vR+EHoL9/sWAWgAR1H2DcHr4PareCbAaCo1RpuU=
 golang.org/x/term v0.23.0/go.mod h1:DgV24QBUrK6jhZXl+20l6UWznPlwAHm1Q1mGHtydmSk=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
