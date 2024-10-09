@@ -16,7 +16,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/nicksnyder/go-i18n/v2 v2.4.0
 	github.com/onsi/gomega v1.34.2
-	github.com/pires/go-proxyproto v0.7.0
+	github.com/pires/go-proxyproto v0.8.0
 	github.com/prometheus/client_golang v1.20.4
 	golang.org/x/net v0.30.0
 	golang.org/x/text v0.19.0
