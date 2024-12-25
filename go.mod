@@ -14,7 +14,7 @@ require (
 	github.com/echocat/slf4g/native v1.6.1
 	github.com/google/uuid v1.6.0
 	github.com/nicksnyder/go-i18n/v2 v2.4.1
-	github.com/onsi/gomega v1.36.1
+	github.com/onsi/gomega v1.36.2
 	github.com/pires/go-proxyproto v0.8.0
 	github.com/prometheus/client_golang v1.20.5
 	golang.org/x/net v0.33.0
@@ -61,7 +61,7 @@ require (
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/term v0.27.0 // indirect
 	golang.org/x/time v0.7.0 // indirect
-	google.golang.org/protobuf v1.35.1 // indirect
+	google.golang.org/protobuf v1.36.1 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
