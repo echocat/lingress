@@ -11,7 +11,7 @@ require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/echocat/slf4g v1.6.2
 	github.com/echocat/slf4g-klog v1.6.1
-	github.com/echocat/slf4g/native v1.6.1
+	github.com/echocat/slf4g/native v1.6.2
 	github.com/google/uuid v1.6.0
 	github.com/nicksnyder/go-i18n/v2 v2.4.1
 	github.com/onsi/gomega v1.36.2
