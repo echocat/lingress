@@ -18,13 +18,12 @@ github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/echocat/go-httpcompression v0.0.10 h1:LyQbJjKcp2y5LsvkA54gHlkWImhLuOHmLcXHptmVFio=
 github.com/echocat/go-httpcompression v0.0.10/go.mod h1:jR/lmDAPsTD6lQaDw7Q8SnmtyUaJyEE2nwVCmyt3z0o=
-github.com/echocat/slf4g v1.6.1/go.mod h1:YvF/d1TcPvT+/xiHStLHPI4xPT1GGeEmPczn2MSljNA=
 github.com/echocat/slf4g v1.6.3 h1:tkDzxbC+r2xRuZdjrrs6Nqgwt58NxB+Ha0x/oxMfUC4=
 github.com/echocat/slf4g v1.6.3/go.mod h1:YvF/d1TcPvT+/xiHStLHPI4xPT1GGeEmPczn2MSljNA=
-github.com/echocat/slf4g-klog v1.6.1 h1:F0t+N4VTu4flwicjwGPB0K6/BsbhehcOnID3+Ke7uY0=
-github.com/echocat/slf4g-klog v1.6.1/go.mod h1:0SG7K0aNIQNTCU+6017WJWSTplqGpxrK58c5jbJ1KNM=
-github.com/echocat/slf4g-logr v1.6.1 h1:+rqHn/w6LI3v3NVLPsQHupMzgU5RBhnO48F0hsMLaz8=
-github.com/echocat/slf4g-logr v1.6.1/go.mod h1:v3LwXvBJoyOoyKjMhxAOh3L5kfBPSlKcwWVXNYLAe8A=
+github.com/echocat/slf4g-klog v1.6.3 h1:ff3ljtNoZk827Uyn0qUR24zqX/jjw16QvJHFUQ9Z3bU=
+github.com/echocat/slf4g-klog v1.6.3/go.mod h1:PPweDaRldHSs0FKftx1yzL0f6DNuvwI43H3bNnWjwC8=
+github.com/echocat/slf4g-logr v1.6.3 h1:pIhQYQ4PWyOqu/Abqx5EqlTOLbIxui+tfUJcI9gws7M=
+github.com/echocat/slf4g-logr v1.6.3/go.mod h1:53yI9HE4aDTwRk4WanHSkt614IzFDWgmx0U8CIok0GM=
 github.com/echocat/slf4g/native v1.6.3 h1:qrtaxuiTN7UtzW/NZRAYh8FUkpbrG9CKv5EBoVSk4dI=
 github.com/echocat/slf4g/native v1.6.3/go.mod h1:nttm/tfuBoiBR05xqp+e/5a2hJYQsRXuLDg9LqOoZbs=
 github.com/emicklei/go-restful/v3 v3.12.1 h1:PJMDIM/ak7btuL8Ex0iYET9hxM3CI2sjZtzpL63nKAU=
