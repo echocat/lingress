@@ -6,7 +6,7 @@ toolchain go1.24.1
 replace github.com/CAFxX/httpcompression => github.com/echocat/go-httpcompression v0.0.10
 
 require (
-	dario.cat/mergo v1.0.1
+	dario.cat/mergo v1.0.2
 	github.com/CAFxX/httpcompression v0.0.10
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/echocat/slf4g v1.6.3
