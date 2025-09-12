@@ -2,8 +2,6 @@ module github.com/echocat/lingress
 
 go 1.24.0
 
-toolchain go1.24.1
-
 replace github.com/CAFxX/httpcompression => github.com/echocat/go-httpcompression v0.0.10
 
 require (
