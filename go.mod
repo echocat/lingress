@@ -10,7 +10,7 @@ require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/echocat/slf4g v1.7.0
 	github.com/echocat/slf4g-klog v1.6.3
-	github.com/echocat/slf4g/native v1.7.0
+	github.com/echocat/slf4g/native v1.8.3
 	github.com/google/uuid v1.6.0
 	github.com/nicksnyder/go-i18n/v2 v2.6.1
 	github.com/onsi/gomega v1.38.3
