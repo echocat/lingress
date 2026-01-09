@@ -9,7 +9,7 @@ require (
 	github.com/CAFxX/httpcompression v0.0.10
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/echocat/slf4g v1.8.3
-	github.com/echocat/slf4g-klog v1.6.3
+	github.com/echocat/slf4g-klog v1.8.3
 	github.com/echocat/slf4g/native v1.8.3
 	github.com/google/uuid v1.6.0
 	github.com/nicksnyder/go-i18n/v2 v2.6.1
@@ -30,7 +30,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/echocat/slf4g-logr v1.6.3 // indirect
+	github.com/echocat/slf4g-logr v1.8.3 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
