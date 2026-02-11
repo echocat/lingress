@@ -17,7 +17,7 @@ require (
 	github.com/pires/go-proxyproto v0.10.0
 	github.com/prometheus/client_golang v1.23.2
 	golang.org/x/net v0.49.0
-	golang.org/x/text v0.33.0
+	golang.org/x/text v0.34.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.35.0
 	k8s.io/apimachinery v0.35.0
