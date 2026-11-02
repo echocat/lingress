@@ -12,7 +12,7 @@ require (
 	github.com/echocat/slf4g-klog v1.8.3
 	github.com/echocat/slf4g/native v1.9.0
 	github.com/google/uuid v1.6.0
-	github.com/nicksnyder/go-i18n/v2 v2.6.1
+	github.com/nicksnyder/go-i18n/v2 v2.7.0
 	github.com/onsi/gomega v1.44.0
 	github.com/pires/go-proxyproto v0.16.0
 	github.com/prometheus/client_golang v1.25.0
