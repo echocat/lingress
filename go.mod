@@ -1,6 +1,6 @@
 module github.com/echocat/lingress
 
-go 1.26.0
+go 1.26.9
 
 replace github.com/CAFxX/httpcompression => github.com/echocat/go-httpcompression v0.0.10
 
@@ -14,7 +14,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/nicksnyder/go-i18n/v2 v2.6.1
 	github.com/onsi/gomega v1.44.0
-	github.com/pires/go-proxyproto v0.15.0
+	github.com/pires/go-proxyproto v0.16.0
 	github.com/prometheus/client_golang v1.25.0
 	golang.org/x/net v0.61.0
 	golang.org/x/text v0.43.0
