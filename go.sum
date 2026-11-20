@@ -25,8 +25,8 @@ github.com/echocat/slf4g-klog v1.8.3 h1:aiP56jPa1P6FZHTE040rFlIjUwx+zDAmm5ZLafPD
 github.com/echocat/slf4g-klog v1.8.3/go.mod h1:3TR8dL3FSXjrVXXIG4M9l7nXep5x5dJXsUFt/uf0S5g=
 github.com/echocat/slf4g-logr v1.8.3 h1:T0H6OKHA3pi3Y4pVABXctx6wQbmREitJg2BfVYsByHc=
 github.com/echocat/slf4g-logr v1.8.3/go.mod h1:dfWLxUVDjteITMzQu8nHiy7SXNM2PmxKuu5fbsOYtAE=
-github.com/echocat/slf4g/native v1.9.0 h1:u+l6UmWXTZ99Z53VawPB+vupDZHF6YmG/p919b43FrE=
-github.com/echocat/slf4g/native v1.9.0/go.mod h1:tgpmGHgRWSdgCjzSP4WjFgYUyguM+HaHJ0/2d8VmLdM=
+github.com/echocat/slf4g/native v1.9.1 h1:h8PAgJmPylNcJY95IZ9HIyBNhfXKubjJ2Fr0UAXAwlg=
+github.com/echocat/slf4g/native v1.9.1/go.mod h1:8X1MV6IEyNrnC8ZwQrzHQoKKRb4TY228we8PHmyk05E=
 github.com/emicklei/go-restful/v3 v3.13.0 h1:C4Bl2xDndpU6nJ4bc1jXd+uTmYPVUwkD6bFY/oTyCes=
 github.com/emicklei/go-restful/v3 v3.13.0/go.mod h1:6n3XBCmQQb25CM2LCACGz8ukIrRry+4bhvbpWn3mrbc=
 github.com/fxamacker/cbor/v2 v2.9.1 h1:2rWm8B193Ll4VdjsJY28jxs70IdDsHRWgQYAI80+rMQ=
